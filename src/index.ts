@@ -1,22 +1,33 @@
 import { BinanceRestClient } from './api/rest-client';
+import { BinanceWSClient } from './api/ws-client';
 
 async function main() {
-    const client = new BinanceRestClient();
-    console.log("Conectando a Binance Spot Testnet...");
-    
+    console.log("Starting Binance Bot Initialization...\n");
+
+    // 1. Verify REST Connection and Credentials
+    const restClient = new BinanceRestClient();
     try {
-        const accountData = await client.getAccountBalance();
-        console.log("¡Conexión exitosa! Estos son tus activos asignados en la Testnet:");
-        
-        // Filtramos para mostrar solo las monedas donde Binance te asignó saldo ficticio
-        const activeBalances = accountData.balances.filter(
-            (asset: any) => parseFloat(asset.free) > 0 || parseFloat(asset.locked) > 0
-        );
-        
-        console.table(activeBalances);
+        await restClient.getAccountBalance();
+        console.log("✅ REST API Authentication successful.");
     } catch (error) {
-        console.error("Fallo en la ejecución principal.");
+        console.error("❌ REST API Authentication failed. Check your .env keys.");
+        process.exit(1);
     }
+
+    // 2. Start the Sensor (WebSocket)
+    // We listen to the BTCUSDT order book best bid/ask
+    const symbol = 'btcusdt';
+    const streamType = 'bookTicker';
+    
+    console.log(`\nConnecting to live order book for ${symbol.toUpperCase()}...`);
+    const wsClient = new BinanceWSClient(`${symbol}@${streamType}`);
+
+    // Graceful shutdown on Ctrl+C
+    process.on('SIGINT', () => {
+        console.log("\nShutting down bot...");
+        wsClient.close();
+        process.exit(0);
+    });
 }
 
 main();
