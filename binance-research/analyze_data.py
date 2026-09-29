@@ -5,11 +5,11 @@ import os
 def load_and_analyze_klines(symbol: str, timeframe: str):
     print(f"Hunting for {symbol} {timeframe} data files...")
     
-    # Recursively search for ALL zip files anywhere inside the ./data directory
-    all_zips = glob.glob("./data/**/*.zip", recursive=True)
+    # Recursively search for ALL csv files anywhere inside the ./data directory
+    all_csvs = glob.glob("./data/**/*.csv", recursive=True)
     
     # Filter for the specific symbol and timeframe (e.g., looking for "BTCUSDT" and "-1h-")
-    files = [f for f in all_zips if symbol in f and f"-{timeframe}-" in f]
+    files = [f for f in all_csvs if symbol in f and f"-{timeframe}-" in f]
     
     if not files:
         print("No data files found. Here is the actual folder structure:")
