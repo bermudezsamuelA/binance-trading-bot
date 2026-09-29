@@ -1,57 +1,115 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Optional
+import zmq
+import json
+import pandas as pd
+import os
 import time
 
-app = FastAPI(
-    title="Quantitative Strategy Engine",
-    description="Python backend providing signals and spread parameters to the Node.js execution bot.",
-    version="1.0.0"
-)
+LEDGER_DIR = "./orders"
+LEDGER_FILE = f"{LEDGER_DIR}/trades.csv"
 
-# Request schema: What Node.js sends from its WebSocket stream
-class MarketState(BaseModel):
-    symbol: str
-    bid_price: float
-    ask_price: float
-    bid_qty: float
-    ask_qty: float
-    timestamp: Optional[int] = None
+def init_ledger():
+    if not os.path.exists(LEDGER_DIR):
+        os.makedirs(LEDGER_DIR)
+        print("Created 'orders' directory.")
+        
+    if not os.path.exists(LEDGER_FILE):
+        df = pd.DataFrame(columns=[
+            "order_id", "symbol", "action", "entry_price", 
+            "take_profit", "stop_loss", "quantity", "status", "timestamp"
+        ])
+        df.to_csv(LEDGER_FILE, index=False)
+        print("Initialized empty trades.csv ledger.")
 
-# Response schema: What Node.js receives to place orders
-class StrategySignal(BaseModel):
-    symbol: str
-    action: str              # "HOLD", "BUY", "SELL", "PROVIDE_LIQUIDITY"
-    target_bid_price: float  # Limit buy order placement
-    target_ask_price: float  # Limit sell order placement
-    spread_pct: float        # Calculated spread percentage
-    confidence: float        # Signal strength (0.0 to 1.0)
+def handle_request(message: dict):
+    req_type = message.get("type")
+    
+    if req_type == "roster":
+        base_roster = ["BTCUSDT", "ETHUSDT"]
+        try:
+            df = pd.read_csv(LEDGER_FILE)
+            if not df.empty and 'status' in df.columns:
+                open_trades = df[df['status'] == 'OPEN']['symbol'].tolist()
+                return list(set(base_roster + open_trades))
+        except:
+            pass
+        return base_roster
+    
+    elif req_type == "sync_positions":
+        try:
+            df = pd.read_csv(LEDGER_FILE)
+            if not df.empty and 'status' in df.columns:
+                # Convert the rows where status is OPEN into a list of dictionaries
+                open_trades = df[df['status'] == 'OPEN'].to_dict(orient='records')
+                return open_trades
+        except:
+            pass
+        return []
+        
+    elif req_type == "evaluate":
+        payload = message.get("payload", {})
+        symbol = payload.get("symbol")
+        current_price = payload.get("current_price")
+        
+        # Hardcoded strategy logic (To be updated later)
+        entry = current_price * 0.999
+        tp = entry * 1.02
+        sl = entry * 0.99
+        
+        return {
+            "symbol": symbol.upper(),
+            "action": "BUY", 
+            "entry_price": round(entry, 2),
+            "take_profit": round(tp, 2),
+            "stop_loss": round(sl, 2)
+        }
+        
+    elif req_type == "ledger_open":
+        trade = message.get("payload", {})
+        new_row = pd.DataFrame([{
+            "order_id": trade["order_id"],
+            "symbol": trade["symbol"].upper(),
+            "action": trade["action"],
+            "entry_price": trade["entry_price"],
+            "take_profit": trade["take_profit"],
+            "stop_loss": trade["stop_loss"],
+            "quantity": trade["quantity"],
+            "status": "OPEN",
+            "timestamp": int(time.time() * 1000)
+        }])
+        new_row.to_csv(LEDGER_FILE, mode='a', header=False, index=False)
+        print(f"Logged OPEN trade for {trade['symbol']} (ID: {trade['order_id']})")
+        return {"status": "logged"}
+        
+    elif req_type == "ledger_close":
+        trade = message.get("payload", {})
+        order_id = trade.get("order_id")
+        try:
+            df = pd.read_csv(LEDGER_FILE)
+            if not df.empty and 'order_id' in df.columns:
+                df.loc[df['order_id'] == order_id, 'status'] = 'CLOSED'
+                df.to_csv(LEDGER_FILE, index=False)
+                print(f"Marked trade ID {order_id} as CLOSED in ledger.")
+            return {"status": "updated"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
-@app.get("/")
-def health_check():
-    return {
-        "status": "online",
-        "service": "strategy-engine",
-        "timestamp": int(time.time() * 1000)
-    }
+    return {"error": "Unknown request type"}
 
-@app.post("/strategy/evaluate", response_model=StrategySignal)
-def evaluate_market_state(state: MarketState):
-    """
-    Receives live ticker data from Node.js, computes analytical metrics,
-    and returns precise order placement guidelines.
-    """
-    mid_price = (state.bid_price + state.ask_price) / 2.0
-    current_spread = ((state.ask_price - state.bid_price) / mid_price) * 100.0
-
-    # Baseline placeholder calculation (to be replaced with statistical model)
-    target_spread_offset = mid_price * 0.001  # 0.10% distance from mid price
-
-    return StrategySignal(
-        symbol=state.symbol.upper(),
-        action="PROVIDE_LIQUIDITY",
-        target_bid_price=round(mid_price - target_spread_offset, 2),
-        target_ask_price=round(mid_price + target_spread_offset, 2),
-        spread_pct=round(current_spread, 4),
-        confidence=0.85
-    )
+if __name__ == "__main__":
+    init_ledger()
+    
+    context = zmq.Context()
+    socket = context.socket(zmq.REP)
+    socket.bind("tcp://127.0.0.1:5555")
+    
+    print("ZeroMQ Strategy Engine running on tcp://127.0.0.1:5555")
+    
+    while True:
+        raw_msg = socket.recv_string()
+        try:
+            message = json.loads(raw_msg)
+            response = handle_request(message)
+            socket.send_string(json.dumps(response))
+        except Exception as e:
+            print(f"Error processing message: {e}")
+            socket.send_string(json.dumps({"error": str(e)}))

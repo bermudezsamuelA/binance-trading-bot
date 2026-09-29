@@ -31,7 +31,7 @@ def load_and_analyze_klines(symbol: str, timeframe: str):
     master_df = pd.concat(dfs, ignore_index=True)
 
     # Clean and format the timeline
-    master_df['open_time'] = pd.to_datetime(master_df['open_time'], unit='ms')
+    master_df['open_time'] = pd.to_datetime(master_df['open_time'].astype(float), unit='ms')
     master_df.set_index('open_time', inplace=True)
     master_df.sort_index(inplace=True)
     
