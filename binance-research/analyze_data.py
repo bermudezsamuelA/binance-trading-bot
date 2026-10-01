@@ -1,6 +1,8 @@
+#analyze_data.py
 import pandas as pd
 import glob
 import os
+from config import ACTIVE_ROSTER
 
 def load_and_analyze_klines(symbol: str, timeframe: str):
     print(f"Hunting for {symbol} {timeframe} data files...")
@@ -50,4 +52,4 @@ def load_and_analyze_klines(symbol: str, timeframe: str):
     return master_df
 
 if __name__ == '__main__':
-    df = load_and_analyze_klines("BTCUSDT", "1h")
+    df = load_and_analyze_klines(ACTIVE_ROSTER, "1h")

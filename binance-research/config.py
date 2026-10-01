@@ -1,0 +1,2 @@
+# config.py
+ACTIVE_ROSTER = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT"]

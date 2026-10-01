@@ -16,13 +16,12 @@ export class BinanceWSClient {
     private baseUrl = 'wss://stream.testnet.binance.vision/stream?streams=';
     private restClient = new BinanceRestClient();
     
-    // Tracks active trades by symbol
     private activePositions: Map<string, Position> = new Map();
-    // Throttle / cooldown tracker per symbol
     private lastEvaluationTime: Map<string, number> = new Map();
 
     constructor(roster: string[]) {
-        const streams = roster.map(symbol => `${symbol.toLowerCase()}@bookTicker`).join('/');
+        // Cambiamos a kline_1m para obtener OHLCV completo
+        const streams = roster.map(symbol => `${symbol.toLowerCase()}@kline_1m`).join('/');
         const url = `${this.baseUrl}${streams}`;
         
         this.ws = new WebSocket(url);
@@ -31,41 +30,50 @@ export class BinanceWSClient {
 
     private initializeEvents() {
         this.ws.on('open', () => {
-            console.log(`🟢 WebSocket connected to combined stream.`);
+            console.log(`[WS] WebSocket connected to combined stream.`);
         });
 
         this.ws.on('message', async (data: WebSocket.RawData) => {
             try {
                 const parsedData = JSON.parse(data.toString());
-                if (parsedData.data && parsedData.data.u) {
+                // Validamos que sea un evento de vela (kline)
+                if (parsedData.data && parsedData.data.e === 'kline') {
                     await this.handleMarketData(parsedData.data);
                 }
             } catch (err) {
-                // Ignore parse hiccups on heartbeat frames
+                // Ignorar errores de parseo en heartbeats
             }
         });
 
-        this.ws.on('error', (error) => console.error('🔴 Error de WebSocket:', error));
-        this.ws.on('close', () => console.log('⚫ Conexión WebSocket cerrada.'));
+        this.ws.on('error', (error) => console.error('[WS] Error:', error));
+        this.ws.on('close', () => console.log('[WS] Connection closed.'));
     }
 
     private async handleMarketData(data: any) {
         const symbol = data.s;
-        const currentPrice = (parseFloat(data.b) + parseFloat(data.a)) / 2;
+        const kline = data.k;
+        const currentPrice = parseFloat(kline.c);
 
-        // 1. POSITION MANAGEMENT: If active, monitor TP/SL
+        // Empaquetamos la data completa para el ML y VWAP
+        const marketData = {
+            open: parseFloat(kline.o),
+            high: parseFloat(kline.h),
+            low: parseFloat(kline.l),
+            close: currentPrice,
+            volume: parseFloat(kline.v)
+        };
+
         if (this.activePositions.has(symbol)) {
             await this.manageExistingPosition(symbol, currentPrice);
             return; 
         }
 
-        // 2. SIGNAL DISCOVERY: Check if cooled down (minimum 5s)
         const now = Date.now();
         const lastEval = this.lastEvaluationTime.get(symbol) || 0;
         
         if (now - lastEval > 5000) {
             this.lastEvaluationTime.set(symbol, now);
-            await this.evaluateNewTrade(symbol, currentPrice, data.E);
+            await this.evaluateNewTrade(symbol, marketData, data.E);
         }
     }
 
@@ -73,27 +81,27 @@ export class BinanceWSClient {
         const position = this.activePositions.get(symbol)!;
 
         if (currentPrice >= position.takeProfit) {
-            console.log(`\n💰 [TAKE PROFIT HIT] ${symbol} @ ${currentPrice}. Exiting trade.`);
+            console.log(`\n[TAKE PROFIT HIT] ${symbol} @ ${currentPrice}. Exiting trade.`);
             await this.closePosition(symbol, position, currentPrice);
         } else if (currentPrice <= position.stopLoss) {
-            console.log(`\n🛡️ [STOP LOSS HIT] ${symbol} @ ${currentPrice}. Cutting losses.`);
+            console.log(`\n[STOP LOSS HIT] ${symbol} @ ${currentPrice}. Cutting losses.`);
             await this.closePosition(symbol, position, currentPrice);
         }
     }
 
-    private async evaluateNewTrade(symbol: string, currentPrice: number, timestamp: number) {
+    private async evaluateNewTrade(symbol: string, marketData: any, timestamp: number) {
         try {
-            // ZeroMQ Request to Python Brain
+            // Enviamos el market_data completo a Python
             const signal = await brain.ask('evaluate', {
                 symbol: symbol,
-                current_price: currentPrice,
+                market_data: marketData,
                 timestamp: timestamp
             });
 
             if (signal && signal.action === 'BUY') {
                 console.log(`\n=========================================`);
-                console.log(`🚀 [NUEVO TRADE] Python recomienda comprar ${symbol}`);
-                console.log(`   Entrada: ${signal.entry_price} | TP: ${signal.take_profit} | SL: ${signal.stop_loss}`);
+                console.log(`[NEW TRADE] Python signal for ${symbol}`);
+                console.log(` Entry: ${signal.entry_price} | TP: ${signal.take_profit} | SL: ${signal.stop_loss}`);
                 
                 const targetUsdtAllocation = 15.0; 
                 const rawQuantity = targetUsdtAllocation / signal.entry_price;
@@ -103,10 +111,7 @@ export class BinanceWSClient {
                 const safeQuantity = Math.floor(rawQuantity * factor) / factor;
 
                 const orderResult = await this.restClient.placeLimitOrder(
-                    symbol,
-                    'BUY',
-                    safeQuantity,
-                    signal.entry_price
+                    symbol, 'BUY', safeQuantity, signal.entry_price
                 );
 
                 const positionData: Position = {
@@ -120,7 +125,6 @@ export class BinanceWSClient {
                 
                 this.activePositions.set(symbol, positionData);
 
-                // Log OPEN trade via ZeroMQ
                 try {
                     await brain.ask('ledger_open', {
                         order_id: positionData.orderId,
@@ -131,17 +135,16 @@ export class BinanceWSClient {
                         stop_loss: positionData.stopLoss,
                         quantity: positionData.quantity
                     });
-                    console.log(`✅ Trade logged securely in Python CSV Ledger via ZMQ.`);
+                    console.log(`[LEDGER] Trade logged securely in Python CSV Ledger.`);
                 } catch (ledgerError) {
-                    console.error(`⚠️ Failed to log trade to Python ledger.`);
+                    console.error(`[LEDGER] Failed to log trade to Python ledger.`);
                 }
-                
                 console.log(`=========================================\n`);
             }
         } catch (error: any) {
             if (error.response?.data) {
-                console.log(`❌ Order failed for ${symbol}:`, error.response.data.msg);
-                console.log(`⏳ Applying 60-second cooldown to ${symbol}...`);
+                console.log(`[ORDER FAILED] ${symbol}:`, error.response.data.msg);
+                console.log(`[SYSTEM] Applying 60-second cooldown to ${symbol}...`);
                 this.lastEvaluationTime.set(symbol, Date.now() + 60000);
             }
         }
@@ -150,32 +153,26 @@ export class BinanceWSClient {
     private async closePosition(symbol: string, position: Position, exitPrice: number) {
         try {
             const orderResult = await this.restClient.placeLimitOrder(
-                symbol,
-                'SELL',
-                position.quantity,
-                exitPrice 
+                symbol, 'SELL', position.quantity, exitPrice 
             );
-            console.log(`✅ [EXIT CONFIRMED] ${symbol} closed. Order ID: ${orderResult.orderId}`);
+            console.log(`[EXIT CONFIRMED] ${symbol} closed. Order ID: ${orderResult.orderId}`);
             
             this.activePositions.delete(symbol);
 
-            // Log CLOSED trade via ZeroMQ
             try {
                 await brain.ask('ledger_close', { order_id: position.orderId });
-                console.log(`🔒 Ledger updated: Trade ${position.orderId} marked as CLOSED.`);
+                console.log(`[LEDGER] Trade ${position.orderId} marked as CLOSED.`);
             } catch (ledgerError) {
-                console.error(`⚠️ Failed to update Python ledger closure.`);
+                console.error(`[LEDGER] Failed to update Python ledger closure.`);
             }
-
         } catch (error: any) {
-            console.error(`🔴 Error closing position for ${symbol}:`, error.message);
+            console.error(`[ERROR] Closing position for ${symbol}:`, error.message);
         }
     }
 
     public async syncStateFromLedger() {
         try {
             const openTrades = await brain.ask('sync_positions');
-            
             for (const trade of openTrades) {
                 this.activePositions.set(trade.symbol, {
                     symbol: trade.symbol,
@@ -187,10 +184,10 @@ export class BinanceWSClient {
                 });
             }
             if (this.activePositions.size > 0) {
-                console.log(`🔄 Synced ${this.activePositions.size} active position(s) from Python Ledger.`);
+                console.log(`[SYNC] Synced ${this.activePositions.size} active position(s) from Python Ledger.`);
             }
         } catch (error) {
-            console.error(`⚠️ Failed to sync state from ledger.`, error);
+            console.error(`[SYNC] Failed to sync state from ledger.`, error);
         }
     }
 

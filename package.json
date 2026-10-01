@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start:python": "cd binance-research && .venv\\Scripts\\python server.py",
+    "start:python": "cd binance-research && .venv\\Scripts\\python -u server.py",
     "start:node": "npx tsx src/index.ts",
     "dev": "concurrently -c \"cyan.bold,green.bold\" -n \"BRAIN,HANDS\" \"npm run start:python\" \"npm run start:node\""
   },
