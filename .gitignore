@@ -1,5 +1,8 @@
 node_modules/
-.env
+
 dist/
 binance-research/data/
+binance-research/.venv/
+__pycache__/
+*.pyc
 orders/

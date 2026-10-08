@@ -1,3 +1,4 @@
+# quantitative_strategies/rolling_volatility.py
 import pandas as pd
 
 class RollingVolatilityStrategy:
@@ -6,10 +7,15 @@ class RollingVolatilityStrategy:
         self.std_dev_multiplier = std_dev_multiplier
         self.price_history = {} 
 
-    def evaluate(self, symbol: str, current_price: float) -> dict:
+    def evaluate(self, symbol: str, market_data) -> dict:
+        # Polimorfismo: compatible con dict (WebSocket/REST) y float (QuantCalculator)
+        if isinstance(market_data, dict):
+            current_price = float(market_data.get("close", 0.0))
+        else:
+            current_price = float(market_data)
+
         if symbol not in self.price_history:
             self.price_history[symbol] = []
-            # Use a flag to track if we've announced readiness
             setattr(self, f"{symbol}_ready", False)
             
         self.price_history[symbol].append(current_price)
@@ -20,31 +26,29 @@ class RollingVolatilityStrategy:
         prices = self.price_history[symbol]
         current_ticks = len(prices)
         
-        # 1. Warm-up Phase
+        # 1. Fase de calentamiento
         if current_ticks < self.window:
-            # Print a status update every 10 ticks so it doesn't spam the terminal
             if current_ticks % 10 == 0:
-                print(f"[{symbol}] Warming up engine... {current_ticks}/{self.window} ticks collected.")
+                print(f"[STRATEGY:{symbol}] Calentando motor... {current_ticks}/{self.window} registros.")
             return {"action": "HOLD"}
 
-        # 2. Calculate Rolling Volatility
+        # 2. Cálculo de volatilidad móvil
         series = pd.Series(prices)
         rolling_mean = series.mean()
         rolling_std = series.std()
         upper_band = rolling_mean + (rolling_std * self.std_dev_multiplier)
 
-        # 3. Readiness Announcement (Only prints once per coin)
+        # 3. Aviso de inicialización completada
         if not getattr(self, f"{symbol}_ready"):
-            print(f" [{symbol}] Window full! Actively scanning for momentum breakouts above {upper_band:.2f}")
+            print(f"[STRATEGY:{symbol}] Buffer lleno. Monitoreando rupturas sobre {upper_band:.2f}")
             setattr(self, f"{symbol}_ready", True)
         
-        # 4. The Trend-Following Trigger
+        # 4. Señal de ruptura alcista (Trend Following)
         if current_price > upper_band:
             sl = rolling_mean
             risk = current_price - sl
             tp = current_price + (risk * 2.0)
             
-            # Reset readiness so it announces again if it re-enters the scanning phase later
             setattr(self, f"{symbol}_ready", False)
             
             return {
@@ -52,7 +56,7 @@ class RollingVolatilityStrategy:
                 "entry_price": current_price,
                 "take_profit": round(tp, 2),
                 "stop_loss": round(sl, 2),
-                "weight": 0.8  
+                "weight": 0.8
             }
             
         return {"action": "HOLD"}

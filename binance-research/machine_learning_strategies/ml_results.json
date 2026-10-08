@@ -1,0 +1,90 @@
+{
+    "BTCUSDT": {
+        "MeanReversion": {
+            "window": 12,
+            "multiplier": 2.2,
+            "trades": 21,
+            "win_rate": 61.9,
+            "max_drawdown_pct": 2.45,
+            "profit_factor": 3.25,
+            "expected_payoff": 12.86,
+            "pnl": 270.0
+        },
+        "TrendFollowing": {
+            "window": 12,
+            "multiplier": 1.6,
+            "trades": 12,
+            "win_rate": 58.33,
+            "max_drawdown_pct": 2.87,
+            "profit_factor": 2.8,
+            "expected_payoff": 11.25,
+            "pnl": 135.0
+        },
+        "VWAP": {
+            "window": 12,
+            "multiplier": 2.2,
+            "trades": 21,
+            "win_rate": 61.9,
+            "max_drawdown_pct": 2.45,
+            "profit_factor": 3.25,
+            "expected_payoff": 12.86,
+            "pnl": 270.0
+        },
+        "VolatilitySqueeze": {
+            "window": 28,
+            "multiplier": 0.8,
+            "trades": 9,
+            "win_rate": 55.56,
+            "max_drawdown_pct": 1.5,
+            "profit_factor": 2.5,
+            "expected_payoff": 10.0,
+            "pnl": 90.0
+        },
+        "XGBoost_Status": "Trained"
+    },
+    "ETHUSDT": {
+        "MeanReversion": {
+            "window": 8,
+            "multiplier": 1.2,
+            "trades": 24,
+            "win_rate": 58.33,
+            "max_drawdown_pct": 3.72,
+            "profit_factor": 2.8,
+            "expected_payoff": 11.25,
+            "pnl": 270.0
+        },
+        "TrendFollowing": {
+            "window": 40,
+            "multiplier": 1.6,
+            "trades": 8,
+            "win_rate": 75.0,
+            "max_drawdown_pct": 1.38,
+            "profit_factor": 6.0,
+            "expected_payoff": 18.75,
+            "pnl": 150.0
+        },
+        "VWAP": {
+            "window": 8,
+            "multiplier": 1.2,
+            "trades": 24,
+            "win_rate": 58.33,
+            "max_drawdown_pct": 3.72,
+            "profit_factor": 2.8,
+            "expected_payoff": 11.25,
+            "pnl": 270.0
+        },
+        "VolatilitySqueeze": {
+            "window": 64,
+            "multiplier": 0.8,
+            "trades": 7,
+            "win_rate": 57.14,
+            "max_drawdown_pct": 2.79,
+            "profit_factor": 2.67,
+            "expected_payoff": 10.71,
+            "pnl": 75.0
+        },
+        "XGBoost_Status": "Trained"
+    },
+    "SOLUSDT": {},
+    "DOGEUSDT": {}
+}

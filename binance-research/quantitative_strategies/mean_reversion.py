@@ -1,3 +1,5 @@
+# quantitative_strategies/mean_reversion.py
+
 import pandas as pd
 
 class MeanReversionStrategy:
@@ -6,7 +8,13 @@ class MeanReversionStrategy:
         self.std_dev_multiplier = std_dev_multiplier
         self.price_history = {} 
 
-    def evaluate(self, symbol: str, current_price: float) -> dict:
+    def evaluate(self, symbol: str, market_data) -> dict:
+        # Polimorfismo: compatible con dict (WebSocket/REST) y float (QuantCalculator)
+        if isinstance(market_data, dict):
+            current_price = float(market_data.get("close", 0.0))
+        else:
+            current_price = float(market_data)
+
         if symbol not in self.price_history:
             self.price_history[symbol] = []
             
@@ -23,20 +31,15 @@ class MeanReversionStrategy:
         series = pd.Series(prices)
         rolling_mean = series.mean()
         rolling_std = series.std()
-        
-        # Calculate the LOWER band this time
         lower_band = rolling_mean - (rolling_std * self.std_dev_multiplier)
 
-        # The Mean Reversion Trigger: Price crashes below the lower band
+        # Señal de reversión a la media (comprar sobreventa estadística)
         if current_price < lower_band:
-            # Take Profit: Target a snap-back to the average price
             tp = rolling_mean
-            
-            # Risk Management: Set a stop loss equal to the target profit (1:1 Risk/Reward)
             risk = tp - current_price
             sl = current_price - risk
             
-            # Prevent edge cases where math creates extremely tight stops
+            # Filtro de seguridad ante spreads residuales o cálculo atípico
             if risk < (current_price * 0.005): 
                 return {"action": "HOLD"}
                 
@@ -45,7 +48,7 @@ class MeanReversionStrategy:
                 "entry_price": current_price,
                 "take_profit": round(tp, 2),
                 "stop_loss": round(sl, 2),
-                "weight": 0.8  
+                "weight": 0.8
             }
             
         return {"action": "HOLD"}

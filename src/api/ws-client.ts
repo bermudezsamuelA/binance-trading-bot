@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import { BinanceRestClient } from './rest-client';
 import { brain } from './zmq-client';
+import { TelegramClient } from './telegram-client';
 
 interface Position {
     symbol: string;
@@ -15,12 +16,12 @@ export class BinanceWSClient {
     private ws: WebSocket;
     private baseUrl = 'wss://stream.testnet.binance.vision/stream?streams=';
     private restClient = new BinanceRestClient();
+    private telegram = new TelegramClient();
     
     private activePositions: Map<string, Position> = new Map();
     private lastEvaluationTime: Map<string, number> = new Map();
 
     constructor(roster: string[]) {
-        // Cambiamos a kline_1m para obtener OHLCV completo
         const streams = roster.map(symbol => `${symbol.toLowerCase()}@kline_1m`).join('/');
         const url = `${this.baseUrl}${streams}`;
         
@@ -36,13 +37,10 @@ export class BinanceWSClient {
         this.ws.on('message', async (data: WebSocket.RawData) => {
             try {
                 const parsedData = JSON.parse(data.toString());
-                // Validamos que sea un evento de vela (kline)
                 if (parsedData.data && parsedData.data.e === 'kline') {
                     await this.handleMarketData(parsedData.data);
                 }
-            } catch (err) {
-                // Ignorar errores de parseo en heartbeats
-            }
+            } catch (err) {}
         });
 
         this.ws.on('error', (error) => console.error('[WS] Error:', error));
@@ -54,7 +52,6 @@ export class BinanceWSClient {
         const kline = data.k;
         const currentPrice = parseFloat(kline.c);
 
-        // Empaquetamos la data completa para el ML y VWAP
         const marketData = {
             open: parseFloat(kline.o),
             high: parseFloat(kline.h),
@@ -80,18 +77,18 @@ export class BinanceWSClient {
     private async manageExistingPosition(symbol: string, currentPrice: number) {
         const position = this.activePositions.get(symbol)!;
 
+        // Modificamos para enviar el motivo exacto del cierre
         if (currentPrice >= position.takeProfit) {
             console.log(`\n[TAKE PROFIT HIT] ${symbol} @ ${currentPrice}. Exiting trade.`);
-            await this.closePosition(symbol, position, currentPrice);
+            await this.closePosition(symbol, position, currentPrice, "TAKE PROFIT ✅");
         } else if (currentPrice <= position.stopLoss) {
             console.log(`\n[STOP LOSS HIT] ${symbol} @ ${currentPrice}. Cutting losses.`);
-            await this.closePosition(symbol, position, currentPrice);
+            await this.closePosition(symbol, position, currentPrice, "STOP LOSS ⚠️");
         }
     }
 
     private async evaluateNewTrade(symbol: string, marketData: any, timestamp: number) {
         try {
-            // Enviamos el market_data completo a Python
             const signal = await brain.ask('evaluate', {
                 symbol: symbol,
                 market_data: marketData,
@@ -101,11 +98,9 @@ export class BinanceWSClient {
             if (signal && signal.action === 'BUY') {
                 console.log(`\n=========================================`);
                 console.log(`[NEW TRADE] Python signal for ${symbol}`);
-                console.log(` Entry: ${signal.entry_price} | TP: ${signal.take_profit} | SL: ${signal.stop_loss}`);
                 
                 const targetUsdtAllocation = 15.0; 
                 const rawQuantity = targetUsdtAllocation / signal.entry_price;
-                
                 const decimals = symbol === 'BTCUSDT' ? 5 : 3;
                 const factor = Math.pow(10, decimals);
                 const safeQuantity = Math.floor(rawQuantity * factor) / factor;
@@ -124,6 +119,14 @@ export class BinanceWSClient {
                 };
                 
                 this.activePositions.set(symbol, positionData);
+
+                // Notificación a Telegram
+                await this.telegram.sendMessage(
+                    `🚀 <b>NUEVA COMPRA: ${symbol}</b>\n` +
+                    `🔹 <b>Precio:</b> $${signal.entry_price}\n` +
+                    `🎯 <b>Target:</b> $${signal.take_profit}\n` +
+                    `🛡️ <b>Riesgo:</b> $${signal.stop_loss}`
+                );
 
                 try {
                     await brain.ask('ledger_open', {
@@ -144,13 +147,17 @@ export class BinanceWSClient {
         } catch (error: any) {
             if (error.response?.data) {
                 console.log(`[ORDER FAILED] ${symbol}:`, error.response.data.msg);
+                
+                // Notificación de error crítico en ejecución
+                await this.telegram.sendMessage(`❌ <b>ERROR DE ORDEN: ${symbol}</b>\nBinance rechazó la entrada: <i>${error.response.data.msg}</i>`);
+                
                 console.log(`[SYSTEM] Applying 60-second cooldown to ${symbol}...`);
                 this.lastEvaluationTime.set(symbol, Date.now() + 60000);
             }
         }
     }
 
-    private async closePosition(symbol: string, position: Position, exitPrice: number) {
+    private async closePosition(symbol: string, position: Position, exitPrice: number, reason: string) {
         try {
             const orderResult = await this.restClient.placeLimitOrder(
                 symbol, 'SELL', position.quantity, exitPrice 
@@ -158,6 +165,17 @@ export class BinanceWSClient {
             console.log(`[EXIT CONFIRMED] ${symbol} closed. Order ID: ${orderResult.orderId}`);
             
             this.activePositions.delete(symbol);
+
+            // Cálculo rápido de ganancia/pérdida para la notificación
+            const pnl = (exitPrice - position.entryPrice) * position.quantity;
+            const pnlString = pnl >= 0 ? `+$${pnl.toFixed(2)}` : `-$${Math.abs(pnl).toFixed(2)}`;
+
+            await this.telegram.sendMessage(
+                `<b>${reason}</b>\n` +
+                `🔹 <b>Moneda:</b> ${symbol}\n` +
+                `🔹 <b>Salida:</b> $${exitPrice.toFixed(2)}\n` +
+                `💸 <b>PnL:</b> ${pnlString}`
+            );
 
             try {
                 await brain.ask('ledger_close', { order_id: position.orderId });
