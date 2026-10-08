@@ -1,3 +1,4 @@
+import sys
 import zmq
 import json
 import pandas as pd
@@ -9,10 +10,12 @@ from strategy_engine import StrategyEngine
 from download_data import sync_historical_data
 from config import ACTIVE_ROSTER
 
-engine = StrategyEngine()
-
+sys.stdout.reconfigure(encoding='utf-8')
 LEDGER_DIR = "./orders"
 LEDGER_FILE = f"{LEDGER_DIR}/trades.csv"
+
+# Se declara vacía. Así los subprocesos de Windows no cargan la IA en RAM.
+engine = None 
 
 def init_ledger():
     if not os.path.exists(LEDGER_DIR):
@@ -28,10 +31,10 @@ def init_ledger():
         print("[SISTEMA] Ledger trades.csv inicializado en blanco.")
 
 def pre_seed_engine(roster: list, required_candles: int = 100):
-    print("[PRE-SEED] Obteniendo contexto historico inmediato via REST...")
+    global engine
+    print("[PRE-SEED] Obteniendo contexto histórico inmediato vía REST...")
     for symbol in roster:
         try:
-            # Cambiamos a 1m para que coincida con el WebSocket
             url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1m&limit={required_candles}"
             response = requests.get(url)
             klines = response.json()
@@ -51,6 +54,7 @@ def pre_seed_engine(roster: list, required_candles: int = 100):
             print(f"[PRE-SEED] Error cargando contexto para {symbol}: {e}")
 
 def handle_request(message: dict):
+    global engine
     req_type = message.get("type")
     
     if req_type == "roster":
@@ -76,7 +80,6 @@ def handle_request(message: dict):
     elif req_type == "evaluate":
         payload = message.get("payload", {})
         symbol = payload.get("symbol")
-        # Recibimos el diccionario completo
         market_data = payload.get("market_data", {})
         
         signal = engine.get_signal(symbol, market_data)
@@ -117,13 +120,16 @@ def handle_request(message: dict):
 if __name__ == "__main__":
     init_ledger()
     
-    # 1. Sincronizar datos
+    # 1. Sincronizar datos históricos (Solo el proceso maestro lo hace)
     sync_historical_data(ACTIVE_ROSTER)
     
-    # 2. Precargar buffer con el historial inmediato
+    # 2. Instanciar el motor de estrategia pesada solo después de descargar
+    engine = StrategyEngine()
+    
+    # 3. Precargar buffer con el historial inmediato
     pre_seed_engine(ACTIVE_ROSTER, required_candles=100)
     
-    # 3. Iniciar ZMQ
+    # 4. Iniciar ZMQ
     context = zmq.Context()
     socket = context.socket(zmq.REP)
     socket.bind("tcp://127.0.0.1:5555")
