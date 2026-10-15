@@ -101,9 +101,12 @@ export class BinanceWSClient {
                 
                 const targetUsdtAllocation = 15.0; 
                 const rawQuantity = targetUsdtAllocation / signal.entry_price;
-                const decimals = symbol === 'BTCUSDT' ? 5 : 3;
-                const factor = Math.pow(10, decimals);
-                const safeQuantity = Math.floor(rawQuantity * factor) / factor;
+                // Redondea al stepSize real del par (DOGE: unidades enteras; BTC: 0.00001)
+                const normalized = await this.restClient.normalizeOrder(symbol, rawQuantity, signal.entry_price);
+                if (!normalized) {
+                    throw new Error(`Cantidad por debajo del mínimo de Binance para ${symbol}`);
+                }
+                const safeQuantity = parseFloat(normalized.quantity);
 
                 const orderResult = await this.restClient.placeLimitOrder(
                     symbol, 'BUY', safeQuantity, signal.entry_price
@@ -178,7 +181,12 @@ export class BinanceWSClient {
             );
 
             try {
-                await brain.ask('ledger_close', { order_id: position.orderId });
+                await brain.ask('ledger_close', {
+                    order_id: position.orderId,
+                    exit_price: exitPrice,
+                    pnl: pnl,
+                    reason: reason
+                });
                 console.log(`[LEDGER] Trade ${position.orderId} marked as CLOSED.`);
             } catch (ledgerError) {
                 console.error(`[LEDGER] Failed to update Python ledger closure.`);

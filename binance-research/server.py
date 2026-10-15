@@ -108,7 +108,12 @@ def handle_request(message: dict):
         try:
             df = pd.read_csv(LEDGER_FILE)
             if not df.empty and 'order_id' in df.columns:
-                df.loc[df['order_id'] == order_id, 'status'] = 'CLOSED'
+                mask = df['order_id'] == order_id
+                df.loc[mask, 'status'] = 'CLOSED'
+                df.loc[mask, 'exit_price'] = trade.get("exit_price")
+                df.loc[mask, 'pnl'] = trade.get("pnl")
+                df.loc[mask, 'exit_reason'] = trade.get("reason")
+                df.loc[mask, 'exit_timestamp'] = int(time.time() * 1000)
                 df.to_csv(LEDGER_FILE, index=False)
                 print(f"[LEDGER] Trade ID {order_id} marcado como CERRADO.")
             return {"status": "updated"}

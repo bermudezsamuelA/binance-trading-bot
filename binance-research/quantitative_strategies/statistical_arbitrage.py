@@ -69,8 +69,8 @@ class StatisticalArbitrageStrategy:
                 "action": "BUY",
                 "target_symbol": self.asset_b, # Indicamos a Node.js explícitamente qué moneda comprar
                 "entry_price": target_price,
-                "take_profit": round(tp, 2),
-                "stop_loss": round(sl, 2),
+                "take_profit": round(tp, 8),
+                "stop_loss": round(sl, 8),
                 "z_score": round(z_score, 2),
                 "weight": 0.85 
             }

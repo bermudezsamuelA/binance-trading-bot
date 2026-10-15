@@ -87,13 +87,13 @@
     },
     "SOLUSDT": {
         "MeanReversion": {
-            "window": 88,
+            "window": 8,
             "multiplier": 0.8,
-            "trades": 28,
-            "win_rate": 64.29,
-            "max_drawdown_pct": 4.02,
-            "profit_factor": 3.6,
-            "expected_payoff": 13.93,
+            "trades": 46,
+            "win_rate": 52.17,
+            "max_drawdown_pct": 4.13,
+            "profit_factor": 2.18,
+            "expected_payoff": 8.48,
             "pnl": 390.0
         },
         "TrendFollowing": {
@@ -107,13 +107,13 @@
             "pnl": 165.0
         },
         "VWAP": {
-            "window": 88,
+            "window": 8,
             "multiplier": 0.8,
-            "trades": 28,
-            "win_rate": 64.29,
-            "max_drawdown_pct": 4.02,
-            "profit_factor": 3.6,
-            "expected_payoff": 13.93,
+            "trades": 46,
+            "win_rate": 52.17,
+            "max_drawdown_pct": 4.13,
+            "profit_factor": 2.18,
+            "expected_payoff": 8.48,
             "pnl": 390.0
         },
         "VolatilitySqueeze": {
@@ -130,44 +130,44 @@
     },
     "DOGEUSDT": {
         "MeanReversion": {
-            "window": 8,
-            "multiplier": 1.6,
-            "trades": 58,
-            "win_rate": 48.28,
-            "max_drawdown_pct": 9.31,
-            "profit_factor": 1.87,
-            "expected_payoff": 6.72,
-            "pnl": 390.0
+            "window": 64,
+            "multiplier": 0.8,
+            "trades": 33,
+            "win_rate": 63.64,
+            "max_drawdown_pct": 3.27,
+            "profit_factor": 3.5,
+            "expected_payoff": 13.64,
+            "pnl": 450.0
         },
         "TrendFollowing": {
-            "window": 24,
-            "multiplier": 0.8,
-            "trades": 76,
-            "win_rate": 94.74,
-            "max_drawdown_pct": 1.59,
-            "profit_factor": 36.0,
-            "expected_payoff": 27.63,
-            "pnl": 2100.0
+            "window": 8,
+            "multiplier": 2.2,
+            "trades": 13,
+            "win_rate": 61.54,
+            "max_drawdown_pct": 1.5,
+            "profit_factor": 3.2,
+            "expected_payoff": 12.69,
+            "pnl": 165.0
         },
         "VWAP": {
-            "window": 8,
-            "multiplier": 1.6,
-            "trades": 58,
-            "win_rate": 48.28,
-            "max_drawdown_pct": 9.31,
-            "profit_factor": 1.87,
-            "expected_payoff": 6.72,
-            "pnl": 390.0
+            "window": 64,
+            "multiplier": 0.8,
+            "trades": 33,
+            "win_rate": 63.64,
+            "max_drawdown_pct": 3.27,
+            "profit_factor": 3.5,
+            "expected_payoff": 13.64,
+            "pnl": 450.0
         },
         "VolatilitySqueeze": {
-            "window": 48,
+            "window": 8,
             "multiplier": 1.2,
-            "trades": 63,
-            "win_rate": 96.83,
-            "max_drawdown_pct": 1.01,
-            "profit_factor": 61.0,
-            "expected_payoff": 28.57,
-            "pnl": 1800.0
+            "trades": 45,
+            "win_rate": 46.67,
+            "max_drawdown_pct": 9.38,
+            "profit_factor": 1.75,
+            "expected_payoff": 6.0,
+            "pnl": 270.0
         },
         "XGBoost_Status": "Trained"
     }

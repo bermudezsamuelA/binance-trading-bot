@@ -54,8 +54,8 @@ class RollingVolatilityStrategy:
             return {
                 "action": "BUY",
                 "entry_price": current_price,
-                "take_profit": round(tp, 2),
-                "stop_loss": round(sl, 2),
+                "take_profit": round(tp, 8),
+                "stop_loss": round(sl, 8),
                 "weight": 0.8
             }
             
