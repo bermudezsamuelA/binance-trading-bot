@@ -7,6 +7,14 @@
 - No hagas commit ni push sin que el usuario lo pida expresamente.
 - La rama de trabajo actual es `Improvement-experiment-on-v1`. No cambies a `main` ni crees ramas sin confirmar.
 
+## Ejecución del bot y VPN
+
+- El usuario usa VPN. Mientras la VPN está activa, las llamadas a Binance (testnet incluida) pueden fallar, y el asistente no puede correr el bot ni probar conexiones con Binance.
+- Para ejecutar el bot contra la testnet, el usuario debe desactivar la VPN y lanzarlo manualmente (`npm run dev` o `npm run start:python` y `npm run start:node`).
+- Mientras el usuario lo corre así, el asistente no podrá usarse para esa parte: no pidas ni supongas que el asistente ejecutará el bot con Binance.
+- Antes de sugerir comandos que llamen a Binance, recuerda al usuario que debe tener la VPN desactivada.
+- Si un comando es necesario y el asistente no puede ejecutarlo (por ejemplo, porque requiere Binance o la VPN), no lo ejecutes: escríbelo como último paso de la respuesta, en un bloque de código, para que el usuario lo corra manualmente.
+
 ## Documentación
 
 - Los documentos del proyecto están en `doc/` y están versionados en esta rama.
