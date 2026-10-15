@@ -6,7 +6,7 @@
   "scripts": {
     "start:python": "cd binance-research && .venv\\Scripts\\python -u server.py",
     "start:node": "npx tsx src/index.ts",
-    "dev": "concurrently -k -c \"cyan.bold,green.bold\" -n \"BRAIN,HANDS\" \"npm run start:python\" \"npm run start:node\""
+    "dev": "concurrently --kill-others-on-fail -c \"cyan.bold,green.bold\" -n \"BRAIN,HANDS\" \"npm run start:python\" \"npm run start:node\""
   },
   "keywords": [],
   "author": "",

@@ -163,3 +163,9 @@ if __name__ == "__main__":
     finally:
         socket.close(linger=0)
         context.term()
+
+    try:
+        import report
+        report.main(ACTIVE_ROSTER)
+    except Exception as e:
+        print(f"[SISTEMA] No se pudo generar el resumen: {e}")
