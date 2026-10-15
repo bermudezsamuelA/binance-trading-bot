@@ -136,12 +136,25 @@ if __name__ == "__main__":
     
     print("[SISTEMA] Motor de Estrategia ZMQ activo en tcp://127.0.0.1:5555")
     
-    while True:
-        raw_msg = socket.recv_string()
-        try:
-            message = json.loads(raw_msg)
-            response = handle_request(message)
-            socket.send_string(json.dumps(response))
-        except Exception as e:
-            print(f"[ERROR] Procesando mensaje: {e}")
-            socket.send_string(json.dumps({"error": str(e)}))
+    # En Windows, recv bloqueante no deja que Ctrl+C interrumpa el proceso:
+    # se espera con timeout para que KeyboardInterrupt llegue y se libere el puerto.
+    poller = zmq.Poller()
+    poller.register(socket, zmq.POLLIN)
+
+    try:
+        while True:
+            if not poller.poll(500):
+                continue
+            raw_msg = socket.recv_string()
+            try:
+                message = json.loads(raw_msg)
+                response = handle_request(message)
+                socket.send_string(json.dumps(response))
+            except Exception as e:
+                print(f"[ERROR] Procesando mensaje: {e}")
+                socket.send_string(json.dumps({"error": str(e)}))
+    except KeyboardInterrupt:
+        print("[SISTEMA] Deteniendo motor...")
+    finally:
+        socket.close(linger=0)
+        context.term()

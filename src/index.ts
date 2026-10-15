@@ -19,8 +19,9 @@ async function main() {
         if (parseFloat(usdtBalance?.free) < 20) {
             await telegram.sendMessage("⚠️ <b>ALERTA DE MARGEN:</b> Tu balance de USDT libre es muy bajo en Binance Testnet.");
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error("❌ REST API Authentication failed. Check your .env keys.");
+        console.error("   Detalle:", error.response?.status, error.response?.data || error.message);
         await telegram.sendMessage("❌ <b>ERROR CRÍTICO:</b> Autenticación REST fallida. Verifica las API Keys.");
         process.exit(1);
     }
