@@ -3,8 +3,11 @@
 ## Git
 
 - El comando de git de este usuario es `git2`, no `git`. Usa `git2` en todos los comandos de git que sugieras o ejecutes.
-- El autor de los commits es `tlou520 <212600710+tlou520@users.noreply.github.com>`. Antes de hacer commit, verifica con `git2 config user.name` y `git2 config user.email` que coincidan con ese autor; si no, avisa al usuario.
-- No hagas commit ni push sin que el usuario lo pida expresamente.
+- `git2` solo existe en WSL (`/home/popo/.local/bin/git2`). Ejecútalo así: `wsl -e bash -lic "cd /mnt/e/GitHub/binance-trading-bot && git2 ..."`.
+- El autor de los commits es `tlou520 <212600710+tlou520@users.noreply.github.com>`. No debe salir otro autor. Verifica con `git2 var GIT_AUTHOR_IDENT` antes y con `git2 log -1 --format='%an <%ae>'` después del commit; si no es `tlou520`, avisa al usuario.
+- Los mensajes de commit se escriben en **inglés**, sin trailer `Co-Authored-By`.
+- Cuando el usuario diga "Haz commit": desde WSL con `git2`, agrega los últimos cambios, haz commit y **push** a la rama actual, y al final verifica que el autor sea `tlou520`.
+- Fuera de eso, no hagas commit ni push sin que el usuario lo pida expresamente.
 - La rama de trabajo actual es `Improvement-experiment-on-v1`. No cambies a `main` ni crees ramas sin confirmar.
 
 ## Ejecución del bot y VPN
