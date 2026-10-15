@@ -15,6 +15,14 @@
 - Antes de sugerir comandos que llamen a Binance, recuerda al usuario que debe tener la VPN desactivada.
 - Si un comando es necesario y el asistente no puede ejecutarlo (por ejemplo, porque requiere Binance o la VPN), no lo ejecutes: escríbelo como último paso de la respuesta, en un bloque de código, para que el usuario lo corra manualmente.
 
+## Disco de instalación
+
+- El disco C tiene poco espacio. Siempre que sugieras una descarga o instalación pesada, usa el disco E.
+- Caché y temporales en E: pip (`PIP_CACHE_DIR=E:\pip-cache`), npm (`npm config set cache "E:\npm-cache" --global`), y `TMP`/`TEMP` apuntando a `E:\tmp`.
+- Herramientas instaladas en E: Node.js en `E:\Programas\nodejs` (instalar con `winget install OpenJS.NodeJS.LTS --location "E:\Programas\nodejs"` o con el zip de nodejs.org si winget ignora la ruta).
+- Las dependencias del proyecto (`node_modules`, `.venv`) están dentro de la carpeta del proyecto, que ya está en E.
+- En WSL, las rutas del disco E son `/mnt/e/...`, nunca `/e/...`.
+
 ## Documentación
 
 - Los documentos del proyecto están en `doc/` y están versionados en esta rama.
