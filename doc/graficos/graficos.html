@@ -1096,23 +1096,66 @@ fig('f-train-test', 'División 80 / 20 respetando el orden del tiempo', 'Un mes 
 });
 
 // §19 HMM
-fig('f-hmm', 'Dos regímenes, dos formas de moverse', 'Distribución de los retornos en cada régimen. Un retorno de +1.5 % es casi imposible en el régimen tranquilo y normal en el volátil, así que el modelo deduce que el mercado está en el volátil.', 290, () => {
-  const x0 = 44, x1 = W - 8, xs = sc(-3, 3, x0, x1);
-  const pdf = (x, s) => Math.exp(-0.5 * (x / s) ** 2) / (s * Math.sqrt(2 * Math.PI));
-  const ymax = pdf(0, 0.2);
-  const P = panel({ x0, x1, y0: 8, y1: 250, yMin: 0, yMax: ymax * 1.05, fixed: true, yTicks: 1, yFmt: () => '' });
-  let g = P.g;
-  [[0.2, C.blue], [1, C.orange]].forEach(([s, c]) => {
-    const pts = []; for (let x = -3; x <= 3.001; x += 0.02) pts.push([xs(x), P.ys(pdf(x, s))]);
-    g += S('path', { d: pathD(pts) + ` L${xs(3)} ${P.ys(0)} L${xs(-3)} ${P.ys(0)} Z`, fill: c, opacity: 0.12 }) + poly(pts, c, 2.5);
+const HMM_SEED = 21;
+fig('f-hmm', 'Cómo distingue el HMM un mercado lateral de uno en tendencia', 'El modelo no ve los regímenes: solo ve el retorno de cada vela (panel 2). Cuando los retornos se salen de lo que es normal en el régimen tranquilo, sube la probabilidad de que el mercado haya cambiado al régimen volátil (panel 3).', 560, () => {
+  // Datos: lateral (velas 0–49), tendencia volátil (50–94), lateral otra vez (95–129).
+  const N = 130, seg = [[0, 50, 0], [50, 95, 1], [95, N, 0]];
+  const reg = i => (i >= 50 && i < 95) ? 1 : 0;
+  const MU = [0, 0.2], SG = [0.2, 1];
+  const gg = gauss(rng(HMM_SEED));
+  const R = [...Array(N).keys()].map(i => MU[reg(i)] + SG[reg(i)] * gg());
+  R[52] = 1.5;
+  const P = [2400]; R.forEach(r => P.push(P.at(-1) * (1 + r / 100)));
+  // HMM: hacia adelante y hacia atrás (Pr(s_t = 1 | todos los retornos)), con A_00 = A_11 = 0.97.
+  const pdf = (x, m, s) => Math.exp(-0.5 * ((x - m) / s) ** 2) / s;
+  const st = 0.97, E = R.map(r => [pdf(r, MU[0], SG[0]), pdf(r, MU[1], SG[1])]);
+  const F = []; let f = [0.95, 0.05];
+  E.forEach((e, t) => {
+    const pr = t ? [st * f[0] + (1 - st) * f[1], (1 - st) * f[0] + st * f[1]] : f;
+    const a = pr[0] * e[0], b = pr[1] * e[1]; f = [a / (a + b), b / (a + b)]; F.push(f);
   });
-  [-3, -2, -1, 0, 1, 2, 3].forEach(v => g += xtick(xs(v), 270, (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v) + ' %'));
-  g += line(xs(1.5), 8, xs(1.5), 250, C.ink, 1.5, { 'stroke-dasharray': '4 4' }) + label(xs(1.5) + 8, 40, 'Retorno observado: +1.5 %', { weight: 650 });
-  g += label(xs(1.5) + 8, 62, 'tranquilo: a 7.5σ (casi imposible)', { size: 12, fill: C.blue }) + label(xs(1.5) + 8, 82, 'volátil: a 1.5σ (normal)', { size: 12, fill: C.orange });
-  g += label(xs(0.25), P.ys(ymax * 0.7), 'Régimen 0: σ = 0.2 %', { fill: C.blue, weight: 650 });
-  g += label(xs(-1.2), P.ys(pdf(-1.2, 1)) - 12, 'Régimen 1: σ = 1 %', { anchor: 'end', fill: C.orange, weight: 650 });
+  const PR = Array(N); let bk = [1, 1];
+  for (let t = N - 1; t >= 0; t--) {
+    const a = F[t][0] * bk[0], b = F[t][1] * bk[1]; PR[t] = b / (a + b);
+    const m0 = st * E[t][0] * bk[0] + (1 - st) * E[t][1] * bk[1], m1 = (1 - st) * E[t][0] * bk[0] + st * E[t][1] * bk[1];
+    bk = [m0 / (m0 + m1), m1 / (m0 + m1)];
+  }
+  const x0 = 56, x1 = W - 8, xs = sc(0, N, x0, x1), bw = (x1 - x0) / N;
+  const rows = [[34, 170], [218, 368], [414, 514]];
+  let g = arrowDefs();
+  // Fondo: régimen real (oculto para el modelo).
+  seg.forEach(([a, b, k]) => {
+    g += S('rect', { x: xs(a), y: rows[0][0] - 2, width: xs(b) - xs(a), height: rows[2][1] - rows[0][0] + 2, fill: k ? C.orange : C.blue, opacity: 0.07 });
+    g += txt((xs(a) + xs(b)) / 2, rows[0][0] - 10, k ? 'Régimen 1 · tendencia y volátil' : 'Régimen 0 · lateral', { anchor: 'middle', size: 12, fill: k ? C.orange : C.blue, weight: 650 });
+  });
+  // Panel 1: precio.
+  const A = panel({ x0, x1, y0: rows[0][0], y1: rows[0][1], yMin: Math.min(...P) - 10, yMax: Math.max(...P) + 10, yTicks: 4, fixed: true });
+  g += A.g + poly(P.map((v, i) => [xs(i), A.ys(v)]), C.ink, 1.8);
+  g += label(x0 + 6, rows[0][0] + 14, '1 · Precio (USDT)', { size: 12.5, weight: 650 });
+  // Panel 2: retorno de cada vela.
+  const B = panel({ x0, x1, y0: rows[1][0], y1: rows[1][1], yMin: -1.5, yMax: 2.5, fixed: true, yTicks: 4, yFmt: v => (v > 0 ? '+' : '') + num(v) + ' %' });
+  const yz = B.ys(0);
+  g += B.g + line(x0, yz, x1, yz, C.axis, 1);
+  g += S('rect', { x: x0, y: B.ys(0.4), width: x1 - x0, height: B.ys(-0.4) - B.ys(0.4), fill: C.blue, opacity: 0.16 });
+  R.forEach((r, i) => {
+    const v = Math.max(-1.5, Math.min(2.5, r)), y = B.ys(v);
+    g += S('rect', { x: xs(i) + bw * 0.18, y: Math.min(y, yz), width: bw * 0.64, height: Math.max(1, Math.abs(y - yz)), fill: reg(i) ? C.orange : C.blue });
+  });
+  g += label(x0 + 6, rows[1][0] - 6, '2 · Retorno de cada vela: lo único que ve el modelo', { size: 12.5, weight: 650 });
+  g += label(x0 + 6, B.ys(-0.4) + 15, 'franja = normal en régimen tranquilo (±2σ = ±0.4 %)', { size: 11.5, fill: C.blue });
+  g += arrow([[xs(52.5) - 70, B.ys(1.5) - 4], [xs(52) - 3, B.ys(1.5) + 2]]);
+  g += label(xs(52.5) - 76, B.ys(1.5) - 16, 'Vela 52: +1.5 %', { anchor: 'end', size: 12, weight: 650 });
+  g += label(xs(52.5) - 76, B.ys(1.5), 'en régimen 0 sería 7.5σ (casi imposible);', { anchor: 'end', size: 11.5, fill: C.ink2 });
+  g += label(xs(52.5) - 76, B.ys(1.5) + 15, 'en régimen 1 es 1.5σ (normal)', { anchor: 'end', size: 11.5, fill: C.ink2 });
+  // Panel 3: probabilidad del régimen 1.
+  const Cc = panel({ x0, x1, y0: rows[2][0], y1: rows[2][1], yMin: 0, yMax: 1, fixed: true, yTicks: 2, yFmt: v => num(v * 100) + ' %' });
+  g += Cc.g + hline(x0, x1, Cc.ys(0.5), C.muted, { w: 1, dash: true });
+  const area = PR.map((v, i) => [xs(i + 0.5), Cc.ys(v)]);
+  g += S('path', { d: pathD(area) + ` L${area.at(-1)[0]} ${Cc.ys(0)} L${area[0][0]} ${Cc.ys(0)} Z`, fill: C.violet, opacity: 0.12 }) + poly(area, C.violet, 2.2);
+  g += label(x0 + 6, rows[2][0] - 6, '3 · Lo que deduce el HMM: probabilidad de estar en el régimen 1', { size: 12.5, weight: 650 });
+  [0, 25, 50, 75, 100, 130].forEach(v => g += xtick(xs(v), rows[2][1] + 20, 'vela ' + v));
   return g;
-}, [{ k: 'line', c: C.blue, l: 'Lateral y tranquilo' }, { k: 'line', c: C.orange, l: 'Tendencia o volátil' }]);
+}, [{ k: 'box', c: C.blue, l: 'Régimen 0: lateral y tranquilo (σ = 0.2 %)' }, { k: 'box', c: C.orange, l: 'Régimen 1: tendencia y volátil (σ = 1 %)' }, { k: 'line', c: C.violet, l: 'Probabilidad de régimen 1 según el HMM' }]);
 
 // §20 Trailing stop y PPO
 fig('f-rl', 'Trailing stop y el recorte de PPO', 'Izquierda: un stop que sigue al precio un 1 % por debajo y nunca baja. Derecha: PPO limita cuánto puede crecer la política en una actualización (ε = 0.2, ventaja positiva).', 300, () => {

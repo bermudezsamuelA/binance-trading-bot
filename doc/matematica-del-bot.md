@@ -1154,7 +1154,15 @@ $$
 >
 > **Ejemplo:** con $A_{00} = 0.95$, si hoy el mercado está lateral, hay 95 % de probabilidad de que siga lateral en la próxima vela. Si el régimen lateral tiene $\sigma_0 = 0.2\,\%$ y el volátil $\sigma_1 = 1\,\%$, un retorno de $1.5\,\%$ es casi imposible en el primero (7.5 sigmas) y normal en el segundo (1.5 sigmas): el modelo concluye que estamos en el régimen volátil.
 
-![Dos regímenes, dos formas de moverse](img/f-hmm.png)
+![Cómo distingue el HMM un mercado lateral de uno en tendencia](img/f-hmm.png)
+
+**Cómo leer el gráfico** (datos simulados, 130 velas; los fondos de color son el régimen real, que el modelo no conoce):
+
+1. **Panel 1, el precio.** En las velas 0–49 y 95–129 el precio apenas se mueve: mercado lateral. En las velas 50–94 sube con saltos grandes: tendencia volátil.
+2. **Panel 2, el retorno de cada vela.** Es lo único que recibe el modelo. En el régimen lateral, casi todas las barras caben en la franja azul de ±0.4 % (dos veces $\sigma_0 = 0.2\,\%$). En el régimen volátil, las barras se salen de la franja hacia arriba y hacia abajo; eso es lo que significa $\sigma_1 = 1\,\%$. La vela 52 (+1.5 %) es el ejemplo de arriba: estaría a 7.5 sigmas si el mercado siguiera tranquilo, así que esa explicación deja de ser creíble.
+3. **Panel 3, la conclusión del modelo.** Es la probabilidad de estar en el régimen 1 dados los retornos. Sube casi a 100 % justo cuando empiezan las barras grandes y baja a 0 % cuando vuelven a ser pequeñas. Hacia la vela 85 cae a ~55 % porque hubo varias velas seguidas con retornos pequeños, que también encajan en el régimen tranquilo. El modelo duda, pero como $A_{11}$ es alto (los regímenes duran), no cambia de opinión por unas pocas velas.
+
+El modelo no mira si el precio sube o baja, sino el **tamaño** de los retornos. Por eso agrupa "tendencia" y "volátil" en un mismo régimen: los dos producen barras grandes en el panel 2.
 
 **Desglose paso a paso**
 
