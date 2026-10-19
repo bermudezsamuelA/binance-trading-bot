@@ -937,30 +937,57 @@ fig('f-metricas', 'Métricas de la curva: drawdown, profit factor y score', 'Izq
   return g;
 }, [{ k: 'line', c: C.blue, l: 'Capital' }, { k: 'dash', c: C.ink2, l: 'Pico acumulado' }, { k: 'box', c: C.down, l: 'Caída desde el pico (drawdown)', o: 0.4 }]);
 
-// §14 Búsqueda en rejilla
-fig('f-rejilla', 'La búsqueda en rejilla prueba 276 combinaciones', 'Cada celda es un backtest completo con una ventana n y un multiplicador k. El color es el score (valores ilustrativos); se queda la celda más oscura.', 330, () => {
-  const ns = [...Array(23).keys()].map(i => 8 + 4 * i), ks = [...Array(12).keys()].map(i => +(0.8 + 0.2 * i).toFixed(1));
-  const gr = gauss(rng(55));
-  const score = (n, k) => 40 * Math.exp(-(((n - 24) / 22) ** 2) - (((k - 1.8) / 0.7) ** 2)) + 6 * gr() - 5;
-  const vals = ns.map(n => ks.map(k => score(n, k)));
-  let best = [0, 0]; vals.forEach((r, i) => r.forEach((v, j) => { if (v > vals[best[0]][best[1]]) best = [i, j]; }));
-  const lo = Math.min(...vals.flat()), hi = Math.max(...vals.flat());
-  const x0 = 44, y0 = 8, cw = (W - 160 - x0) / 23, ch = 22;
-  const col = v => { const t = (v - lo) / (hi - lo); const a = [235, 242, 252], b = [42, 120, 214]; return `rgb(${a.map((c, i) => Math.round(c + (b[i] - c) * t)).join(',')})`; };
-  let g = '';
-  vals.forEach((r, i) => r.forEach((v, j) => g += S('rect', { x: x0 + i * cw, y: y0 + (11 - j) * ch, width: cw - 1.5, height: ch - 1.5, rx: 2, fill: col(v) })));
-  g += S('rect', { x: x0 + best[0] * cw - 1, y: y0 + (11 - best[1]) * ch - 1, width: cw + 0.5, height: ch + 0.5, rx: 3, fill: 'none', stroke: C.ink, 'stroke-width': 2.5 });
-  ks.forEach((k, j) => { if (j % 2 === 0) g += txt(x0 - 8, y0 + (11 - j) * ch + 15, num(k, 1), { anchor: 'end', fill: C.muted, size: 11.5 }); });
-  ns.forEach((n, i) => { if (i % 2 === 0) g += xtick(x0 + i * cw + cw / 2, y0 + 12 * ch + 16, String(n)); });
-  g += txt(x0 + 11.5 * cw, y0 + 12 * ch + 36, 'Ventana n (velas)', { anchor: 'middle', size: 12, fill: C.ink2 });
-  g += txt(12, y0 + 6 * ch, 'k', { anchor: 'middle', size: 13, fill: C.ink2, weight: 600 });
-  const lx = W - 140;
-  g += label(lx, y0 + (11 - best[1]) * ch + 15, `Mejor: n = ${ns[best[0]]}, k = ${num(ks[best[1]], 1)}`, { weight: 650 });
-  g += txt(lx, y0 + (11 - best[1]) * ch + 34, '(n*, k*) = argmax Score', { size: 11.5, fill: C.ink2 });
-  for (let t = 0; t <= 4; t++) g += S('rect', { x: lx + t * 26, y: 240, width: 25, height: 14, fill: col(lo + (hi - lo) * t / 4) });
-  g += txt(lx, 270, 'score bajo', { size: 11, fill: C.muted }) + txt(lx + 130, 270, 'alto', { anchor: 'end', size: 11, fill: C.muted });
+// §14 Búsqueda en rejilla. Datos reales: ETHUSDT, MeanReversion, entrenamiento 2023-04..2023-09 (pliegue de prueba
+// 2023-10 de machine_learning_strategies/ml_results.json). REJILLA.S[i][j] = score de la ventana ns[i] y el multiplicador ks[j];
+// N[i][j] = operaciones en el entrenamiento. Calculado con walk_forward.py (PairEvaluator) el 2026-10-19.
+const REJILLA = {"S":[[-12.88,-12.58,-12.75,-11.42,-11.1,-11.46,-10.86,-8.17,-2.1,0.0,0.0,0.0,0.0],[-13.97,-14.16,-14.22,-12.94,-12.39,-11.56,-10.35,-11.75,-10.78,-8.12,-8.31,-0.72,0.0],[-17.32,-17.32,-16.92,-16.79,-15.7,-12.38,-14.86,-10.48,-11.54,-11.81,-7.86,-7.98,-8.2],[-17.22,-17.37,-17.47,-17.6,-16.12,-15.82,-11.07,-11.26,-9.67,-7.41,-10.7,-7.81,-6.37],[-19.23,-19.23,-19.14,-18.24,-16.43,-17.64,-15.53,-10.19,-11.11,-10.06,-8.99,-8.45,-5.57],[-18.18,-17.73,-16.67,-16.93,-16.82,-17.5,-14.78,-8.52,-6.78,-6.31,-4.52,-4.17,-5.2],[-14.6,-14.6,-15.08,-14.38,-13.44,-12.82,-12.36,-8.23,-5.5,-4.65,-6.07,-7.07,-5.41],[-12.67,-13.19,-12.92,-12.17,-12.32,-12.97,-11.43,-6.68,-3.49,-2.86,-5.02,-3.52,-4.07],[-11.32,-11.36,-11.05,-10.74,-10.9,-10.68,-12.39,-6.84,-4.12,-3.84,-1.02,-3.61,-3.29],[-11.36,-11.32,-11.69,-11.32,-10.27,-10.18,-10.64,-6.62,-4.66,-3.41,-4.2,-5.53,-6.08],[-10.58,-11.38,-10.78,-10.27,-9.13,-9.08,-8.07,-5.39,-5.08,-3.0,-3.2,-2.44,-5.79],[-9.69,-10.89,-9.86,-9.67,-8.99,-8.05,-7.21,-5.75,-4.44,-4.1,-2.22,-3.89,-7.42],[-8.7,-9.22,-8.97,-9.03,-8.26,-7.68,-6.58,-5.77,-6.36,-4.37,-3.37,-3.19,-3.99],[-8.12,-8.1,-8.12,-7.6,-6.66,-6.39,-6.15,-5.03,-5.17,-5.39,-2.47,-3.15,-4.49],[-7.58,-7.96,-8.13,-7.31,-6.27,-6.02,-6.01,-6.44,-5.31,-5.01,-2.5,-4.57,-5.09],[-7.12,-6.6,-7.05,-5.51,-5.55,-5.58,-6.16,-6.58,-5.48,-4.24,-2.18,-3.78,-4.13],[-7.13,-6.63,-6.15,-4.8,-3.49,-3.0,-2.46,-3.21,-4.51,-2.59,-3.78,-2.68,-3.79],[-6.89,-6.74,-6.31,-6.92,-5.81,-4.83,-3.61,-4.69,-4.58,-2.95,-3.62,-2.43,-2.62],[-5.97,-6.58,-6.23,-6.36,-4.99,-5.38,-4.92,-4.39,-4.12,-3.74,-2.54,-2.73,-1.86],[-6.62,-6.26,-6.89,-5.83,-3.47,-3.45,-4.57,-4.39,-4.32,-4.12,-3.79,-3.47,-1.29],[-7.74,-6.66,-6.48,-6.59,-4.67,-4.49,-3.55,-3.73,-4.32,-3.8,-3.25,-3.17,-1.28],[-6.65,-6.38,-5.6,-4.39,-4.07,-3.2,-3.19,-3.78,-3.11,-2.99,-3.27,-4.19,-2.55],[-7.14,-6.92,-4.29,-4.46,-3.93,-4.03,-4.48,-3.96,-2.88,-4.03,-5.07,-3.51,-1.48]],"N":[[216,217,203,196,175,151,120,77,17,0,0,0,0],[236,234,231,217,204,190,165,143,114,80,38,11,0],[229,229,228,225,217,204,186,161,135,115,83,51,30],[213,212,211,206,197,189,172,164,141,121,98,70,46],[214,214,211,204,188,182,171,163,142,125,112,85,59],[209,206,202,197,194,182,166,163,136,132,106,90,70],[197,200,198,195,183,177,169,154,134,120,110,87,62],[197,194,194,182,178,171,158,146,129,115,106,88,76],[187,186,183,175,175,168,159,147,130,115,106,98,77],[150,150,152,141,143,145,134,119,111,92,81,93,76],[149,150,145,143,135,132,127,113,99,93,78,75,72],[145,146,140,140,130,124,115,104,89,85,75,63,70],[136,133,131,129,121,113,105,96,87,79,72,62,54],[136,134,134,128,119,113,104,95,88,76,69,58,46],[139,135,135,126,123,111,102,92,83,75,65,57,44],[136,133,130,119,114,106,101,88,81,74,62,55,44],[132,128,126,114,104,101,95,87,79,70,63,51,46],[127,122,116,107,102,96,90,81,76,66,60,48,44],[124,118,115,109,97,93,86,77,75,63,58,44,41],[122,118,116,105,96,92,85,80,78,67,59,47,39],[122,117,115,103,93,91,84,80,75,65,57,46,39],[118,115,109,97,92,90,82,76,69,61,54,45,38],[121,117,105,96,91,87,78,74,64,59,50,45,39]]};
+fig('f-rejilla', 'La rejilla prueba 299 combinaciones y se queda con la mejor zona, no con el mejor pico', 'ETHUSDT con MeanReversion, entrenamiento de abril a septiembre de 2023 (para operar octubre). Cada celda es el score S = PnL − 10 × MDD % de un backtest de 6 meses. Se elige el máximo del promedio de cada celda con sus vecinas (S̄), entre las que tienen al menos 30 operaciones.', 300, () => {
+  const ns = [...Array(23).keys()].map(i => 8 + 4 * i), ks = [...Array(13).keys()].map(i => +(0.8 + 0.2 * i).toFixed(1));
+  const SC = REJILLA.S, N = REJILLA.N, ok = (i, j) => N[i][j] >= 30;
+  const near = (i, j) => { const c = []; for (let a = i - 1; a <= i + 1; a++) for (let b = j - 1; b <= j + 1; b++) if (a >= 0 && a < 23 && b >= 0 && b < 13) c.push([a, b]); return c; };
+  const Sm = SC.map((r, i) => r.map((_, j) => { const c = near(i, j); return c.reduce((s, [a, b]) => s + SC[a][b], 0) / c.length; }));
+  let best = null, peak = null;
+  SC.forEach((r, i) => r.forEach((v, j) => {
+    if (!ok(i, j)) return;
+    if (!best || Sm[i][j] > Sm[best[0]][best[1]]) best = [i, j];
+    if (!peak || v > SC[peak[0]][peak[1]]) peak = [i, j];
+  }));
+  const elig = SC.flat().filter((_, k) => N[Math.floor(k / 13)][k % 13] >= 30);
+  // la escala de color se recorta en el percentil 10 para que se distingan las celdas cercanas al maximo
+  const sorted = [...elig].sort((a, b) => a - b), lo = sorted[Math.floor(0.1 * sorted.length)], hi = sorted[sorted.length - 1];
+  const x0 = 44, y0 = 8, cw = (W - 262 - x0) / 23, ch = 19;
+  const cx = i => x0 + i * cw, cy = j => y0 + (12 - j) * ch;
+  const col = v => { const t = Math.max(0, Math.min(1, (v - lo) / (hi - lo))); const a = [235, 242, 252], b = [42, 120, 214]; return `rgb(${a.map((c, i) => Math.round(c + (b[i] - c) * t)).join(',')})`; };
+  let g = S('defs', {}, S('pattern', { id: 'rej-hatch', patternUnits: 'userSpaceOnUse', width: 6, height: 6, patternTransform: 'rotate(45)' }, line(0, 0, 0, 6, C.axis, 2)));
+  SC.forEach((r, i) => r.forEach((v, j) => {
+    const box = { x: cx(i), y: cy(j), width: cw - 1.5, height: ch - 1.5, rx: 2 };
+    g += ok(i, j) ? S('rect', { ...box, fill: col(v) }) : S('rect', { ...box, fill: '#f1f0ec' }) + S('rect', { ...box, fill: 'url(#rej-hatch)' });
+  }));
+  const zone = ([i, j], color, dash) => {
+    const c = near(i, j), i0 = Math.min(...c.map(p => p[0])), i1 = Math.max(...c.map(p => p[0])), j0 = Math.min(...c.map(p => p[1])), j1 = Math.max(...c.map(p => p[1]));
+    return S('rect', { x: cx(i0) - 2, y: cy(j1) - 2, width: cx(i1) - cx(i0) + cw + 2.5, height: cy(j0) - cy(j1) + ch + 2.5, rx: 4, fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-dasharray': dash ? '5 4' : undefined })
+      + S('rect', { x: cx(i) - 0.5, y: cy(j) - 0.5, width: cw - 0.5, height: ch - 0.5, rx: 2, fill: 'none', stroke: color, 'stroke-width': 2.5 });
+  };
+  g += zone(peak, C.orange, true) + zone(best, C.ink, false);
+  ks.forEach((k, j) => { if (j % 2 === 0) g += txt(x0 - 8, cy(j) + 13, num(k, 1), { anchor: 'end', fill: C.muted, size: 11.5 }); });
+  ns.forEach((n, i) => { if (i % 2 === 0) g += xtick(cx(i) + cw / 2, y0 + 13 * ch + 16, String(n)); });
+  g += txt(x0 + 11.5 * cw, y0 + 13 * ch + 36, 'Ventana n (velas)', { anchor: 'middle', size: 12, fill: C.ink2 });
+  g += txt(12, y0 + 6.5 * ch, 'k', { anchor: 'middle', size: 13, fill: C.ink2, weight: 600 });
+  const lx = W - 236, f2 = v => num(v, 2);
+  const nb = near(...peak).filter(([a, b]) => a !== peak[0] || b !== peak[1]).map(([a, b]) => SC[a][b]);
+  g += txt(lx, 18, `Elegida: n = ${ns[best[0]]}, k = ${num(ks[best[1]], 1)}`, { size: 13, fill: C.ink, weight: 650 });
+  g += txt(lx, 37, `S = ${f2(SC[best[0]][best[1]])} · S̄ = ${f2(Sm[best[0]][best[1]])} (${near(...best).length} celdas)`, { size: 12, fill: C.ink2 });
+  g += txt(lx, 55, `${N[best[0]][best[1]]} operaciones en el entrenamiento`, { size: 12, fill: C.ink2 });
+  g += txt(lx, 90, `Pico aislado: n = ${ns[peak[0]]}, k = ${num(ks[peak[1]], 1)}`, { size: 13, fill: C.orange, weight: 650 });
+  g += txt(lx, 109, `S = ${f2(SC[peak[0]][peak[1]])} · S̄ = ${f2(Sm[peak[0]][peak[1]])}`, { size: 12, fill: C.ink2 });
+  g += txt(lx, 127, `vecinas entre ${f2(Math.min(...nb))} y ${f2(Math.max(...nb))}`, { size: 12, fill: C.ink2 });
+  g += txt(lx, 162, '(n*, k*) = argmax S̄, con ≥ 30 operaciones', { size: 12, fill: C.ink, weight: 600 });
+  for (let t = 0; t <= 4; t++) g += S('rect', { x: lx + t * 26, y: 186, width: 25, height: 14, fill: col(lo + (hi - lo) * t / 4) });
+  g += txt(lx, 216, `S ≤ ${f2(lo)}`, { size: 11, fill: C.muted }) + txt(lx + 130, 216, `alto (${f2(hi)})`, { size: 11, fill: C.muted });
+  g += S('rect', { x: lx, y: 232, width: 25, height: 14, fill: '#f1f0ec' }) + S('rect', { x: lx, y: 232, width: 25, height: 14, fill: 'url(#rej-hatch)' });
+  g += txt(lx + 32, 244, 'menos de 30 operaciones', { size: 11, fill: C.muted });
   return g;
-});
+}, [{ k: 'line', c: C.ink, l: 'Celda elegida y su zona (máximo de S̄)' }, { k: 'dash', c: C.orange, l: 'Pico de S y sus vecinas' }]);
 
 // §15 Etiqueta de XGBoost
 fig('f-etiqueta', 'Cómo se etiqueta cada vela para XGBoost', 'Desde la vela actual se miran 12 velas hacia adelante (3 horas). Si el precio terminó más de 1 % arriba, la etiqueta es 1; si no, 0.', 280, () => {

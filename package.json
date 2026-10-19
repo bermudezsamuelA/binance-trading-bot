@@ -6,7 +6,9 @@
   "scripts": {
     "start:python": "cd binance-research && .venv\\Scripts\\python -u server.py",
     "start:node": "npx tsx src/index.ts",
-    "dev": "concurrently --kill-others-on-fail -c \"cyan.bold,green.bold\" -n \"BRAIN,HANDS\" \"npm run start:python\" \"npm run start:node\""
+    "dev": "concurrently --kill-others-on-fail -c \"cyan.bold,green.bold\" -n \"BRAIN,HANDS\" \"npm run start:python\" \"npm run start:node\"",
+    "test": "tsx --test \"test/**/*.test.ts\"",
+    "test:python": "cd binance-research && .venv\\Scripts\\python -m unittest test_ledger test_report test_server test_strategy_engine test_walk_forward -v"
   },
   "keywords": [],
   "author": "",
@@ -20,13 +22,10 @@
     "zeromq": "^6.8.0"
   },
   "devDependencies": {
-    "@types/jest": "^30.0.0",
     "@types/node": "^26.6.3",
     "@types/ws": "^8.18.1",
     "concurrently": "^10.0.5",
-    "jest": "^30.5.2",
-    "ts-jest": "^29.4.14",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
 }

@@ -434,7 +434,7 @@ Los choques con noticia siguen la tendencia; los choques sin noticia revierten. 
 |---|---|---|---|
 | Bot actual, cartera de 4 | 6 854 op, 42.5 %, −0.238 % | 3 205 op, 41.4 %, −0.293 %, PF 0.62. El bot tal cual: 1 569 op, **7.1 %**, −0.374 % | Sin ventaja |
 | C1, ridge + MR20 | 467 op, 72.4 % [68.2, 76.2], +0.541 % ($t_{\text{día}}$ 2.22) | 148 op, **60.1 %**, −0.498 % (−1.31) | Rechazado ($z = 2.30$, $p = 0.022$) |
-| v1, ENS6, G3 | 132 op, 72.0 %, +0.93 %; ΔWR +16.7 | 6 monedas nuevas: 383 op, **68.7 % [63.9, 73.1]**, +0.41 % ($t_{\text{día}}$ 1.08); ΔWR **+16.9** ($p < 0.001$); ΔE +1.13 % ($p = 0.005$) | Rechazado |
+| v1, ENS6, G3 | 132 op, 72.0 %, +0.93 %; ΔWR +16.1 | 6 monedas nuevas: 383 op, **68.7 % [63.9, 73.1]**, +0.41 % ($t_{\text{día}}$ 1.08); ΔWR **+16.9** ($p < 0.001$); ΔE +1.13 % ($p = 0.005$) | Rechazado |
 | v2, ENS13, X5 | 188 op, **81.4 % [75.2, 86.3]**, +1.41 %, PF 2.31, $t_{\text{día}}$ 4.8, 6/6 pliegues, 17/18 meses, DSR 0.755 | 8 monedas nuevas: 621 op, **69.4 % [65.7, 72.9]**, +0.32 % ($t_{\text{día}}$ 1.02; +0.002 R); ΔWR +9.4 ($t = 3.29$); ΔE +1.07 % ($p = 0.001$); DSR 0.02 | Rechazado: **el 81 % era selección** |
 | v2 + co-señal | 131 op, 85.5 % [78.5, 90.5], +1.90 % | — | Inflado |
 | **v3** | 131 op, **87.8 % [81.1, 92.3]** (beta-binomial [81.6, 93.0]), +2.02 % (+2.07 % con BNB), +0.213 R, $t_{\text{día}}$ 5.90, 24 episodios con 92 % positivos, 15/15 meses activos | — | **Cota optimista** |
@@ -476,15 +476,29 @@ En la v2 sobre monedas nuevas, el límite inferior del WR corregido por la corre
 
 ### 3.4 Cifras corregidas y contradicciones resueltas
 
-**Error en `nn_report.summarize`** (sigue sin corregir en `nn/nn_report.py`, líneas 103-126): `Trades.concat` ya ordena por hora de entrada, pero `summarize` reordena las monedas con un índice calculado sobre el vector ya ordenado. Cada operación queda asociada a la **moneda equivocada**. Afecta al desglose por moneda y al azar "misma moneda y mes" de `nn_report.py`, `nn_v2_report.py`, `nn_eval.py` y `nn_v2_eval.py`. Solo `be_common.simulate_entries` está corregido.
+**Error en `nn_report.summarize`** (**corregido el 2026-10-18** en `nn/nn_report.py`): `Trades.concat` ya ordena por hora de entrada, pero `summarize` reordenaba las monedas con un índice calculado sobre el vector ya ordenado. Con el código viejo, 145 de las 188 operaciones de diseño de la v2 quedaban asociadas a la **moneda equivocada**. El error afectaba al desglose por moneda y al azar "misma moneda y mes" de `nn_report.py`, `nn_v2_report.py`, `nn_eval.py` y `nn_v2_eval.py`. Ahora `summarize` ordena las monedas con la misma permutación que `concat`, igual que `be_common.simulate_entries`. Las cifras agregadas del modelo (n, WR, E) no cambian. Se volvió a firmar el *hash* de `nn_report.py` en `spec_nn.json` y `spec_nn_v2.json`, con una advertencia que lo explica.
 
-| Cifra | Antes | Vigente |
+| Cifra (re-emitida y verificada por dos caminos) | Antes | Vigente |
 |---|---|---|
 | Azar de diseño de la v2 | 62.0 % / −0.441 % | **61.7 % / −0.426 %** |
-| ETH en diseño | 74 % / +0.62 % | **87.1 % / +1.67 %** |
-| BTC en diseño | +1.85 % | **80.9 % / +0.74 %** |
+| ΔWR / ΔE de diseño de la v2 | +19.4 pt / +1.85 % | **+19.7 pt / +1.83 %** |
+| BTC en diseño (v2) | 80.9 % / +1.85 % | **80.9 % / +0.74 %** (n = 47) |
+| ETH en diseño (v2) | 74 % / +0.62 % | **87.1 % / +1.67 %** (n = 31) |
+| SOL en diseño (v2) | 85.5 % / +1.64 % | **80.0 % / +1.30 %** (n = 55) |
+| DOGE en diseño (v2) | 81.8 % / +1.24 % | **80.0 % / +1.94 %** (n = 55) |
+| Azar de diseño de la v1 | 55.2 % / −0.487 % | **55.8 % / −0.409 %** |
+| ΔWR / ΔE de diseño de la v1 | +16.7 pt / +1.41 % | **+16.1 pt / +1.34 %** |
+| ETH / BTC en diseño (v1) | 41.7 % / −2.29 % y 73.0 % / +1.38 % | **70.8 % / +0.77 %** y **67.6 % / +0.14 %** |
 
-**No fiables hasta reemitirlas:** la tabla por moneda del *holdout* de la v2 (FIL 73 % … BCH 66 %) y el "WR del azar" de las pruebas en monedas nuevas (51.7 %, 60.0 %). Las cifras agregadas de n, WR y E del modelo siguen válidas.
+**Siempre fue correcta** la tabla por moneda del *holdout* de la v2 (FIL 73 % … BCH 66 %): sale de `por_moneda`, que se calcula moneda por moneda sin pasar por `summarize`. **Re-emitido el 2026-10-18** con `nn_eval.py` y `nn_v2_eval.py` corregidos: el "WR del azar" de las pruebas en monedas nuevas **se confirma** en 51.7 % (v1) y 60.0 % (v2). Lo que cambia es lo que imprimían esos scripts, que usaban el `summarize` viejo:
+
+| Prueba (monedas nuevas, 2025-07..2026-09) | Modelo (sin cambios) | Azar viejo → corregido | Ventaja corregida: ΔWR / ΔE ($t_{\text{día}}$) |
+|---|---|---|---|
+| Primaria v1 (6 monedas) | 383 op, 68.7 %, +0.41 % | 54.4 % → **51.7 %** | **+17.0 pt / +1.08 %** (2.86) |
+| Primaria v2 (8 monedas) | 621 op, 69.4 %, +0.32 % | 61.7 % → **60.0 %** | **+9.4 pt / +1.00 %** (3.18) |
+| Secundaria v1 (BTC, ETH, SOL, DOGE) | 204 op, 60.8 %, −0.22 % | 51.3 % → **54.2 %** | **+6.6 pt / +0.39 %** (0.84) |
+
+Los veredictos no cambian.
 
 | Tema | Versión vieja | Vigente |
 |---|---|---|
@@ -647,11 +661,11 @@ Cifras de diseño salvo que se indique. Referencia de la v2: 81.4 % y +1.41 %; d
 
 | Pieza | Hoy | Falta |
 |---|---|---|
-| `src/api/ws-client.ts` | Suscrito a `@kline_1m` (línea 25); fotos cada ~6 s; congela la ventana con posición | `kline_15m`, solo velas cerradas (`k.x`), sincronización por `open_time` |
+| `src/api/ws-client.ts` | **Corregido el 2026-10-18:** suscrito a `@kline_15m`; la estrategia solo ve velas cerradas (`k.x`), una vez por vela; el TP/SL se vigila con cada precio; la ventana no se congela con posición; sin doble SELL; reconexión con *backoff* | Sincronizar varias monedas por `open_time` (v3) |
 | `src/api/rest-client.ts` | Ya redondea cantidad y precio por `stepSize`/`tickSize`, siempre hacia abajo | SL con `ceil`; órdenes `MARKET` con `newOrderRespType=FULL`; OCO |
-| `binance-research/quantitative_strategies/` | Bollinger (MR, TF, Squeeze, VWAP, StatArb) con `round(x, 8)` | Pasan a `rechazada` |
-| `binance-research/strategy_engine.py` | Carga la estrategia de mayor PnL de `ml_results.json` | Registro de estrategias y `HOLD` por defecto |
-| `binance-research/server.py` | Precarga 100 velas de 1 min; ZMQ `evaluate` | Mensaje `bars` con velas cerradas; precarga ≥ 35 días |
+| `binance-research/quantitative_strategies/` | Bollinger (MR, TF, Squeeze, VWAP, StatArb) con `round(x, 8)`. **2026-10-19:** las cuatro conectadas quedaron `rechazada` en las 4 monedas (*walk-forward*, sección 14 de [matematica-del-bot.md](matematica-del-bot.md)) | — |
+| `binance-research/strategy_engine.py` y `optimize.py` | **Corregido el 2026-10-18:** `optimize.py` simula lo mismo que el bot en vivo (paridad verificada) y con costos. **Desde el 2026-10-19:** `ml_evaluator.py` elige con *walk-forward* (6 meses de entrenamiento y 1 de prueba, 38 meses fuera de muestra, validación final reservada) y marca cada estrategia `validada` o `rechazada` en `ml_results.json`; el motor solo carga las validadas y explica por qué una moneda no opera | Estados `prospectiva` y `paridad`, y `strategy_registry.json` |
+| `binance-research/server.py` | **Corregido el 2026-10-18:** precarga velas cerradas de 15 min del mismo mercado que el WS (`MARKET_DATA_REST_URL` en `config.py`); descarta duplicados por `open_time` y rellena huecos (`fill_gap`); ZMQ `evaluate` | Mensaje `bars` con velas de varias monedas; precarga ≥ 35 días para la v3 |
 | `src/risk/`, OCO, `strategy_registry.json`, `nn_strategy/`, `backtest/` | **No existen** | Crear (secciones 7.3 y 7.4) |
 
 ### 7.2 Infraestructura obligatoria antes de operar

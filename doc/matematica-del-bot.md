@@ -107,7 +107,7 @@ $$
 - **El cierre no es "de compra" ni "de venta".** Cada operación tiene siempre un comprador y un vendedor que se ponen de acuerdo en **un mismo precio** (ver la sección 3 de [introduccion-al-trading.md](introduccion-al-trading.md)). El cierre es el precio de esa última operación, y vale lo mismo para los dos lados.
 - **El color tampoco indica compras o ventas.** Una vela verde no significa que hubo más compradores: solo dice que el cierre quedó **por encima** de la apertura. En una vela verde el cierre es el borde **superior** del cuerpo; en una roja, el borde **inferior** (el punto violeta de la figura).
 - **Lo que sí distingue compras y ventas es el volumen.** Binance informa en cada vela qué parte del volumen la hicieron compradores "agresivos", que compraron al precio de venta disponible (`taker buy volume`). El bot no usa ese dato.
-- **En vivo, el cierre es provisional.** Mientras la vela no termina, su "cierre" es simplemente el último precio negociado hasta ese momento, y cambia con cada operación. El bot en vivo usa esas fotos de la vela en curso (sección 22), no cierres definitivos.
+- **En vivo, el bot solo usa cierres definitivos.** Mientras la vela no termina, su "cierre" es provisional: es el último precio negociado hasta ese momento y cambia con cada operación. Desde el 2026-10-18 el bot espera a que la vela de 15 minutos cierre y solo entonces le pasa su cierre a la estrategia (sección 22); los precios provisionales solo sirven para vigilar el TP y el SL de una posición abierta.
 
 **Desglose paso a paso**
 
@@ -122,7 +122,7 @@ $$
 **Cómo obtenerla en Binance.** Hay tres formas:
 
 1. **En el gráfico de la web o de la app.** Al abrir un par (por ejemplo, ETH/USDT) en modo velas, Binance ya dibuja medias móviles con la etiqueta **MA(7)**, **MA(25)** y **MA(99)**. Cada una es esta misma fórmula con $n = 7$, $25$ y $99$ velas de la temporalidad elegida arriba del gráfico (1m, 15m, 1h…). Para ver la del bot, hay que editar el indicador MA (en los ajustes del gráfico) y poner, por ejemplo, $n = 20$ con la temporalidad de 15 minutos.
-2. **Calcularla con la API de velas.** El endpoint público `GET /api/v3/klines` devuelve las últimas velas; el cierre es el quinto campo de cada una (índice 4). Es lo mismo que hace `pre_seed_engine` en [server.py](../binance-research/server.py), pero con velas de 1 minuto:
+2. **Calcularla con la API de velas.** El endpoint público `GET /api/v3/klines` devuelve las últimas velas; el cierre es el quinto campo de cada una (índice 4). Es lo mismo que hace `pre_seed_engine` en [server.py](../binance-research/server.py), que además descarta la última vela si todavía no cerró:
 
    ```python
    import requests
@@ -198,7 +198,7 @@ $$
 3. Se multiplica $\sigma_t$ por $k$ para decidir qué tan ancho es el canal: un $k$ mayor da menos señales, pero más "extremas".
 4. La banda superior $U_t$ se obtiene sumando ese ancho a la media.
 5. La banda inferior $L_t$ se obtiene restándolo.
-6. El optimizador prueba valores de $k$ entre $0.8$ y $3.0$ para encontrar el que mejor funcionó en el pasado (sección 13).
+6. El optimizador prueba valores de $k$ entre $0.8$ y $3.2$ y se queda con la zona de la rejilla que mejor funcionó en los 6 meses anteriores (sección 14).
 
 > **Advertencia.** Los retornos de las criptomonedas tienen "colas gordas": los movimientos extremos son mucho más frecuentes que en una distribución normal. Por eso el "95 %" es solo una referencia y no una probabilidad real.
 
@@ -376,7 +376,9 @@ $$
 6. La banda inferior se calcula restando $k\sigma_t$ al VWAP, donde $\sigma_t$ es la desviación estándar de los precios (no ponderada).
 7. Desde aquí, el TP, el SL y el filtro del 0.5 % son idénticos a los de la reversión a la media (sección 5).
 
-> **Importante: hoy el VWAP es igual a la SMA.** El optimizador le pasa a la estrategia solo el precio (un `float`), y en vivo `strategy_engine.py` solo le pasa el volumen si el método `evaluate` tiene un parámetro llamado `volume` o `current_volume`, cosa que no tiene. En los dos casos el volumen queda fijo en $V=1$, y entonces $VWAP = \frac{\sum P_i}{n} = \mu_t$. Por eso, en `ml_results.json`, BTCUSDT muestra resultados idénticos para `MeanReversion` y `VWAP`.
+> **Desde el 2026-10-18 el VWAP usa el volumen real.** En vivo, `strategy_engine.py` le pasa a todas las estrategias la vela cerrada completa (`close` y `volume`, el volumen de 15 minutos que manda Node.js), y el backtest (`simulate_live` y su versión rápida) hace lo mismo con el volumen de cada vela de los CSV. Por eso `VWAP` ya no coincide con `MeanReversion`: en la sección 14 sus resultados son distintos en las cuatro monedas.
+>
+> **Antes del 2026-10-18** el optimizador le pasaba a la estrategia solo el precio y el motor en vivo no le pasaba el volumen, así que $V = 1$ y $VWAP = \frac{\sum P_i}{n} = \mu_t$: el `ml_results.json` de entonces mostraba en BTCUSDT resultados idénticos para `MeanReversion` y `VWAP`.
 
 *Origen:* [vwap_strategy.py](../binance-research/quantitative_strategies/vwap_strategy.py).
 
@@ -545,7 +547,9 @@ $$
 
 **Ejemplo.** Con BTC a 60 000 USDT: $15/60000 = 0.00025$ BTC. Si el stop loss está un 1 % por debajo, el riesgo real es de solo $0.15$ USDT.
 
-*Origen:* `evaluateNewTrade` en [ws-client.ts](../src/api/ws-client.ts).
+> **Actualización (2026-10-19).** La compra ya no usa la fórmula de arriba: es una orden a mercado **por importe** (`quoteOrderQty` = 15.00 USDT, el `NOTIONAL_USDT` de [optimize.py](../binance-research/optimize.py) que Python le pasa a Node.js al conectarse) y Binance calcula la cantidad redondeando hacia abajo al `stepSize` de la moneda: con BTC a 88 000 compra 0.00017 BTC (14.96 USDT). Si el par no admite compras por importe, se usa $q = 15/P$ redondeado hacia abajo al `stepSize` (`floorToStep`) y se comprueba el mínimo de Binance. La cantidad, el precio medio y las comisiones que se registran son los ejecutados de verdad (respuesta `FULL`). **Antes** de enviar la orden se escribe en el ledger una fila `PENDING` con su `newClientOrderId` (columna `client_order_id`): al confirmarse, esa misma fila pasa a `OPEN`; si Binance la rechaza o no se ejecutó, pasa a `CANCELLED`. Si la respuesta no llega, o Binance dice que la orden no existe (puede aparecer tarde: `-1007`), es una **compra dudosa**: la fila sigue `PENDING`, la moneda no abre otra compra, se guardan los precios que llegan y se vuelve a consultar con ellos (sin respuesta, cada 5 s; tras cada «no existe», a los 10, 30 y 90 s, unos 2 minutos en total). Si aparece ejecutada, se adopta y esos precios se revisan contra su TP y su SL; si sigue sin existir tras la última consulta, pasa a `CANCELLED`. Las demás monedas siguen con normalidad. Al arrancar, cada fila `PENDING` se consulta una vez (todas a la vez y sin esperas): si la compra se ejecutó justo antes de que el proceso muriera, se adopta como posición abierta; si no se puede saber todavía, sigue el mismo esquema en segundo plano, sin retrasar la conexión del WebSocket. `PENDING` y `CANCELLED` no son operaciones y no entran en el resumen. La fórmula con $d = 5$ o $3$ describe la versión anterior; el riesgo real sigue siendo $q\,(P_{entrada} - SL)$.
+
+*Origen:* `openPosition` en [ws-client.ts](../src/api/ws-client.ts) y `marketBuy` en [rest-client.ts](../src/api/rest-client.ts) (antes, `evaluateNewTrade`).
 
 ## 11. Ganancia o pérdida de la operación (PnL en vivo)
 
@@ -577,7 +581,18 @@ $$
 3. La diferencia entre el precio de salida y el de entrada es la ganancia por moneda.
 4. Esa diferencia se multiplica por la cantidad $q$ para obtener el resultado total en USDT.
 
-*Origen:* `manageExistingPosition` y `closePosition` en [ws-client.ts](../src/api/ws-client.ts). La fórmula no descuenta comisiones; Binance spot cobra alrededor de 0.1 % por lado.
+> **Actualización (2026-10-19).** El PnL que registra el bot ya es **neto y real**, con el precio medio y las comisiones de cada orden ejecutada:
+>
+> $$PnL = \text{USDT recibidos} + q_{res}\,P_{salida} - \text{USDT pagados} - \text{comisiones}$$
+>
+> - La comisión que Binance cobra en la moneda comprada ya viene descontada de la cantidad que se vende, así que no se resta dos veces. Las comisiones en USDT y en BNB (valoradas al precio de BNB en ese momento) sí se restan.
+> - $q_{res}$ (residuo) es lo que queda en la cuenta sin poder venderse por estar por debajo del `stepSize` o del mínimo de Binance. Con la comisión cobrada en la moneda base, lo neto nunca es múltiplo del paso y siempre queda casi un paso entero: en BTC, 0.00001 BTC ≈ 0.9 USDT, un 6 % de una posición de 15 USDT. Sigue siendo del usuario, así que se valora al precio medio de la venta (columna `residual_quantity` del ledger) en vez de contarse como pérdida.
+> - La venta es una orden a mercado y puede completarse en varios tramos (orden llenada en parte, saldo insuficiente o estado desconocido, que se consulta antes de volver a vender); el PnL los suma todos. Si Binance dice que una venta enviada no existe (puede aparecer tarde), es una **venta dudosa**: no se reenvía hasta consultarla a los 10, 30 y 90 s (unos 2 minutos), ni siquiera si el precio cae más bajo el SL; si aparece, cuenta como vendida y no se vende dos veces. Si la posición entera queda por debajo del mínimo de Binance (polvo), se cierra en el ledger sin venta y sin PnL.
+> - Si Binance rechaza la venta por un filtro (`-1013`, `NOTIONAL` o `LOT_SIZE`), solo se da por polvo si, valorada con su precio medio (`GET /api/v3/avgPrice`, el que usa Binance para juzgar las órdenes a mercado), no llega al mínimo con un 1 % de margen. Si es vendible, se reintenta con espera creciente (5, 10, 20, 40 y 60 s) y se avisa por Telegram desde el tercer rechazo; ante `LOT_SIZE` se vuelven a leer los filtros del par.
+> - Al arrancar, cada posición abierta del ledger se verifica en Binance: que la compra exista y se ejecutara, si ya se vendió (en todo o en parte) mientras el bot estaba parado y si hay saldo. Si Binance no responde, la posición no se vende ni se ajusta hasta poder verificarla.
+> - El TP y el SL se siguen vigilando con cada precio del WebSocket. La fórmula de arriba, sin comisiones, describe la versión anterior; el backtest (sección 12) descuenta 0.12 % por lado.
+
+*Origen:* `manageExistingPosition`, `closePosition`, `finishClose` y `syncStateFromLedger` en [ws-client.ts](../src/api/ws-client.ts) y `netPnl` en [execution.ts](../src/api/execution.ts).
 
 ---
 
@@ -585,7 +600,7 @@ $$
 
 ## Los datos de entrenamiento: de qué fechas aprende el bot
 
-**Objetivo.** Todo lo que sigue (backtest, métricas, búsqueda de parámetros y XGBoost) depende de qué historia de precios se le muestra al bot. El proyecto **descarga** casi cuatro años de velas, pero el optimizador y XGBoost **solo usan un archivo de un mes**. Esta sección explica de dónde sale cada periodo y cuántas velas representa.
+**Objetivo.** Todo lo que sigue (backtest, métricas, búsqueda de parámetros y XGBoost) depende de qué historia de precios se le muestra al bot. Desde el 2026-10-19, `ml_evaluator.py` usa **toda** la historia descargada, de tres maneras: los meses de **desarrollo**, con los que se elige y se pone a prueba cada estrategia; una **validación final** al final de la historia, que no se usa para elegir nada y solo puede vetar una estrategia que pierda dinero en ella; y los **6 meses más recientes** (incluyen la validación final), con los que se eligen los parámetros que se cargan en vivo. Esta sección explica de dónde sale cada periodo y cuántas velas representa.
 
 $$
 N_{\text{velas}} = \text{días} \times 24 \times 4 = \text{días} \times 96
@@ -600,77 +615,81 @@ $$
 
 > **Qué calcula:** cuántas velas de 15 minutos caben en un periodo (cada hora tiene 4).
 >
-> **Ejemplo:** 1 día son $1 \times 96 = 96$ velas; un mes de 30 días son $30 \times 96 = 2\,880$ velas.
+> **Ejemplo:** del 2023-01-01 al 2026-10-14 hay 1 383 días, así que $1383 \times 96 = 132\,768$ velas. En los archivos hay 132 763 por moneda, porque el 2023-03-24 faltan 5 velas (una hora y cuarto sin datos en Binance).
 
-| Etapa | Periodo | Velas por moneda | Archivo |
+| Etapa | Periodo (ejecución del 2026-10-19) | Velas por moneda | Archivo |
 |---|---|---|---|
-| **Descarga** | Del **1 de enero de 2023** al día anterior a ejecutar `server.py` (hasta el 7 de octubre de 2026 en la última ejecución) | ≈ 132 000 | [download_data.py](../binance-research/download_data.py) |
-| **Optimización (grid search)** | **Un solo mes**, el último archivo mensual descargado: muy probablemente **septiembre de 2026** | ≈ 2 880 | [ml_evaluator.py](../binance-research/machine_learning_strategies/ml_evaluator.py) |
-| **XGBoost: entrenamiento (80 %)** | Ese mismo mes, del día 1 al 24 aproximadamente | ≈ 2 300 | [xgboost_classifier.py](../binance-research/machine_learning_strategies/xgboost_classifier.py) |
-| **XGBoost: prueba (20 %)** | Los últimos 6 días de ese mes | ≈ 570 | [xgboost_classifier.py](../binance-research/machine_learning_strategies/xgboost_classifier.py) |
+| **Descarga** | Del **1 de enero de 2023** al día anterior a ejecutar `server.py` (hasta el 14 de octubre de 2026) | 132 763 | [download_data.py](../binance-research/download_data.py) |
+| **Carga** | Todos los CSV de 15 min (meses completos y días sueltos del mes en curso), en una sola serie ordenada | 132 763 | `load_history` en [fast_backtest.py](../binance-research/fast_backtest.py) |
+| **Desarrollo (*walk-forward*)** | Del 2023-01-01 al 2026-08-31: **38 pliegues**; cada uno entrena con 6 meses y prueba con el mes siguiente (pruebas de 2023-07 a 2026-08) | 128 539 (≈ 17 500 de entrenamiento y ≈ 2 900 de prueba por pliegue) | [walk_forward.py](../binance-research/walk_forward.py) |
+| **Validación final (reservada)** | Del **2026-09-01 al 2026-10-14**: el último mes completo y los días del mes en curso | 4 224 | [walk_forward.py](../binance-research/walk_forward.py) |
+| **Parámetros en vivo** | Los 6 meses más recientes: del 2026-04-15 al 2026-10-14 | 17 568 | [walk_forward.py](../binance-research/walk_forward.py) |
+| **XGBoost: entrenamiento (80 %) y prueba (20 %)** | El último mes completo (septiembre de 2026), como antes. No se usa en vivo ni en la selección | ≈ 2 300 y ≈ 570 | [xgboost_classifier.py](../binance-research/machine_learning_strategies/xgboost_classifier.py) |
 | **Análisis exploratorio** | Toda la descarga (2023 → hoy) | ≈ 132 000 | [analyze_data.py](../binance-research/analyze_data.py) |
-| **Arranque en vivo** | Las últimas 100 velas de **1 minuto** | 100 | `pre_seed_engine` en [server.py](../binance-research/server.py) |
+| **Arranque en vivo** | Las últimas velas **cerradas de 15 minutos** del mismo mercado que el WebSocket (máx. ventana + 20, mínimo 100) | ≥ 100 | `pre_seed_engine` en [server.py](../binance-research/server.py) |
 
 **Desglose paso a paso**
 
-1. Al arrancar, `server.py` llama a `sync_historical_data`, que descarga velas de **15 minutos** del mercado *spot* de Binance para las cuatro monedas, desde el `2023-01-01` hasta **ayer**.
-2. La descarga se hace como máximo una vez al día: el archivo `data/.last_sync` guarda la fecha y, si ya se descargó hoy, se omite.
-3. La biblioteca `binance_historical_data` guarda **un CSV por mes** (en una carpeta `monthly`) y un CSV por día para el mes en curso (en una carpeta `daily`).
-4. Del 1 de enero de 2023 al 7 de octubre de 2026 hay 1 376 días, así que se descargan unas $1376 \times 96 \approx 132\,000$ velas por moneda.
-5. Sin embargo, `ml_evaluator.py` busca todos los CSV de 15 minutos de la moneda y se queda solo con **`m15_files[-1]`**, es decir, con el último archivo de la lista.
-6. Como las carpetas se recorren en orden alfabético (`daily` antes que `monthly`), ese último archivo es el **mes completo más reciente**.
-7. `ml_results.json` se generó el 8 de octubre de 2026, así que el mes usado fue, con toda probabilidad, **septiembre de 2026**: $30 \times 96 = 2\,880$ velas por moneda.
-8. Toda la búsqueda de parámetros (sección 14) se hace sobre esas 2 880 velas, es decir, sobre el **2 %** de la historia descargada.
-9. XGBoost usa el mismo archivo y lo corta en orden cronológico: el 80 % inicial para entrenar y el 20 % final (unos 6 días) para evaluar (sección 18).
-10. En vivo no se usa la historia descargada: `pre_seed_engine` pide las últimas 100 velas de 1 minuto para llenar la ventana de la estrategia antes de empezar.
+1. Al arrancar, `server.py` llama a `sync_historical_data`, que descarga velas de **15 minutos** del mercado *spot* de Binance para las cuatro monedas, desde el `2023-01-01` hasta **ayer**. Lo hace como máximo una vez al día (`data/.last_sync`).
+2. La biblioteca `binance_historical_data` guarda **un CSV por mes** (carpeta `monthly`) y un CSV por día del mes en curso (carpeta `daily`).
+3. `load_history` lee **todos** esos CSV, pasa a milisegundos los `open_time` que Binance publica en microsegundos desde 2025, descarta duplicados y los ordena: queda una sola serie de 132 763 velas por moneda.
+4. La validación final se calcula sola en cada ejecución: es el último mes completo más los días del mes en curso. En la ejecución del 2026-10-19 va del 2026-09-01 al 2026-10-14 (44 días, $44 \times 96 = 4\,224$ velas).
+5. Todo lo anterior es desarrollo. El primer mes de prueba es 2023-07, porque antes hacen falta 6 meses de entrenamiento; el último es 2026-08. Son 38 meses de prueba fuera de muestra por moneda y estrategia (sección 14).
+6. Los parámetros que se cargan en vivo se eligen con el mismo procedimiento, pero con los 6 meses que terminan en la última vela descargada (del 2026-04-15 al 2026-10-14).
+7. XGBoost sigue usando solo el último archivo mensual, cortado en 80 % y 20 % (sección 18). Su resultado no se usa en vivo ni influye en la selección.
+8. En vivo no se usa la historia descargada: `pre_seed_engine` pide las últimas velas cerradas de 15 minutos (al menos 100) para llenar la ventana de la estrategia antes de empezar.
 
-> **Por qué importa.** Un solo mes muestra un único "estado de ánimo" del mercado: si septiembre fue lateral, el optimizador premiará la reversión a la media; si fue de tendencia, premiará las rupturas. Con 1 100 configuraciones probadas sobre 2 880 velas, el riesgo de sobreajuste (sección 14) es muy alto. La corrección es sencilla: concatenar y ordenar **todos** los CSV, como ya hace `analyze_data.py`, y reservar los meses más recientes como validación.
+> **Por qué importa.** Hasta el 2026-10-18 el optimizador veía **un solo mes** (septiembre de 2026, 2 880 velas) y probaba 1 196 configuraciones sobre él. Las estrategias elegidas ganaban todas en septiembre, pero del 1 al 14 de octubre tres de las cuatro monedas perdieron: ETH (reversión a la media) acertó 3 de 10, SOL (*squeeze*) 1 de 6 y DOGE (ruptura) 2 de 5. Un mes muestra un único "estado de ánimo" del mercado; con 38 meses de prueba que el optimizador no vio, la selección mide si la estrategia funciona fuera de los datos con los que se ajustó.
 >
-> **Nota:** la carpeta `binance-research/data/` está en `.gitignore` y no existe en esta copia del repositorio, así que el mes exacto se deduce del código y de la fecha de `ml_results.json`, no de los archivos. Para confirmarlo, basta con imprimir `csv_file` en `ml_evaluator.py`.
+> **Nota:** la carpeta `binance-research/data/` está en `.gitignore`. Las fechas exactas de cada ejecución quedan guardadas en el bloque `_protocolo` de `ml_results.json`.
 
 ## 12. Simulador de capital (backtest)
 
-**Objetivo.** Para elegir los mejores parámetros, el bot "reproduce" el pasado vela por vela como si estuviera operando y lleva la cuenta del capital. Así puede comparar miles de configuraciones sin arriesgar dinero. El simulador empieza con 1 000 USD y arriesga una cantidad fija de 15 USD por operación.
+**Objetivo.** Para elegir los mejores parámetros, el bot "reproduce" el pasado vela por vela como si estuviera operando y lleva la cuenta del capital. Así puede comparar cientos de configuraciones sin arriesgar dinero. Desde el 2026-10-18 el simulador hace **exactamente lo mismo que el bot en vivo**: invierte unos 15 USDT por operación, vigila el TP y el SL con el máximo y el mínimo de cada vela y descuenta comisiones.
 
 $$
-C_0 = 1000,\qquad
-C \leftarrow \begin{cases}
-C + 2\cdot 15 & \text{si } P_t \ge TP \\[2pt]
-C - 15 & \text{si } P_t \le SL
-\end{cases}
+q = \frac{15}{P_e},
+\qquad
+P_s = \begin{cases}
+SL & \text{si } L_t \le SL \[2pt]
+TP & \text{si } H_t \ge TP
+\end{cases},
+\qquad
+PnL = q\,(P_s - P_e) - q\,(P_e + P_s)\,c,
+\qquad
+C \leftarrow C + PnL
 $$
 
 **Qué es cada símbolo:**
 
-- $C$: capital simulado.
-- $C_0$: capital inicial (1 000).
-- $\leftarrow$: "se reemplaza por": el capital pasa a valer lo de la derecha.
-- $15$: riesgo fijo por operación; $2 \cdot 15 = 30$ es lo que se gana al acertar.
-- $P_t$: cierre de la vela que se está simulando.
+- $q$: cantidad de monedas compradas con 15 USDT.
+- $P_e$: precio de entrada (el cierre de la vela de señal).
+- $P_s$: precio de salida. Si la vela **abre** ya por debajo del SL o por encima del TP, la salida es la apertura.
+- $L_t$, $H_t$: mínimo y máximo de la vela $t$. Si una vela toca las dos barreras, cuenta el SL (supuesto conservador).
+- $c$: costo por lado, 0.12 % (0.10 % de comisión y 0.02 % de deslizamiento).
+- $C$: capital simulado, que empieza en $C_0 = 1000$.
 
-> **Qué calcula:** cómo cambia el capital simulado tras cada operación del backtest.
+> **Qué calcula:** la ganancia o pérdida neta de cada operación y cómo cambia el capital simulado.
 >
-> **Ejemplo:** empezando con 1 000 y una secuencia gana, pierde, pierde: $1000 \to 1030 \to 1015 \to 1000$. Si siguen gana, gana, pierde: $1030 \to 1060 \to 1045$. Esta curva se usa en el ejemplo de la sección 13.
-
-![El backtest suma +30 al ganar y resta −15 al perder](img/f-backtest.png)
+> **Ejemplo:** ETH entra a 2 400 con TP 2 424 y SL 2 376, así que $q = 15/2400 = 0.00625$. Si toca el TP: $0.00625 \times 24 - 0.00625 \times 4824 \times 0.0012 = 0.150 - 0.036 = +0.114$ USDT. Si toca el SL: $-0.150 - 0.036 = -0.186$ USDT. Con un TP y un SL a la misma distancia, las comisiones bastan para que haya que acertar más de la mitad de las veces.
 
 **Desglose paso a paso**
 
-1. El capital inicial se fija en 1 000 USD.
-2. Se recorre la serie histórica de precios de cierre en orden cronológico.
-3. Si no hay posición abierta, se le pasa el precio a la estrategia para ver si da señal de compra.
-4. Si hay señal, se registran el TP y el SL, y el riesgo se fija en 15 USD.
-5. En las velas siguientes, si el precio alcanza el TP, se suman 30 USD (dos veces el riesgo) y se cuenta una operación ganadora.
-6. Si el precio alcanza el SL, se restan 15 USD y se cuenta una perdedora.
-7. Después de cada cierre se guarda el capital en la curva de capital $C_0, C_1, \dots, C_N$, que luego se usa para las métricas.
+1. El capital inicial se fija en 1 000 USDT.
+2. Se recorren las velas de 15 minutos en orden cronológico (apertura, máximo, mínimo, cierre y volumen).
+3. Si hay una posición abierta, se mira primero si la vela toca el SL o el TP, con su mínimo y su máximo. Las barreras se vigilan desde la vela **siguiente** a la entrada.
+4. Se le pasa la vela a la estrategia **siempre**, también con una posición abierta: su ventana nunca se congela, igual que en vivo.
+5. Si la estrategia da señal, no hay posición y la vela no es la misma en la que se acaba de cerrar otra operación, se compra al cierre con 15 USDT.
+6. Al cerrar, se calcula el PnL neto con la fórmula de arriba y se suma al capital. Si es mayor que 0, la operación cuenta como ganadora.
+7. Después de cada cierre se guarda el capital en la curva $C_0, C_1, \dots, C_N$, que luego se usa para las métricas.
 
-> **Inconsistencia importante.** El simulador **siempre** paga $2R$ al ganar, pero no todas las estrategias tienen esa relación:
-> - En reversión a la media y VWAP, el TP está a $1R$, así que el backtest **duplica** la ganancia real de cada acierto e infla mucho su PnL.
-> - En squeeze, el TP está a $2.5R$, así que el backtest **subestima** sus ganancias.
->
-> Además, solo mira precios de cierre (no máximos ni mínimos), no descuenta comisiones y arriesga 15 USD por operación, mientras que en vivo se **invierten** 15 USD (sección 10), lo que implica un riesgo mucho menor.
+**Paridad con el bot en vivo.** Con 13 056 velas por moneda (junio a octubre de 2026), el simulador y el bot en vivo reproducido sin conexión (Node y Python reales) abrieron y cerraron las mismas operaciones en las mismas velas, en las 4 monedas. Las dos diferencias que quedan son de la realidad, no del código: en vivo el precio se ve cada ~2 s, así que un toque muy rápido de la barrera puede no verse, y la venta sale al precio del momento, no exactamente al TP o al SL.
 
-*Origen:* `QuantCalculator.evaluate_strategy` en [optimize.py](../binance-research/optimize.py).
+> **Antes del 2026-10-18** el simulador pagaba siempre $2 \times 15$ USD al ganar y restaba 15 al perder, solo miraba cierres, no descontaba comisiones y congelaba la ventana con una posición abierta. Por eso los parámetros de entonces no se parecían a lo que hacía el bot en vivo. La sección 13 usa como ejemplo ilustrativo una curva de ese estilo ($1000 \to 1030 \to 1015 \dots$); las fórmulas de las métricas no cambiaron.
+
+**Versión rápida (2026-10-19).** La selección de la sección 14 necesita simular 299 parejas $(n, k)$ por estrategia sobre 132 763 velas. `simulate_live` con las clases reales tarda ≈ 0.3 s por mes y pareja, así que [fast_backtest.py](../binance-research/fast_backtest.py) hace las mismas cuentas con *numpy*: calcula la media y la desviación de todas las ventanas de una vez, con el mismo orden de sumas que `pandas`, y después avanza de operación en operación. Como la estrategia ve todas las velas, sus señales no dependen de las operaciones y se pueden calcular de antemano. Antes de usarla, `ml_evaluator.py` comprueba que da **exactamente** las mismas operaciones que `simulate_live` (mismas velas de entrada y salida, mismos precios y el mismo PnL hasta el último bit); si no, se detiene sin escribir nada. También tiene un **modo tramo** para los meses de prueba de la sección 14: una estrategia nueva, precargada con $\max(n + 20,\ 100)$ velas, que solo abre durante el mes (o desde la vela siguiente a la salida de la operación del mes anterior, si sigue abierta) y sigue cada operación hasta su salida; se compara contra `simulate_live` corrido sobre ese mismo tramo con la clase real. La cadena completa de meses del walk-forward con esa regla de una posición por moneda también se comprobó contra `simulate_live` mes a mes en los 16 pares (3 830 operaciones OOS y las de la validación final): idéntica. En las pruebas del 2026-10-19 (299 casos y 45 318 operaciones: 4 monedas, 4 estrategias, parámetros extremos y al azar, tramos de 1, 2 y 3 meses, la historia completa y 93 casos en modo tramo, 41 de ellos con los meses de prueba reales del walk-forward) el Jaccard de las operaciones fue 1.0 y el PnL idéntico en todos. Sobre la historia completa, una pareja tarda ≈ 0.1–0.25 s en vez de 14 s (95 s con VWAP).
+
+*Origen:* `simulate_live` en [optimize.py](../binance-research/optimize.py) (referencia) y `FastSymbol.simulate` en [fast_backtest.py](../binance-research/fast_backtest.py) (la que usa `ml_evaluator.py`; prueba completa con `python fast_backtest.py`).
 
 ## 13. Métricas de rendimiento
 
@@ -699,7 +718,7 @@ $$
 
 > **Qué calcula:** el porcentaje de aciertos, la ganancia total, cuánto se ganó por cada dólar perdido y la ganancia media por operación.
 >
-> **Ejemplo:** con la curva de la sección 12 (3 ganadas y 3 perdidas): $WR = 50\,\%$, $G^{+} = 90$, $G^{-} = 45$, $PnL = 1045 - 1000 = 45$, $PF = 90/45 = 2$ y $EP = 45/6 = 7.5$.
+> **Ejemplo:** con una curva ilustrativa $1000, 1030, 1015, 1000, 1030, 1060, 1045$ (3 ganadas de +30 y 3 perdidas de −15): $WR = 50\,\%$, $G^{+} = 90$, $G^{-} = 45$, $PnL = 1045 - 1000 = 45$, $PF = 90/45 = 2$ y $EP = 45/6 = 7.5$.
 
 $$
 \text{Pico}_j = \max_{i\le j} C_i,\qquad
@@ -745,63 +764,132 @@ $$
 6. En cada punto se calcula qué porcentaje se ha perdido desde ese pico.
 7. El *máximo drawdown* $MDD$ es la peor de esas caídas, es decir, el mayor bache que se habría sufrido.
 8. El *score* resta al PnL 10 USD por cada punto porcentual de drawdown, así que penaliza las estrategias rentables pero muy accidentadas.
-9. Las configuraciones con 5 operaciones o menos se descartan, porque son demasiado pocas para sacar conclusiones.
+9. Las configuraciones con 5 operaciones o menos se descartan, porque son demasiado pocas para sacar conclusiones. En la selección *walk-forward* (sección 14), que mira 6 meses en vez de uno, el mínimo es de 30 operaciones en el entrenamiento.
 
-**Ejemplo real** (BTCUSDT, `MeanReversion` en `ml_results.json`): 17 operaciones con 58.82 % de acierto son $W=10$ y $L=7$. Entonces $G^{+}=10\cdot30=300$, $G^{-}=7\cdot15=105$, $PnL=195$, $PF=300/105=2.86$ y $EP=195/17=11.47$, que coincide exactamente con el archivo.
+**Ejemplo real del simulador anterior** (BTCUSDT, `MeanReversion` en el `ml_results.json` de antes del 2026-10-18, que pagaba +30 o −15 fijos): 17 operaciones con 58.82 % de acierto son $W=10$ y $L=7$. Entonces $G^{+}=10\cdot30=300$, $G^{-}=7\cdot15=105$, $PnL=195$, $PF=300/105=2.86$ y $EP=195/17=11.47$, que coincidía exactamente con el archivo de entonces.
 
 *Origen:* `calculate_metrics` en [optimize.py](../binance-research/optimize.py).
 
 ## 14. Búsqueda en rejilla (*grid search*) y selección de estrategia
 
-**Objetivo.** Las estrategias tienen dos "perillas", la ventana $n$ y el multiplicador $k$, y no se sabe de antemano qué valores funcionan mejor para cada moneda. La búsqueda en rejilla prueba todas las combinaciones posibles dentro de un rango y se queda con la mejor. Después, el motor en vivo elige para cada moneda la estrategia ganadora.
+**Objetivo.** Las estrategias tienen dos "perillas", la ventana $n$ y el multiplicador $k$, y no se sabe de antemano qué valores funcionan para cada moneda. La búsqueda en rejilla prueba todas las combinaciones de un rango. El riesgo es el **sobreajuste**: si se prueban cientos de combinaciones sobre los mismos datos, alguna sale bien por pura suerte. Por eso, desde el 2026-10-19, la búsqueda se repite mes a mes y se juzga con meses que el optimizador no vio (*walk-forward*): una estrategia solo se carga en vivo si su resultado **fuera de muestra** (OOS, *out-of-sample*) gana dinero neto de costos, la ganancia es estadísticamente distinta de cero y no pierde dinero en la validación final.
 
 $$
 n \in \{8, 12, 16, \dots, 96\}\;(23\text{ valores}),\qquad
-k \in \{0.8, 1.0, \dots, 3.0\}\;(\approx 12\text{ valores})
+k \in \{0.8, 1.0, \dots, 3.2\}\;(13\text{ valores})
 $$
 
 **Qué es cada símbolo:**
 
 - $\in$: "pertenece a" o "toma valores en".
-- $\{8, 12, \dots, 96\}$: conjunto de ventanas que se prueban.
-- $\{0.8, 1.0, \dots, 3.0\}$: conjunto de multiplicadores que se prueban.
+- $\{8, 12, \dots, 96\}$: ventanas que se prueban, de 4 en 4.
+- $\{0.8, 1.0, \dots, 3.2\}$: multiplicadores que se prueban, de 0.2 en 0.2.
 
 > **Qué calcula:** todas las combinaciones de ventana y multiplicador que se prueban.
 >
-> **Ejemplo:** las ventanas van de 8 a 96 de 4 en 4 (23 valores) y los multiplicadores de 0.8 a 3.0 de 0.2 en 0.2 (12 valores): $23 \times 12 = 276$ backtests por estrategia.
+> **Ejemplo:** $23 \times 13 = 299$ backtests por estrategia y $4 \times 299 = 1\,196$ por moneda en cada entrenamiento. Antes la rejilla salía de `np.arange(0.8, 3.2, 0.2)`, que por redondeo daba 13 valores (no 12) del tipo `1.5999999999999999`; ahora se redondean a 2 decimales, los mismos que se cargan en vivo.
 
 $$
-(n^{*}, k^{*}) = \arg\max_{n,\,k}\ \text{Score}(n,k)
-\qquad\qquad
-\text{estrategia}^{*} = \arg\max_{s}\ PnL_s(n^{*}_s, k^{*}_s)
+S(n,k) = PnL_{\text{ent}}(n,k) - 10\cdot MDD_{\%}(n,k),
+\qquad
+\bar S(n,k) = \frac{1}{|V(n,k)|}\sum_{(n',k')\in V(n,k)} S(n',k'),
+\qquad
+(n^{*}, k^{*}) = \arg\max_{N_{\text{ent}}(n,k)\,\ge\,30}\ \bar S(n,k)
 $$
 
 **Qué es cada símbolo:**
 
-- $\arg\max$: "el valor que hace máximo": no devuelve el score más alto, sino la pareja $(n, k)$ que lo logra.
-- $n^{*}$, $k^{*}$: la mejor ventana y el mejor multiplicador.
-- $s$: cada una de las estrategias (reversión, ruptura, VWAP, squeeze).
-- $PnL_s$: ganancia del backtest de la estrategia $s$.
+- $S(n,k)$: el *score* de la sección 13, calculado solo con las operaciones que entran y salen dentro del entrenamiento (6 meses).
+- $V(n,k)$: la celda y sus vecinas en la rejilla ($n \pm 4$ y $k \pm 0.2$). Son 9 celdas, o menos en los bordes; $|V|$ es cuántas son.
+- $\bar S(n,k)$: el *score* promedio de esa zona. Premia las "mesetas" (zonas donde varias combinaciones parecidas funcionan) frente a los picos aislados.
+- $N_{\text{ent}}(n,k)$: operaciones en el entrenamiento. Solo se pueden elegir celdas con al menos 30 (unas 5 por mes).
+- $\arg\max$: "la pareja que hace máximo"; $(n^{*}, k^{*})$ es la pareja elegida. Si su $PnL_{\text{ent}}$ es $\le 0$, ese mes la estrategia **no opera**.
 
-> **Qué calcula:** con qué pareja $(n, k)$ se queda cada estrategia, y qué estrategia usa cada moneda.
+> **Qué calcula:** la pareja del centro de la mejor zona de la rejilla, usando solo el entrenamiento.
 >
-> **Ejemplo:** si $(20, 2.0)$ tiene score 15.9 y $(24, 1.6)$ tiene 40.2, gana $(24, 1.6)$. Entre estrategias, en ETHUSDT `MeanReversion` (PnL 390) le gana a `TrendFollowing` (PnL 105).
+> **Ejemplo** (la figura de abajo): en ETHUSDT con `MeanReversion`, para operar octubre de 2023 se entrena de abril a septiembre. La celda $(40, 2.8)$ es el pico, con $S = -1.02$, pero sus 8 vecinas valen entre $-5.53$ y $-2.86$, así que $\bar S = -3.67$. Gana la meseta $(84, 3.2)$: $S = -1.29$ y, como está en el borde, $\bar S$ promedia 6 celdas: $-2.30$. En octubre, el pico habría hecho 16 operaciones con $-0.68$ USDT y la meseta hizo 5 con $-0.76$: elegir la zona no garantiza ganar; solo evita apostar por un pico que sus vecinas no confirman.
 
-![La búsqueda en rejilla prueba 276 combinaciones](img/f-rejilla.png)
+![La rejilla de 299 combinaciones: se elige la mejor zona (promedio 3×3), no el mejor pico](img/f-rejilla.png)
+
+$$
+\text{OOS} = \bigcup_{M = \text{2023-07}}^{\text{2026-08}} \text{ops}\big(M;\ n^{*}_{M}, k^{*}_{M}\big),
+\qquad
+(n^{*}_{M}, k^{*}_{M}) \text{ elegido con } [\,M - 6\text{ meses},\ M\,)
+$$
+
+**Qué es cada símbolo:**
+
+- $M$: mes de prueba. Hay 38, de 2023-07 a 2026-08.
+- $[\,M - 6\text{ meses},\ M\,)$: el entrenamiento de ese mes; termina justo donde empieza la prueba.
+- $\text{ops}(M;\ n^{*}_{M}, k^{*}_{M})$: las operaciones que **entran** durante $M$ con la pareja elegida para $M$. Cada mes se simula aparte, como lo viviría el bot al arrancar con parámetros nuevos: una estrategia **nueva**, precargada con las $\max(n + 20,\ 100)$ velas anteriores (como `pre_seed_engine`), **sin** la posición que hubiera quedado abierta del mes anterior. Las operaciones que siguen abiertas al terminar el mes se siguen hasta su salida real, salvo las que saldrían dentro de la validación final.
+- $\bigcup$: se juntan los 38 meses. El resultado OOS es el del procedimiento completo, "re-optimizar cada mes y operar el siguiente", que es justo lo que se haría en vivo.
+
+> **Qué calcula:** cómo le habría ido al procedimiento de selección con meses que no vio al elegir.
+>
+> **Ejemplo:** ETHUSDT con `MeanReversion`. Para marzo de 2024 (entrenamiento de septiembre de 2023 a febrero de 2024) elige $(84, 3.0)$, que dentro de muestra hizo 31 operaciones y $+6.50$ USDT; en marzo hace 16 operaciones y gana $+1.10$. Para abril elige $(84, 3.2)$ ($+5.48$ en entrenamiento) y pierde $-2.45$. Para diciembre de 2025 la mejor meseta, $(12, 2.6)$, pierde $-5.70$ en entrenamiento, así que ese mes no opera. Sumando los 38 meses: 273 operaciones, 48.4 % de acierto y $-7.29$ USDT.
+
+$$
+d_j = \sum_{\text{ops. que cierran el día } j} PnL,
+\qquad
+t = \frac{\bar d}{s_d / \sqrt{D}},
+\qquad
+p = P\left(T_{D-1} \ge t\right),
+\qquad
+\text{pasa si } p < \frac{0.05}{16} = 0.003125
+$$
+
+**Qué es cada símbolo:**
+
+- $d_j$: PnL neto (USDT) de las operaciones OOS que cierran el día $j$. Solo cuentan los días con operaciones.
+- $D$: cuántos días tienen operaciones.
+- $\bar d$, $s_d$: media y desviación estándar muestral de los $d_j$.
+- $t$: cuántos errores estándar está la ganancia media por día por encima de 0. Se agrupa por día porque las operaciones de un mismo día no son independientes.
+- $T_{D-1}$: distribución *t* de Student con $D-1$ grados de libertad; $p$ es la probabilidad de ver un $t$ así de alto si la estrategia no tuviera ventaja (una cola).
+- $16$: pares (moneda, estrategia) que se prueban. Al probar 16 a la vez, la exigencia se divide entre 16 (corrección de Bonferroni) para que la probabilidad de aprobar alguno por pura suerte siga siendo del 5 %.
+
+> **Qué calcula:** si la ganancia fuera de muestra es lo bastante grande y estable como para no ser suerte.
+>
+> **Ejemplo:** SOLUSDT con `MeanReversion` (el mejor OOS): 200 operaciones en $D = 173$ días y $+4.09$ USDT. $\bar d = 0.0237$, $s_d = 0.592$ y $t = 0.0237 / (0.592/\sqrt{173}) = 0.53$, así que $p = 0.30$. Para pasar haría falta $p < 0.003125$, es decir, $t \ge 2.77$: más de 5 veces más ganancia por día con el mismo ruido.
 
 **Desglose paso a paso**
 
-1. Se generan todas las ventanas de 8 a 96 en pasos de 4.
-2. Se generan todos los multiplicadores de 0.8 a 3.0 en pasos de 0.2.
-3. Para cada pareja $(n,k)$ se ejecuta el backtest completo (sección 12) sobre las velas de 15 minutos de un solo mes (ver "Los datos de entrenamiento" al inicio de la Parte 4).
-4. Esto da unas $23 \times 12 = 276$ simulaciones por estrategia y unas 1 100 por moneda.
-5. Dentro de cada estrategia se guarda la pareja con el **score** más alto (sección 13).
-6. Al arrancar, `strategy_engine.py` compara las cuatro estrategias de cada moneda y elige la de mayor **PnL**, no la de mayor score.
-7. La estrategia elegida se instancia con sus $n^{*}$ y $k^{*}$ y es la que genera las señales en vivo.
+1. Para cada moneda, estrategia y pareja $(n,k)$ se simula **una vez** toda la historia (sección 12, versión rápida con paridad exacta). Con esa simulación se miden los entrenamientos.
+2. Para cada mes de prueba $M$, cada pareja se mide solo con sus operaciones del entrenamiento $[\,M-6\text{ meses},\ M\,)$, y se calculan $S$ y $\bar S$.
+3. Se elige $(n^{*}, k^{*})$, la mejor meseta entre las celdas con al menos 30 operaciones. Si su PnL de entrenamiento no es positivo, ese mes no se opera.
+4. El mes $M$ se simula aparte con $(n^{*}, k^{*})$: estrategia nueva precargada, entradas solo durante $M$ y cada operación seguida hasta su salida. Como en el bot, hay una sola posición por moneda: si la operación de un mes anterior sigue abierta, el mes $M$ no abre otra hasta la vela siguiente a su salida (la estrategia ve esas velas, pero su señal se ignora), y la validación final hereda la que siga abierta al terminar el desarrollo. Repitiendo los pasos 2 a 4 para los 38 meses se obtiene el OOS de la estrategia.
+5. La estrategia **pasa el walk-forward** para la moneda solo si su OOS cumple las cuatro condiciones: al menos 30 operaciones, PnL neto $> 0$, al menos la mitad de los meses con operaciones en positivo y $p < 0.003125$. El protocolo se fijó antes de ver los resultados y no se ajustó después.
+6. La validación final (2026-09-01 a 2026-10-14) repite los pasos 2 a 4 sobre ese periodo reservado. No elige parámetros ni estrategia, pero puede **vetar**: si una estrategia que pasa el walk-forward pierde dinero ($PnL < 0$) en la validación final, queda `rechazada` y no se carga en modo normal (el modo experimental sí puede cargarla, marcada).
+7. Una estrategia queda `validada` si pasa el walk-forward, no la veta la validación final y tiene parámetros rentables en los 6 meses más recientes (pasos 2 y 3 sobre esos meses: son los que se cargan en vivo). Si una moneda tiene más de una validada, se queda la de mayor $t$.
+8. `ml_evaluator.py` guarda todo en `ml_results.json`: el bloque `_protocolo` (con la regla del veto) y, por estrategia, `status` (`validada` o `rechazada`), `motivo`, `pasa_walk_forward`, los parámetros de vivo (`window`, `multiplier` y sus métricas en los 6 meses recientes), `oos`, `validacion_final` y una fila por pliegue. `strategy_engine.py` solo carga estrategias validadas que no pierden en la validación final y explica por consola por qué una moneda no opera.
 
-> **Riesgo de sobreajuste.** Si se prueban más de mil configuraciones sobre los mismos datos, alguna saldrá bien por pura suerte. Sin una validación con datos que el optimizador no haya visto (*out-of-sample*), los resultados de `ml_results.json` probablemente sobreestiman lo que pasará en vivo.
+**Resultados de la ejecución del 2026-10-19** (OOS: 2023-07 a 2026-08; validación final: 2026-09-01 a 2026-10-14; PnL en USDT con 15 USDT por operación, neto de costos):
 
-*Origen:* [ml_evaluator.py](../binance-research/machine_learning_strategies/ml_evaluator.py) y [strategy_engine.py](../binance-research/strategy_engine.py).
+| Moneda | Estrategia | Entrenamiento: WR / PnL por op. | OOS: ops / WR / PnL | Meses + | OOS: $t$ / $p$ | Validación final: ops / WR / PnL | Estado |
+|---|---|---|---|---|---|---|---|
+| BTCUSDT | MeanReversion | 57.1 % / +0.019 | 99 / 53.5 % / −1.49 | 42 % | −0.56 / 0.71 | 1 / 0 % / −0.23 | rechazada |
+| BTCUSDT | TrendFollowing | 43.0 % / +0.061 | 303 / 33.0 % / −8.56 | 21 % | −1.23 / 0.89 | 11 / 55 % / +0.77 | rechazada |
+| BTCUSDT | VWAP | 61.0 % / +0.019 | 96 / 49.0 % / −4.59 | 31 % | −1.76 / 0.96 | 0 / — / 0.00 | rechazada |
+| BTCUSDT | VolatilitySqueeze | 39.5 % / +0.071 | 339 / 31.0 % / −7.76 | 41 % | −1.11 / 0.87 | 16 / 38 % / −1.21 | rechazada |
+| ETHUSDT | MeanReversion | 57.8 % / +0.054 | 243 / 49.4 % / −6.74 | 50 % | −0.84 / 0.80 | 6 / 33 % / −0.16 | rechazada |
+| ETHUSDT | TrendFollowing | 41.4 % / +0.085 | 222 / 29.3 % / −15.32 | 29 % | −2.34 / 0.99 | 14 / 29 % / −3.05 | rechazada |
+| ETHUSDT | VWAP | 56.9 % / +0.048 | 145 / 44.8 % / −5.76 | 39 % | −1.19 / 0.88 | 10 / 30 % / −0.73 | rechazada |
+| ETHUSDT | VolatilitySqueeze | 38.6 % / +0.075 | 298 / 27.9 % / −12.19 | 33 % | −1.44 / 0.92 | 12 / 25 % / −1.08 | rechazada |
+| SOLUSDT | MeanReversion | 57.4 % / +0.091 | 200 / 49.5 % / +4.09 | 52 % | +0.53 / 0.30 | 5 / 0 % / −1.98 | rechazada |
+| SOLUSDT | TrendFollowing | 43.7 % / +0.129 | 367 / 35.4 % / +0.92 | 53 % | +0.07 / 0.47 | 14 / 36 % / +0.19 | rechazada |
+| SOLUSDT | VWAP | 57.9 % / +0.081 | 223 / 42.6 % / −10.78 | 36 % | −1.39 / 0.92 | 8 / 62 % / +0.37 | rechazada |
+| SOLUSDT | VolatilitySqueeze | 38.2 % / +0.116 | 378 / 30.7 % / +2.06 | 49 % | +0.17 / 0.43 | 9 / 44 % / +0.06 | rechazada |
+| DOGEUSDT | MeanReversion | 57.2 % / +0.129 | 160 / 48.8 % / −0.32 | 52 % | −0.04 / 0.51 | 9 / 22 % / −1.96 | rechazada |
+| DOGEUSDT | TrendFollowing | 42.8 % / +0.204 | 208 / 33.6 % / +2.47 | 35 % | +0.19 / 0.42 | 2 / 50 % / −0.01 | rechazada |
+| DOGEUSDT | VWAP | 55.6 % / +0.083 | 206 / 47.1 % / −7.02 | 38 % | −1.00 / 0.84 | 9 / 78 % / +1.83 | rechazada |
+| DOGEUSDT | VolatilitySqueeze | 37.0 % / +0.073 | 343 / 29.7 % / −5.74 | 36 % | −0.55 / 0.71 | 11 / 45 % / +0.23 | rechazada |
+
+"Entrenamiento" es lo que prometía el optimizador: el acierto y el PnL por operación de cada pareja elegida **dentro** de sus 6 meses, en los meses que se operaron. "Meses +" es el porcentaje de meses con operaciones que terminaron en positivo.
+
+> **Qué muestra la tabla.** Dentro de muestra, las 16 parejas ganan dinero por operación; fuera de muestra, 12 de 16 pierden y ninguna se acerca a $p < 0.003125$ (el mejor $p$ es 0.30). Es el sobreajuste medido: la rejilla siempre encuentra algo que funcionó en los 6 meses anteriores, pero eso no se repite el mes siguiente. Ninguna llega al veto de la validación final, porque ninguna pasa el walk-forward. Con 3 o 12 meses de entrenamiento (control que no decide nada) tampoco pasa ninguna: el mejor $p$ es 0.268 con 3 meses y 0.457 con 12.
+>
+> **Qué carga el bot en vivo: ninguna estrategia.** Las 4 monedas quedan en pausa y `strategy_engine.py` explica el motivo de cada una al arrancar. Es un resultado válido: con estas cuatro estrategias y costos de 0.12 % por lado, no hay evidencia de ventaja. Para ver al bot operar en la **testnet** existe un modo explícito, desactivado por defecto: `ALLOW_UNVALIDATED_STRATEGIES=1` en el `.env` carga en cada moneda la estrategia con mejor PnL OOS entre las que tienen parámetros rentables en los 6 meses recientes, marcada como **NO VALIDADA**. Con los resultados de arriba serían `VolatilitySqueeze` $(96, 2.0)$ en BTC, `VWAP` $(84, 2.6)$ en ETH, `VolatilitySqueeze` $(64, 3.2)$ en SOL y `TrendFollowing` $(12, 2.8)$ en DOGE; las de BTC, ETH y DOGE perdieron en la validación final (la de SOL ganó +0.06 USDT en 9 operaciones). Con `BINANCE_MARKET=mainnet` el modo se ignora. Lo esperable en ese modo es perder dinero.
+
+*Origen:* [walk_forward.py](../binance-research/walk_forward.py), [ml_evaluator.py](../binance-research/machine_learning_strategies/ml_evaluator.py), [fast_backtest.py](../binance-research/fast_backtest.py) y `load_best_strategies` en [strategy_engine.py](../binance-research/strategy_engine.py). La figura sale de [graficos.html](graficos/graficos.html) con los datos de ese pliegue.
 
 ---
 
@@ -1079,7 +1167,7 @@ $$
 
 ## 18. Validación del modelo (división 80/20 y *accuracy*)
 
-**Objetivo.** Para saber si el modelo aprendió algo útil o solo memorizó, hay que examinarlo con datos que nunca vio. El bot entrena con el 80 % más antiguo de la historia y evalúa con el 20 % más reciente, respetando el orden temporal. La métrica que usa es la *accuracy*, es decir, el porcentaje de aciertos.
+**Objetivo.** Para saber si el modelo aprendió algo útil o solo memorizó, hay que examinarlo con datos que nunca vio. Con las velas del último mes completo (Parte 4, "Los datos de entrenamiento"), el bot entrena con el 80 % más antiguo y evalúa con el 20 % más reciente, respetando el orden temporal. La métrica que usa es la *accuracy*, es decir, el porcentaje de aciertos.
 
 $$
 \text{Train} = \{x_1,\dots,x_{\lfloor 0.8N\rfloor}\},\qquad
@@ -1111,7 +1199,7 @@ $$
 5. La función indicadora $\mathbb{1}[\cdot]$ vale 1 si la predicción coincide con la etiqueta real y 0 si no.
 6. La accuracy es el promedio de esos aciertos.
 
-> **Cuidado con la accuracy.** Si solo el 10 % de las velas sube más del 1 % en 3 horas, un modelo que **siempre** dice "0" tendría un 90 % de accuracy sin servir para nada. En problemas desbalanceados conviene medir la *precision* (de las veces que dijo "compra", cuántas acertó) y el *recall*.
+> **Cuidado con la accuracy.** Si solo el 10 % de las velas sube más del 1 % en 3 horas, un modelo que **siempre** dice "0" tendría un 90 % de accuracy sin servir para nada. En problemas desbalanceados conviene medir la *precision* (de las veces que dijo "compra", cuántas acertó) y el *recall*. En la ejecución del 2026-10-19 (septiembre de 2026) la accuracy fue de 96.7 %, 92.1 %, 84.8 % y 83.0 % en BTC, ETH, SOL y DOGE, prácticamente lo mismo que decir siempre "0": en esos últimos días solo alrededor del 3 %, 8 %, 15 % y 17 % de las velas eran 1.
 >
 > Además, el modelo se entrena pero **no se guarda en disco ni se usa en vivo**: `predict_signal_quality` nunca se llama desde `server.py` ni `strategy_engine.py`. Hoy XGBoost no filtra ninguna operación real.
 
@@ -1523,35 +1611,35 @@ $$
 
 **Qué es cada símbolo:**
 
-- $\Delta t$: tiempo entre una muestra y la siguiente (15 minutos en el backtest, ~6 s en vivo).
+- $\Delta t$: tiempo entre una muestra y la siguiente: 15 minutos, en el backtest y, desde el 2026-10-18, también en vivo (antes eran ~6 s en vivo).
 
 > **Qué calcula:** qué periodo de tiempo describe la volatilidad medida.
 >
-> **Ejemplo:** con $n = 20$: en el backtest son $20 \times 15$ min $= 5$ horas; en vivo, $20 \times 6$ s $= 2$ minutos.
+> **Ejemplo:** con $n = 20$: $20 \times 15$ min $= 5$ horas, en el backtest y en vivo. Antes del 2026-10-18, en vivo eran $20 \times 6$ s $= 2$ minutos.
 
-![Cuánto tiempo cubre la ventana de cada moneda](img/f-ventanas.png)
+![Antes del 2026-10-18: cuánto tiempo cubría la ventana en el backtest y en vivo, con los parámetros de entonces](img/f-ventanas.png)
 
 **Desglose paso a paso**
 
 1. Cada estrategia guarda una lista con los últimos $n$ precios (`price_history`) y descarta el más viejo con `pop(0)` cuando llega uno nuevo.
 2. Con esa lista se calcula $\sigma_t$ con `pd.Series(prices).std()`. Las $n$ muestras pesan igual: la de hace un instante cuenta lo mismo que la más vieja de la ventana.
 3. $\sigma_t$ queda en USDT, no en porcentaje. Un $\sigma$ de 200 es mucho para ETH y poco para BTC, pero eso no importa porque el bot siempre lo compara con precios de la misma moneda.
-4. $\Delta t$ es el tiempo entre una muestra y la siguiente, y **no es el mismo en el backtest que en vivo**:
-   - En el backtest (`ml_evaluator.py`, que usa el `QuantCalculator` de `optimize.py`), cada muestra es el cierre de una vela de **15 minutos**: `download_data.py` descarga con `data_frequency="15m"` y el evaluador solo lee los archivos `15m`.
-   - En vivo, Node.js se suscribe al stream `kline_1m`, que manda una actualización de la vela **en curso** cada ~2 s. `handleMarketData` solo le pide una evaluación a Python si pasaron más de 5 s desde la anterior, así que entra una muestra cada **~6 s**, y es una "foto" del precio, no el cierre de una vela.
-   - Al arrancar, `pre_seed_engine` llena la ventana con las últimas 100 velas **cerradas de 1 minuto**. Después, esas velas se van reemplazando por las fotos de cada ~6 s.
-5. Mientras hay una posición abierta, `handleMarketData` solo vigila el TP y el SL y no le manda precios a Python. La ventana se congela y, cuando la posición se cierra, el primer precio nuevo queda "pegado" a muestras de varios minutos antes.
+4. $\Delta t$ es el tiempo entre una muestra y la siguiente, y desde el 2026-10-18 **es el mismo en el backtest y en vivo**: 15 minutos.
+   - En el backtest (`ml_evaluator.py`, que simula con `fast_backtest.py`, idéntico a `simulate_live` de `optimize.py`), cada muestra es el cierre de una vela de 15 minutos de los CSV que baja `download_data.py` (`data_frequency="15m"`).
+   - En vivo, Node.js se suscribe a `kline_15m` y solo le manda a Python las velas **cerradas** (`k.x`), una vez por vela. El TP y el SL se siguen vigilando con cada precio.
+   - Al arrancar, `pre_seed_engine` precarga en cada moneda las últimas $\max(n + 20,\ 100)$ velas cerradas de 15 minutos (con la $n$ de **su** estrategia, la misma cantidad que simula el walk-forward) del mismo mercado que el WebSocket. Python descarta las velas repetidas por `open_time` y pide al REST las que falten (`fill_gap`). Si faltan más velas que esa precarga (bot o red caídos mucho tiempo), la estrategia de esa moneda se reinicia y se precarga de nuevo, como al arrancar.
+5. La vela cerrada se manda también con una posición abierta, así que la ventana nunca se congela; el BUY de esa vela se ignora.
 
-Con las ventanas que eligió el optimizador ([ml_results.json](../binance-research/machine_learning_strategies/ml_results.json)), "la volatilidad del momento" significa cosas muy distintas en cada entorno:
+> **Antes del 2026-10-18** no era así: Node.js usaba `kline_1m` y le mandaba a Python una "foto" de la vela en curso cada ~6 s, la precarga eran 100 velas de 1 minuto y, con una posición abierta, la ventana se congelaba. Con los parámetros de entonces ($n = 8$ en BTC), la ventana cubría ~48 segundos en vivo frente a 2 horas en el backtest, así que el backtest no describía lo que hacía el bot. En una reproducción sin conexión de 13 056 velas por moneda, el bot corregido dio exactamente las mismas señales y operaciones que el backtest.
 
-| Moneda | Estrategia cargada | $n$ | $k$ | Ventana en el backtest ($n \times 15$ min) | Ventana en vivo ($n \times \sim 6$ s) |
-|---|---|---|---|---|---|
-| BTCUSDT | MeanReversion | 8 | 1.4 | 2 horas | ~48 segundos |
-| ETHUSDT | MeanReversion | 20 | 2.0 | 5 horas | ~2 minutos |
-| SOLUSDT | MeanReversion | 88 | 0.8 | 22 horas | ~9 minutos |
-| DOGEUSDT | TrendFollowing | 24 | 0.8 | 6 horas | ~2.4 minutos |
+Hoy, en modo normal, el bot no carga ninguna estrategia (sección 14). Con los parámetros que cargaría el modo experimental, cada ventana cubre:
 
-> **Consecuencia.** En vivo, $\sigma_t$ mide el "temblor" de los últimos segundos o minutos, que es mucho más pequeño que el movimiento de varias horas con el que se optimizaron $n$ y $k$. Las bandas quedan mucho más estrechas que en el backtest, así que en vivo las señales son más frecuentes y los TP y SL quedan más cerca. Los resultados del backtest no describen lo que hace el bot en vivo.
+| Moneda | Estrategia (modo experimental) | $n$ | $k$ | Ventana ($n \times 15$ min, en el backtest y en vivo) |
+|---|---|---|---|---|
+| BTCUSDT | VolatilitySqueeze | 96 | 2.0 | 24 horas |
+| ETHUSDT | VWAP | 84 | 2.6 | 21 horas |
+| SOLUSDT | TrendFollowing | 56 | 3.0 | 14 horas |
+| DOGEUSDT | TrendFollowing | 12 | 2.8 | 3 horas |
 
 *Origen:* `series.std()` en [quantitative_strategies/](../binance-research/quantitative_strategies/), `handleMarketData` en [ws-client.ts](../src/api/ws-client.ts) y `pre_seed_engine` en [server.py](../binance-research/server.py).
 
@@ -1586,7 +1674,7 @@ $$
 4. La ruptura (sección 6) compra cuando $z_t > k$, es decir, cuando el precio está más de $k$ sigmas por encima.
 5. Como el umbral es $k$ y no un número de dólares, el mismo movimiento puede ser una señal en un mercado tranquilo y ruido en uno agitado.
 
-**Ejemplo** (BTC a 60 000 USDT con $k = 1.4$, el valor optimizado). El precio cae 350 USDT por debajo de su media:
+**Ejemplo** (BTC a 60 000 USDT con $k = 1.4$, un valor ilustrativo). El precio cae 350 USDT por debajo de su media:
 
 | Mercado | $\sigma_t$ | $k\sigma_t$ (distancia a la banda) | $z_t$ | Decisión |
 |---|---|---|---|---|
@@ -1634,7 +1722,7 @@ $$
 3. En los dos casos $R$ es como mínimo $k\sigma_t$: si la volatilidad se duplica, la distancia al TP y al SL también se duplica.
 4. La reversión y el squeeze descartan la operación si $R$ es menor que el 0.5 % del precio. Como $R = |z_t|\sigma_t$, eso equivale a pedir una volatilidad mínima.
 5. Justo en el borde de la banda ($|z_t| \approx k$), la volatilidad mínima es $\sigma_t \ge 0.005\,P_t / k$. Con BTC a 60 000 y $k = 1.4$ da unos **214 USDT**. Con menos volatilidad, solo pasan movimientos mucho más extremos que la banda (en el ejemplo anterior, con $\sigma = 60$, hace falta $|z| \ge 5$).
-6. La ruptura (`TrendFollowing`, la que usa DOGE) **no tiene este filtro**: opera también con volatilidad muy baja, aunque el TP quede tan cerca que las comisiones (~0.2 % ida y vuelta) se coman la ganancia.
+6. La ruptura (`TrendFollowing`, la que el modo experimental cargaría en SOL y DOGE) **no tiene este filtro**: opera también con volatilidad muy baja, aunque el TP quede tan cerca que los costos (0.24 % ida y vuelta, sección 12) se coman la ganancia.
 7. El squeeze (sección 8) es la única estrategia que mira el **nivel** de la volatilidad: queda armada cuando $2k\sigma_t/\mu_t < 5\%$, es decir, cuando la volatilidad relativa es baja.
 
 **Ejemplo.** Siguiendo con el caso agitado, si el precio cae 600 USDT ($z = -1.5$, por debajo de la banda de 560), entonces $R = 600$, $TP = P_t + 600$ y $SL = P_t - 600$. En el mercado tranquilo, la compra de la sección 23 tenía $R = 350$: los stops se ajustaron a cada entorno sin cambiar ningún parámetro.
@@ -1680,7 +1768,7 @@ $$
 
 > **Qué calcula:** una volatilidad que da más peso a lo más reciente.
 >
-> **Ejemplo:** si la volatilidad venía en $1\,\%$ y llega un retorno de $3\,\%$: $\sigma^2 = 0.94 \times 0.0001 + 0.06 \times 0.0009 = 0.000148$, así que $\sigma \approx 1.22\,\%$. Con una sola vela subió un 22 %; una ventana de 20 velas habría subido un 18 % ($\sqrt{(19 	imes 1 + 9)/20} pprox 1.18$). Con $\lambda = 0.94$ la diferencia es pequeña: la EWMA reacciona más o menos como una ventana de 17 velas ($1/(1-\lambda)$). Para que reaccione claramente antes hay que bajar $\lambda$ (por ejemplo, a 0.80), a cambio de una medición más ruidosa. Su otra ventaja es que no da saltos cuando un dato viejo sale de la ventana.
+> **Ejemplo:** si la volatilidad venía en $1\,\%$ y llega un retorno de $3\,\%$: $\sigma^2 = 0.94 \times 0.0001 + 0.06 \times 0.0009 = 0.000148$, así que $\sigma \approx 1.22\,\%$. Con una sola vela subió un 22 %; una ventana de 20 velas habría subido un 18 % ($\sqrt{(19 \times 1 + 9)/20} \approx 1.18$). Con $\lambda = 0.94$ la diferencia es pequeña: la EWMA reacciona más o menos como una ventana de 17 velas ($1/(1-\lambda)$). Para que reaccione claramente antes hay que bajar $\lambda$ (por ejemplo, a 0.80), a cambio de una medición más ruidosa. Su otra ventaja es que no da saltos cuando un dato viejo sale de la ventana.
 
 ![Ventana de 20 velas frente a EWMA](img/f-ewma.png)
 
@@ -1722,11 +1810,11 @@ $$
 
 > **Qué calcula:** cuánto mide en promedio la ventana y cuánto se mueve de verdad el precio en ese mismo tiempo.
 >
-> **Ejemplo:** con $n = 8$ (BTC), $\sigma_{\text{ventana}} \approx \sigma_{\text{paso}}\sqrt{9/6} \approx 1.22\,\sigma_{\text{paso}}$, mientras que en 8 velas el precio se mueve típicamente $\sqrt{8} \approx 2.83\,\sigma_{\text{paso}}$: la ventana ve un 43 %. Con $n = 88$ (SOL), $3.85$ frente a $9.38$: un 41 %. La proporción es casi la misma para cualquier $n$ (tiende a $1/\sqrt{6} \approx 41\,\%$), así que **todas** las ventanas subestiman el movimiento en una proporción parecida, no solo las cortas. Las bandas con $k = 2$ no cubren "el 95 % de los movimientos" que sugiere la distribución normal (sección 3).
+> **Ejemplo:** con $n = 8$, $\sigma_{\text{ventana}} \approx \sigma_{\text{paso}}\sqrt{9/6} \approx 1.22\,\sigma_{\text{paso}}$, mientras que en 8 velas el precio se mueve típicamente $\sqrt{8} \approx 2.83\,\sigma_{\text{paso}}$: la ventana ve un 43 %. Con $n = 88$, $3.85$ frente a $9.38$: un 41 %. La proporción es casi la misma para cualquier $n$ (tiende a $1/\sqrt{6} \approx 41\,\%$), así que **todas** las ventanas subestiman el movimiento en una proporción parecida, no solo las cortas. Las bandas con $k = 2$ no cubren "el 95 % de los movimientos" que sugiere la distribución normal (sección 3).
 
 ![La σ de la ventana ve menos de la mitad del movimiento](img/f-ventana-corta.png)
 
-**5. La escala de tiempo no coincide entre backtest y vivo** (sección 22). Es la limitación más importante. Para que en vivo $\sigma_t$ mida lo mismo que en el backtest, hay dos opciones: que Node.js solo mande a Python las velas **cerradas** (`kline.x === true`) de la temporalidad del backtest (`kline_15m`), o que Python agrupe las fotos en velas de 15 minutos antes de alimentar la ventana. En los dos casos, cada vela se arma así:
+**5. La escala de tiempo no coincidía entre backtest y vivo** (sección 22). **Corregido el 2026-10-18** con la primera opción de abajo (velas cerradas de `kline_15m`). Era la limitación más importante. Para que en vivo $\sigma_t$ midiera lo mismo que en el backtest, había dos opciones: que Node.js solo mande a Python las velas **cerradas** (`kline.x === true`) de la temporalidad del backtest (`kline_15m`), o que Python agrupe las fotos en velas de 15 minutos antes de alimentar la ventana. En los dos casos, cada vela se arma así:
 
 $$
 O_T = P_{\text{primera}},\qquad
@@ -1745,9 +1833,9 @@ $$
 
 > **Qué calcula:** una vela de 15 minutos a partir de todos los precios de esos 15 minutos, para que el bot en vivo vea lo mismo que en el backtest.
 >
-> **Ejemplo:** entre 10:00 y 10:15 llegan unas 150 fotos (una cada ~6 s). Hoy las 150 entran a la ventana, así que con $n = 20$ la ventana cubre unos 2 minutos. Con la propuesta, solo entra el cierre de las 10:15, y $n = 20$ cubre 5 horas, igual que en el backtest.
+> **Ejemplo:** entre 10:00 y 10:15 llegan unas 150 fotos (una cada ~6 s). Antes del 2026-10-18 las 150 entraban a la ventana, así que con $n = 20$ la ventana cubría unos 2 minutos. Ahora solo entra el cierre de las 10:15, y $n = 20$ cubre 5 horas, igual que en el backtest.
 
-![Hoy entra una foto cada ~6 s; la propuesta: una vela cerrada cada 15 min](img/f-velas-cerradas.png)
+![Antes entraba una foto cada ~6 s; desde el 2026-10-18 entra una vela cerrada cada 15 min](img/f-velas-cerradas.png)
 
 *Origen:* `evaluateNewTrade` y `handleMarketData` en [ws-client.ts](../src/api/ws-client.ts), estrategias en [quantitative_strategies/](../binance-research/quantitative_strategies/).
 
@@ -1761,26 +1849,27 @@ Las secciones de este documento están agrupadas **por tema** (bloques básicos,
 
 El proceso tiene dos fases:
 
-- **Fase A, antes de operar.** Se ejecuta una vez, al arrancar `server.py`. Usa la historia para decidir qué estrategia, qué ventana $n$ y qué multiplicador $k$ usará cada moneda.
+- **Fase A, antes de operar.** Se ejecuta a mano con `python machine_learning_strategies/ml_evaluator.py` (unos 2 minutos) y deja el resultado en `ml_results.json`; al arrancar, `server.py` solo lo lee con `strategy_engine.py`. Usa la historia para decidir qué estrategia, qué ventana $n$ y qué multiplicador $k$ usará cada moneda, o si la moneda no opera.
 - **Fase B, en vivo.** Se repite con cada precio que llega. Usa los $n$ y $k$ de la fase A para decidir si se compra, cuánto se compra y cuándo se vende.
 
 ## Fase A — Antes de operar
 
 | Paso | Qué se calcula | Fórmula | Sección | Código |
 |---|---|---|---|---|
-| A1 | Se descargan las velas de 15 minutos y se toma el último mes | $N_{\text{velas}} = \text{días} \times 96$ | Parte 4, "Los datos de entrenamiento" | [download_data.py](../binance-research/download_data.py), [ml_evaluator.py](../binance-research/machine_learning_strategies/ml_evaluator.py) |
-| A2 | Se simula el capital para cada pareja $(n, k)$, repitiendo vela por vela los pasos B2 a B7 | $C \leftarrow C + 30$ o $C - 15$ | 12 | `evaluate_strategy` en [optimize.py](../binance-research/optimize.py) |
-| A3 | Se resume cada simulación en métricas | $\text{Score} = PnL - 10 \cdot MDD_{\%}$ | 13 | `calculate_metrics` en [optimize.py](../binance-research/optimize.py) |
-| A4 | Se elige la mejor pareja de cada estrategia | $(n^{*}, k^{*}) = \arg\max \text{Score}$ | 14 | [ml_evaluator.py](../binance-research/machine_learning_strategies/ml_evaluator.py) |
-| A5 | Se elige la estrategia de cada moneda | $\text{estrategia}^{*} = \arg\max PnL$ | 14 | `load_best_strategies` en [strategy_engine.py](../binance-research/strategy_engine.py) |
+| A1 | Se cargan todas las velas de 15 minutos y se separan el desarrollo (38 meses de prueba), la validación final y los 6 meses más recientes | $N_{\text{velas}} = \text{días} \times 96$ | Parte 4, "Los datos de entrenamiento" | [download_data.py](../binance-research/download_data.py), `load_history` en [fast_backtest.py](../binance-research/fast_backtest.py), `build_periods` en [walk_forward.py](../binance-research/walk_forward.py) |
+| A2 | Se simula una vez toda la historia para cada pareja $(n, k)$, repitiendo vela por vela los pasos B2 a B7 como en vivo | $C \leftarrow C + PnL_{\text{neto}}$ | 12 | `FastSymbol.simulate` en [fast_backtest.py](../binance-research/fast_backtest.py) (paridad exacta con `simulate_live` de [optimize.py](../binance-research/optimize.py)) |
+| A3 | Para cada mes de prueba, cada pareja se mide solo con sus 6 meses de entrenamiento | $S = PnL_{\text{ent}} - 10 \cdot MDD_{\%}$ | 13, 14 | `PairEvaluator.select` en [walk_forward.py](../binance-research/walk_forward.py) |
+| A4 | Se elige la mejor meseta de la rejilla y se simula el mes siguiente con una estrategia nueva precargada; una posición por moneda, como el bot (no abre mientras siga abierta la del mes anterior); los 38 meses forman el OOS | $(n^{*}, k^{*}) = \arg\max \bar S$ | 14 | `run_folds` en [walk_forward.py](../binance-research/walk_forward.py) |
+| A5 | Se valida cada estrategia con su OOS (la validación final solo puede vetarla) y se elige la de cada moneda, o ninguna | $t = \bar d / (s_d/\sqrt{D})$, $\;p < 0.05/16$ | 14 | `decide` en [walk_forward.py](../binance-research/walk_forward.py), [ml_evaluator.py](../binance-research/machine_learning_strategies/ml_evaluator.py) |
+| A6 | Se eligen los parámetros en vivo con los 6 meses más recientes; el motor solo carga estrategias validadas | $(n^{*}, k^{*}) = \arg\max \bar S$ | 14 | `load_best_strategies` en [strategy_engine.py](../binance-research/strategy_engine.py) |
 
-XGBoost (secciones 15 a 18) también se entrena en esta fase con los datos de A1, pero ningún paso de la fase B usa su predicción.
+XGBoost (secciones 15 a 18) también se entrena en esta fase, con el último mes completo, pero ni la selección (A3 a A6) ni la fase B usan su predicción.
 
 ## Fase B — En vivo, con cada precio
 
 | Paso | Qué se calcula | Fórmula | Sección | Código |
 |---|---|---|---|---|
-| B1 | Llega un precio nuevo (una foto de la vela de 1 minuto, cada ~6 s) | $P_t$ | 22 | `handleMarketData` en [ws-client.ts](../src/api/ws-client.ts) |
+| B1 | Cierra una vela de 15 minutos (`k.x`); el TP/SL se vigila con cada precio | $P_t$ | 22 | `handleMarketData` en [ws-client.ts](../src/api/ws-client.ts) |
 | B2 | Entra a la ventana y sale el precio más viejo | $P_{t-n+1}, \dots, P_t$ | 1, 22 | `price_history` en cada estrategia |
 | B3 | Media móvil | $\mu_t = \frac{1}{n}\sum P_{t-i}$ | 1 | `series.mean()` |
 | B4 | Desviación estándar | $\sigma_t = \sqrt{\frac{1}{n-1}\sum (P_{t-i} - \mu_t)^2}$ | 2 | `series.std()` |
@@ -1788,9 +1877,9 @@ XGBoost (secciones 15 a 18) también se entrena en esta fase con los datos de A1
 | B6 | ¿Hay señal? Si no, `HOLD` y se espera el siguiente precio | $P_t < L_t$, $\;P_t > U_t$ o $BW_t < \theta$ y $P_t > U_t$ | 5 a 8 | `evaluate` de cada estrategia |
 | B7 | Riesgo, take profit y stop loss | $R = \lvert P_t - \mu_t \rvert$, TP y SL según la estrategia | 4 a 8, 24 | `evaluate` de cada estrategia |
 | B8 | Riesgo mínimo (reversión, VWAP y squeeze). Si no se cumple, `HOLD` | $R \ge 0.005\,P_t$ | 5, 24 | `evaluate` de cada estrategia |
-| B9 | Cantidad a comprar | $q = \lfloor \frac{15}{P_t} 10^{d} \rfloor / 10^{d}$ | 10 | `evaluateNewTrade` en [ws-client.ts](../src/api/ws-client.ts) |
+| B9 | Fila `PENDING` en el ledger (con su `client_order_id`) y compra a mercado por importe (15 USDT); Binance fija la cantidad según su `stepSize`. Confirmada: la fila pasa a `OPEN`; inexistente en Binance: `CANCELLED` | $q \approx 15 / P_t$ | 10 | `openPosition` en [ws-client.ts](../src/api/ws-client.ts), `marketBuy` en [rest-client.ts](../src/api/rest-client.ts) |
 | B10 | Vigilar la posición con cada precio | $P_t \ge TP$ o $P_t \le SL$ | 11 | `manageExistingPosition` en [ws-client.ts](../src/api/ws-client.ts) |
-| B11 | Resultado de la operación | $PnL = (P_{salida} - P_{entrada}) \cdot q$ | 11 | `closePosition` en [ws-client.ts](../src/api/ws-client.ts) |
-| B12 | Registro en `trades.csv` y aviso por Telegram; se vuelve a B1 | — | — | [server.py](../binance-research/server.py), [telegram-client.ts](../src/api/telegram-client.ts) |
+| B11 | Venta a mercado (en uno o varios tramos) y resultado neto de la operación; el residuo bajo el `stepSize` se valora al precio de venta | $PnL = \text{USDT recibidos} + q_{res}\,P_{salida} - \text{USDT pagados} - \text{comisiones}$ | 11 | `closePosition` y `finishClose` en [ws-client.ts](../src/api/ws-client.ts), `netPnl` en [execution.ts](../src/api/execution.ts) |
+| B12 | Registro en `trades.csv` (se cierra solo la fila `OPEN` de esa moneda y `order_id`) y aviso por Telegram; se vuelve a B1. Al reiniciar, las compras `PENDING` se consultan en Binance (ejecutadas: se adoptan) y las posiciones abiertas se verifican antes de gestionarlas | — | 11 | [server.py](../binance-research/server.py), [ledger.py](../binance-research/ledger.py), `syncStateFromLedger` en [ws-client.ts](../src/api/ws-client.ts), [telegram-client.ts](../src/api/telegram-client.ts) |
 
 **Orden de lectura sugerido.** Para seguir el recorrido en el documento, lee las secciones en este orden: "Los datos de entrenamiento", 12, 13 y 14 (fase A); después 22, 1, 2, 3 y 23 (pasos B1 a B5); 5 a 8, 4 y 24 (pasos B6 a B8); y por último 10 y 11 (pasos B9 a B11).

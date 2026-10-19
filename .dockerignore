@@ -1,0 +1,12 @@
+# La imagen solo lleva el motor Node.js (package*.json, tsconfig.json y src/). Nunca el .env: se pasa con --env-file.
+.env
+.git
+node_modules
+binance-research
+doc
+test
+dist
+*.md
+rescue.ts
+Dockerfile
+.dockerignore

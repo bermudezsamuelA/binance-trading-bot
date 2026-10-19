@@ -19,3 +19,8 @@ export class TelegramClient {
         }
     }
 }
+
+/** Texto seguro para parse_mode HTML de Telegram (mensajes de error de Binance, motivos de cierre). */
+export function escapeHtml(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
