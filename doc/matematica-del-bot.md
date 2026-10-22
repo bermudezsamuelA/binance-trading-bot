@@ -938,6 +938,26 @@ $$
 
 *Origen:* [walk_forward.py](../binance-research/walk_forward.py), [ml_evaluator.py](../binance-research/machine_learning_strategies/ml_evaluator.py), [fast_backtest.py](../binance-research/fast_backtest.py) y `load_best_strategies` en [strategy_engine.py](../binance-research/strategy_engine.py). La figura sale de [graficos.html](graficos/graficos.html) con los datos de ese pliegue.
 
+### 14.1 Filtros de entrada (desde el 2026-10-22)
+
+Tres reglas de [agente-rl-y-esperanza-positiva.md](agente-rl-y-esperanza-positiva.md) (sugerencias 3, 5 y 6) se aplican **igual** en el evaluador (al elegir $n$ y $k$ y al probar cada mes) y en el bot en vivo. Se configuran en `config.py`; `None` desactiva cada una.
+
+$$
+\text{BUY se toma} \iff P_t - SL \ge 0.015\,P_t \;\;\land\;\; \exists\,Y \ne X,\ s \in [t-48,\ t-1]:\ \text{BUY}_{X\text{-regla}}(Y, s) \;\;\land\;\; \sum_{j=1}^{12} \text{PnL}^{\text{sombra}}_{M-j} > 0
+$$
+
+**Qué es cada símbolo:**
+
+- $P_t - SL \ge 0.015\,P_t$: **riesgo mínimo** del 1.5 %. Con un SL a 0.5 % el costo de ida y vuelta (0.24 %) se come casi media $R$.
+- $\text{BUY}_{X\text{-regla}}(Y, s)$: la **misma regla** de la moneda $X$ (misma estrategia, mismos $n$ y $k$) aplicada a otra moneda $Y$ del roster dio BUY en la vela $s$. Es la **co-señal**: solo se entra si el movimiento es de mercado, no de una sola moneda. La vela actual $t$ no cuenta, porque en vivo la de otra moneda puede no haber llegado todavía.
+- $\text{PnL}^{\text{sombra}}_{M-j}$: lo que habría dado el walk-forward de ese par en el mes $M - j$ aunque no se operara. Es el **interruptor de momentum**: el mes $M$ se opera solo si la suma de los 12 meses anteriores es positiva. Apagado, la estrategia sigue en sombra y se vuelve a encender sola.
+
+> **Ejemplo:** SOL con MeanReversion ($n = 16$, $k = 3.0$) da BUY a las 14:00 con el SL a 2.1 %. El riesgo pasa (2.1 % ≥ 1.5 %). La misma regla aplicada a ETH dio BUY a las 09:30 (dentro de las 12 h previas): hay co-señal. Si el PnL en sombra de SOL-MeanReversion en los últimos 12 meses es +3.2 USDT, el interruptor está encendido y se compra.
+
+**Diario de señales.** Cada BUY de una estrategia, abierto o bloqueado, se guarda en `orders/signals.csv` con el motivo (`decision`, `reason`). Sirve para medir después si los filtros ayudan: el resultado de las bloqueadas se puede simular con las velas.
+
+*Origen:* [strategy_filters.py](../binance-research/strategy_filters.py) (backtest), [strategy_engine.py](../binance-research/strategy_engine.py) (vivo), [test_filters.py](../binance-research/test_filters.py) (mismas señales en los dos).
+
 ---
 
 # Parte 5 — Machine Learning
