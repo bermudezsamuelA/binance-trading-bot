@@ -76,7 +76,7 @@ def resample(df: pd.DataFrame, interval: str) -> pd.DataFrame:
     ms = INTERVAL_MS[interval]
     g = df.groupby(df["open_time"] // ms * ms, sort=True)
     out = pd.DataFrame({"open": g["open"].first(), "high": g["high"].max(), "low": g["low"].min(),
-                        "close": g["close"].last(), "volume": g["volume"].sum()})
+                        "close": g["close"].last(), "volume": g["volume"].sum(), "taker_buy": g["taker_buy"].sum()})
     out = out[g.size() == ms // CANDLE_MS]
     return out.rename_axis("open_time").reset_index()
 
@@ -89,10 +89,11 @@ def load_history(symbol: str, data_dir: str = DATA_DIR, end_date: str = None, in
     files += sorted(glob.glob(os.path.join(data_dir, "daily", "klines", symbol, "15m", f"{symbol}-15m-*.csv")))
     if not files:
         raise FileNotFoundError(f"No hay velas de 15m de {symbol} en {data_dir}")
-    cols = ["open_time", "open", "high", "low", "close", "volume"]
+    # taker_buy: volumen comprador agresivo (columna 9 de Binance); solo lo usan los experimentos (experiments.py)
+    cols = ["open_time", "open", "high", "low", "close", "volume", "taker_buy"]
     frames = []
     for f in files:
-        d = pd.read_csv(f, header=None, usecols=range(6))
+        d = pd.read_csv(f, header=None, usecols=[0, 1, 2, 3, 4, 5, 9])
         if not str(d.iloc[0, 0]).strip().isdigit():
             d = d.iloc[1:]
         d.columns = cols
@@ -280,14 +281,19 @@ class FastSymbol:
         return None
 
     def simulate(self, strategy: str, w: int, m: float, detail: bool = False,
-                 first: int = 0, start: int = 0, entry_end: int = None, stop: int = None):
+                 first: int = 0, start: int = 0, entry_end: int = None, stop: int = None,
+                 cost: float = None, min_risk: float = None, entry_mask: np.ndarray = None):
         """Operaciones de la estrategia. Devuelve (entrada_idx, salida_idx, pnl) como arreglos, o la lista de dicts
         de simulate_live si detail=True. Por defecto, toda la serie; con first/start/entry_end/stop, el modo tramo
-        (instancia nueva precargada desde first, sin posicion, entradas en [start, entry_end), salidas antes de stop)."""
-        cost = FEE_PER_SIDE + SLIPPAGE_PER_SIDE
+        (instancia nueva precargada desde first, sin posicion, entradas en [start, entry_end), salidas antes de stop).
+        Solo para experiments.py (por defecto, como el bot): cost = costo por lado; min_risk = descarta la senal si
+        entrada - SL < min_risk * entrada (la senal no bloquea); entry_mask = filtro externo (bool por vela)."""
+        cost = FEE_PER_SIDE + SLIPPAGE_PER_SIDE if cost is None else cost
         stop = self.n if stop is None else stop
         entry_end = stop if entry_end is None else min(entry_end, stop)
         buys = self.buy_indices(strategy, w, m, first, entry_end)
+        if entry_mask is not None:
+            buys = buys[entry_mask[buys]]
         o = self.o
         entries, exits, pnls, rows = [], [], [], []
         k = 0
@@ -298,6 +304,9 @@ class FastSymbol:
                 break
             i = int(buys[k])
             entry_price, tp, sl = self.entry_levels(strategy, w, i)
+            if min_risk is not None and entry_price - sl < entry_price * min_risk:
+                allowed = i + 1
+                continue
             j = self._first_exit(i + 1, tp, sl, stop)
             if j is None:
                 break  # sigue abierta al final de los datos (o en stop): simulate_live no la cuenta
