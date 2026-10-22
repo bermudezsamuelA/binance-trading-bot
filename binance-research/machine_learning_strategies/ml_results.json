@@ -1,10 +1,10 @@
 {
     "_protocolo": {
         "version": "walk-forward-v1",
-        "generado": "2026-10-19T13:01:22Z",
+        "generado": "2026-10-21T15:17:22Z",
         "datos": {
             "desde": "2023-01-01",
-            "hasta": "2026-10-14",
+            "hasta": "2026-10-19",
             "vela": "15m"
         },
         "entrenamiento_meses": 6,
@@ -15,12 +15,12 @@
         },
         "validacion_final": {
             "desde": "2026-09-01",
-            "hasta": "2026-10-14",
+            "hasta": "2026-10-19",
             "uso": "no elige parametros ni estrategia; veta: si una estrategia que pasa el walk-forward pierde dinero (PnL < 0) en este periodo, queda rechazada y no se carga en modo normal"
         },
         "entrenamiento_vivo": {
-            "desde": "2026-04-15",
-            "hasta": "2026-10-14"
+            "desde": "2026-04-20",
+            "hasta": "2026-10-19"
         },
         "rejilla": {
             "windows": [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96],
@@ -46,17 +46,17 @@
             "window": 24,
             "multiplier": 3.2,
             "trades": 41,
-            "win_rate": 58.54,
+            "win_rate": 56.1,
             "max_drawdown_pct": 0.11,
-            "profit_factor": 0.88,
-            "expected_payoff": -0.0097,
-            "pnl": -0.398,
+            "profit_factor": 0.83,
+            "expected_payoff": -0.0145,
+            "pnl": -0.5954,
             "status": "rechazada",
             "motivo": "PnL OOS -1.49 USDT <= 0; solo 41.7 % de meses positivos; p = 0.713 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": false,
-                "score_suavizado": -1.5492,
+                "score_suavizado": -1.6916,
                 "motivo": "la zona elegida no gana dinero en el entrenamiento: ese periodo no opera"
             },
             "entrenamiento_pliegues": {
@@ -84,19 +84,19 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 1,
                 "pliegues_positivos_pct": 0.0,
-                "trades": 1,
-                "win_rate": 0.0,
+                "trades": 3,
+                "win_rate": 33.33,
                 "max_drawdown_pct": 0.02,
-                "profit_factor": 0.0,
-                "expected_payoff": -0.2293,
-                "pnl": -0.2293,
-                "dias_con_operaciones": 1,
-                "t_dia": 0.0,
-                "p_valor": 1.0
+                "profit_factor": 0.32,
+                "expected_payoff": -0.0779,
+                "pnl": -0.2336,
+                "dias_con_operaciones": 3,
+                "t_dia": -0.775,
+                "p_valor": 0.74
             },
             "pliegues": [
                 ["2023-07", 36, 3.2, 73, -1.3201, 0, 0.0],
@@ -140,24 +140,24 @@
             ],
             "pliegues_validacion": [
                 ["2026-09", 20, 3.2, 35, -0.4462, 0, 0.0],
-                ["2026-10", 24, 3.2, 44, 0.0566, 1, -0.2293]
+                ["2026-10", 24, 3.2, 44, 0.0566, 3, -0.2336]
             ]
         },
         "TrendFollowing": {
             "window": 12,
             "multiplier": 2.8,
-            "trades": 36,
-            "win_rate": 33.33,
+            "trades": 37,
+            "win_rate": 32.43,
             "max_drawdown_pct": 0.16,
-            "profit_factor": 0.9,
-            "expected_payoff": -0.0093,
-            "pnl": -0.335,
+            "profit_factor": 0.88,
+            "expected_payoff": -0.0112,
+            "pnl": -0.4143,
             "status": "rechazada",
             "motivo": "PnL OOS -8.56 USDT <= 0; solo 21.4 % de meses positivos; p = 0.889 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": false,
-                "score_suavizado": -1.1008,
+                "score_suavizado": -1.1689,
                 "motivo": "la zona elegida no gana dinero en el entrenamiento: ese periodo no opera"
             },
             "entrenamiento_pliegues": {
@@ -185,7 +185,7 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 2,
                 "pliegues_positivos_pct": 100.0,
@@ -250,15 +250,15 @@
             "trades": 35,
             "win_rate": 51.43,
             "max_drawdown_pct": 0.1,
-            "profit_factor": 0.79,
-            "expected_payoff": -0.0218,
-            "pnl": -0.7614,
+            "profit_factor": 0.78,
+            "expected_payoff": -0.0223,
+            "pnl": -0.7818,
             "status": "rechazada",
             "motivo": "PnL OOS -4.59 USDT <= 0; solo 31.2 % de meses positivos; p = 0.959 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": false,
-                "score_suavizado": -1.1878,
+                "score_suavizado": -1.3018,
                 "motivo": "la zona elegida no gana dinero en el entrenamiento: ese periodo no opera"
             },
             "entrenamiento_pliegues": {
@@ -286,7 +286,7 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 0,
                 "pliegues_positivos_pct": 0.0,
@@ -347,19 +347,19 @@
         },
         "VolatilitySqueeze": {
             "window": 96,
-            "multiplier": 2.0,
-            "trades": 58,
-            "win_rate": 39.66,
-            "max_drawdown_pct": 0.13,
-            "profit_factor": 1.3,
-            "expected_payoff": 0.0395,
-            "pnl": 2.2911,
+            "multiplier": 2.2,
+            "trades": 50,
+            "win_rate": 36.0,
+            "max_drawdown_pct": 0.21,
+            "profit_factor": 1.07,
+            "expected_payoff": 0.0101,
+            "pnl": 0.504,
             "status": "rechazada",
             "motivo": "PnL OOS -7.76 USDT <= 0; solo 41.4 % de meses positivos; p = 0.867 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": true,
-                "score_suavizado": -0.5496,
+                "score_suavizado": 0.0736,
                 "motivo": null
             },
             "entrenamiento_pliegues": {
@@ -387,19 +387,19 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 2,
                 "pliegues_positivos_pct": 0.0,
-                "trades": 16,
-                "win_rate": 37.5,
-                "max_drawdown_pct": 0.16,
-                "profit_factor": 0.55,
-                "expected_payoff": -0.0757,
-                "pnl": -1.2108,
-                "dias_con_operaciones": 13,
-                "t_dia": -1.185,
-                "p_valor": 0.87
+                "trades": 18,
+                "win_rate": 33.33,
+                "max_drawdown_pct": 0.19,
+                "profit_factor": 0.49,
+                "expected_payoff": -0.0847,
+                "pnl": -1.5249,
+                "dias_con_operaciones": 15,
+                "t_dia": -1.492,
+                "p_valor": 0.921
             },
             "pliegues": [
                 ["2023-07", 60, 3.2, 40, 5.5842, 13, -1.7297],
@@ -443,7 +443,7 @@
             ],
             "pliegues_validacion": [
                 ["2026-09", 88, 2.0, 61, 2.6911, 9, -0.3322],
-                ["2026-10", 96, 2.0, 61, 3.4708, 7, -0.8787]
+                ["2026-10", 96, 2.0, 61, 3.4708, 9, -1.1927]
             ]
         },
         "seleccionada": null,
@@ -455,18 +455,18 @@
             "window": 84,
             "multiplier": 2.8,
             "trades": 65,
-            "win_rate": 58.46,
+            "win_rate": 56.92,
             "max_drawdown_pct": 0.28,
-            "profit_factor": 1.04,
-            "expected_payoff": 0.0067,
-            "pnl": 0.4345,
+            "profit_factor": 0.99,
+            "expected_payoff": -0.0018,
+            "pnl": -0.1197,
             "status": "rechazada",
             "motivo": "PnL OOS -6.74 USDT <= 0; p = 0.8 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
-                "operar": true,
-                "score_suavizado": -1.5419,
-                "motivo": null
+                "operar": false,
+                "score_suavizado": -2.253,
+                "motivo": "la zona elegida no gana dinero en el entrenamiento: ese periodo no opera"
             },
             "entrenamiento_pliegues": {
                 "pliegues_operados": 27,
@@ -493,19 +493,19 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 1,
                 "pliegues_positivos_pct": 0.0,
-                "trades": 6,
-                "win_rate": 33.33,
+                "trades": 8,
+                "win_rate": 25.0,
                 "max_drawdown_pct": 0.12,
-                "profit_factor": 0.88,
-                "expected_payoff": -0.0264,
-                "pnl": -0.1585,
-                "dias_con_operaciones": 5,
-                "t_dia": -0.113,
-                "p_valor": 0.542
+                "profit_factor": 0.58,
+                "expected_payoff": -0.1086,
+                "pnl": -0.869,
+                "dias_con_operaciones": 7,
+                "t_dia": -0.612,
+                "p_valor": 0.719
             },
             "pliegues": [
                 ["2023-07", 80, 3.2, 56, 3.1378, 8, -0.897],
@@ -549,24 +549,24 @@
             ],
             "pliegues_validacion": [
                 ["2026-09", 12, 2.8, 30, -1.3735, 0, 0.0],
-                ["2026-10", 84, 3.2, 41, 0.0571, 6, -0.1585]
+                ["2026-10", 84, 3.2, 41, 0.0571, 8, -0.869]
             ]
         },
         "TrendFollowing": {
             "window": 76,
-            "multiplier": 2.0,
-            "trades": 47,
-            "win_rate": 40.43,
-            "max_drawdown_pct": 0.26,
-            "profit_factor": 1.48,
-            "expected_payoff": 0.0776,
-            "pnl": 3.649,
+            "multiplier": 2.2,
+            "trades": 41,
+            "win_rate": 41.46,
+            "max_drawdown_pct": 0.24,
+            "profit_factor": 1.54,
+            "expected_payoff": 0.0971,
+            "pnl": 3.9817,
             "status": "rechazada",
             "motivo": "PnL OOS -15.32 USDT <= 0; solo 28.6 % de meses positivos; p = 0.99 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": true,
-                "score_suavizado": 1.338,
+                "score_suavizado": 1.0018,
                 "motivo": null
             },
             "entrenamiento_pliegues": {
@@ -594,19 +594,19 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 2,
                 "pliegues_positivos_pct": 0.0,
-                "trades": 14,
-                "win_rate": 28.57,
-                "max_drawdown_pct": 0.3,
-                "profit_factor": 0.14,
-                "expected_payoff": -0.2177,
-                "pnl": -3.0481,
-                "dias_con_operaciones": 12,
-                "t_dia": -3.207,
-                "p_valor": 0.996
+                "trades": 15,
+                "win_rate": 26.67,
+                "max_drawdown_pct": 0.33,
+                "profit_factor": 0.13,
+                "expected_payoff": -0.2216,
+                "pnl": -3.3246,
+                "dias_con_operaciones": 13,
+                "t_dia": -3.509,
+                "p_valor": 0.998
             },
             "pliegues": [
                 ["2023-07", 96, 2.4, 40, 4.5017, 14, -2.3856],
@@ -650,25 +650,25 @@
             ],
             "pliegues_validacion": [
                 ["2026-09", 64, 3.2, 37, 4.49, 7, -2.8469],
-                ["2026-10", 72, 2.2, 37, 4.4417, 7, -0.2012]
+                ["2026-10", 72, 2.2, 37, 4.4417, 8, -0.4777]
             ]
         },
         "VWAP": {
-            "window": 84,
-            "multiplier": 2.6,
-            "trades": 80,
-            "win_rate": 55.0,
-            "max_drawdown_pct": 0.28,
-            "profit_factor": 1.06,
-            "expected_payoff": 0.0082,
-            "pnl": 0.6552,
+            "window": 28,
+            "multiplier": 3.0,
+            "trades": 42,
+            "win_rate": 59.52,
+            "max_drawdown_pct": 0.15,
+            "profit_factor": 0.87,
+            "expected_payoff": -0.0113,
+            "pnl": -0.4756,
             "status": "rechazada",
             "motivo": "PnL OOS -5.76 USDT <= 0; solo 39.1 % de meses positivos; p = 0.881 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
-                "operar": true,
-                "score_suavizado": -2.3217,
-                "motivo": null
+                "operar": false,
+                "score_suavizado": -2.1174,
+                "motivo": "la zona elegida no gana dinero en el entrenamiento: ese periodo no opera"
             },
             "entrenamiento_pliegues": {
                 "pliegues_operados": 23,
@@ -695,19 +695,19 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 1,
                 "pliegues_positivos_pct": 0.0,
-                "trades": 10,
-                "win_rate": 30.0,
-                "max_drawdown_pct": 0.12,
+                "trades": 12,
+                "win_rate": 33.33,
+                "max_drawdown_pct": 0.13,
                 "profit_factor": 0.62,
-                "expected_payoff": -0.0734,
-                "pnl": -0.7342,
-                "dias_con_operaciones": 7,
-                "t_dia": -0.566,
-                "p_valor": 0.704
+                "expected_payoff": -0.0701,
+                "pnl": -0.8412,
+                "dias_con_operaciones": 9,
+                "t_dia": -0.635,
+                "p_valor": 0.729
             },
             "pliegues": [
                 ["2023-07", 24, 3.0, 34, 0.2339, 2, -0.341],
@@ -751,24 +751,24 @@
             ],
             "pliegues_validacion": [
                 ["2026-09", 20, 2.8, 33, -1.5254, 0, 0.0],
-                ["2026-10", 84, 2.6, 74, 1.4992, 10, -0.7342]
+                ["2026-10", 84, 2.6, 74, 1.4992, 12, -0.8412]
             ]
         },
         "VolatilitySqueeze": {
             "window": 76,
             "multiplier": 3.2,
-            "trades": 38,
-            "win_rate": 34.21,
-            "max_drawdown_pct": 0.21,
-            "profit_factor": 1.25,
-            "expected_payoff": 0.0488,
-            "pnl": 1.8533,
+            "trades": 39,
+            "win_rate": 33.33,
+            "max_drawdown_pct": 0.24,
+            "profit_factor": 1.21,
+            "expected_payoff": 0.0403,
+            "pnl": 1.5719,
             "status": "rechazada",
             "motivo": "PnL OOS -12.19 USDT <= 0; solo 33.3 % de meses positivos; p = 0.924 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": true,
-                "score_suavizado": -1.0212,
+                "score_suavizado": -0.695,
                 "motivo": null
             },
             "entrenamiento_pliegues": {
@@ -796,19 +796,19 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 2,
                 "pliegues_positivos_pct": 0.0,
-                "trades": 12,
-                "win_rate": 25.0,
-                "max_drawdown_pct": 0.21,
-                "profit_factor": 0.59,
-                "expected_payoff": -0.0896,
-                "pnl": -1.0755,
-                "dias_con_operaciones": 12,
-                "t_dia": -0.832,
-                "p_valor": 0.788
+                "trades": 13,
+                "win_rate": 23.08,
+                "max_drawdown_pct": 0.24,
+                "profit_factor": 0.53,
+                "expected_payoff": -0.1044,
+                "pnl": -1.3569,
+                "dias_con_operaciones": 13,
+                "t_dia": -1.042,
+                "p_valor": 0.841
             },
             "pliegues": [
                 ["2023-07", 96, 1.2, 59, 4.3278, 19, -2.5497],
@@ -852,7 +852,7 @@
             ],
             "pliegues_validacion": [
                 ["2026-09", 76, 3.2, 40, 4.4728, 9, -0.4898],
-                ["2026-10", 76, 3.2, 42, 2.2721, 3, -0.5857]
+                ["2026-10", 76, 3.2, 42, 2.2721, 4, -0.867]
             ]
         },
         "seleccionada": null,
@@ -863,19 +863,19 @@
         "MeanReversion": {
             "window": 16,
             "multiplier": 3.0,
-            "trades": 41,
-            "win_rate": 53.66,
-            "max_drawdown_pct": 0.09,
-            "profit_factor": 0.98,
-            "expected_payoff": -0.0026,
-            "pnl": -0.1081,
+            "trades": 43,
+            "win_rate": 58.14,
+            "max_drawdown_pct": 0.05,
+            "profit_factor": 1.16,
+            "expected_payoff": 0.0161,
+            "pnl": 0.6911,
             "status": "rechazada",
             "motivo": "p = 0.3 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
-                "operar": false,
-                "score_suavizado": -2.3978,
-                "motivo": "la zona elegida no gana dinero en el entrenamiento: ese periodo no opera"
+                "operar": true,
+                "score_suavizado": -1.7562,
+                "motivo": null
             },
             "entrenamiento_pliegues": {
                 "pliegues_operados": 24,
@@ -902,19 +902,19 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 1,
                 "pliegues_positivos_pct": 0.0,
-                "trades": 5,
-                "win_rate": 0.0,
+                "trades": 6,
+                "win_rate": 16.67,
                 "max_drawdown_pct": 0.2,
-                "profit_factor": 0.0,
-                "expected_payoff": -0.3963,
-                "pnl": -1.9814,
-                "dias_con_operaciones": 4,
-                "t_dia": -3.74,
-                "p_valor": 0.983
+                "profit_factor": 0.17,
+                "expected_payoff": -0.274,
+                "pnl": -1.6442,
+                "dias_con_operaciones": 5,
+                "t_dia": -1.681,
+                "p_valor": 0.916
             },
             "pliegues": [
                 ["2023-07", 24, 3.2, 57, 2.0942, 6, -0.6063],
@@ -958,24 +958,24 @@
             ],
             "pliegues_validacion": [
                 ["2026-09", 56, 3.2, 49, -0.0333, 0, 0.0],
-                ["2026-10", 56, 3.2, 48, 1.4734, 5, -1.9814]
+                ["2026-10", 56, 3.2, 48, 1.4734, 6, -1.6442]
             ]
         },
         "TrendFollowing": {
-            "window": 56,
-            "multiplier": 3.0,
-            "trades": 52,
-            "win_rate": 46.15,
-            "max_drawdown_pct": 0.24,
-            "profit_factor": 1.58,
-            "expected_payoff": 0.095,
-            "pnl": 4.9424,
+            "window": 60,
+            "multiplier": 3.2,
+            "trades": 48,
+            "win_rate": 43.75,
+            "max_drawdown_pct": 0.2,
+            "profit_factor": 1.35,
+            "expected_payoff": 0.067,
+            "pnl": 3.2152,
             "status": "rechazada",
             "motivo": "p = 0.473 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": true,
-                "score_suavizado": 0.8291,
+                "score_suavizado": 0.7157,
                 "motivo": null
             },
             "entrenamiento_pliegues": {
@@ -1003,19 +1003,19 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 2,
                 "pliegues_positivos_pct": 50.0,
-                "trades": 14,
-                "win_rate": 35.71,
-                "max_drawdown_pct": 0.18,
-                "profit_factor": 1.07,
-                "expected_payoff": 0.0132,
-                "pnl": 0.1852,
-                "dias_con_operaciones": 12,
-                "t_dia": 0.092,
-                "p_valor": 0.464
+                "trades": 15,
+                "win_rate": 33.33,
+                "max_drawdown_pct": 0.22,
+                "profit_factor": 0.94,
+                "expected_payoff": -0.0136,
+                "pnl": -0.2047,
+                "dias_con_operaciones": 13,
+                "t_dia": -0.1,
+                "p_valor": 0.539
             },
             "pliegues": [
                 ["2023-07", 52, 3.2, 51, 10.896, 12, 0.4392],
@@ -1059,24 +1059,24 @@
             ],
             "pliegues_validacion": [
                 ["2026-09", 80, 2.4, 60, 2.0074, 7, 1.1668],
-                ["2026-10", 96, 2.2, 52, 2.7925, 7, -0.9816]
+                ["2026-10", 96, 2.2, 52, 2.7925, 8, -1.3716]
             ]
         },
         "VWAP": {
             "window": 48,
             "multiplier": 3.2,
-            "trades": 32,
-            "win_rate": 62.5,
+            "trades": 34,
+            "win_rate": 58.82,
             "max_drawdown_pct": 0.11,
-            "profit_factor": 1.38,
-            "expected_payoff": 0.0362,
-            "pnl": 1.1569,
+            "profit_factor": 1.13,
+            "expected_payoff": 0.0138,
+            "pnl": 0.469,
             "status": "rechazada",
             "motivo": "PnL OOS -10.78 USDT <= 0; solo 36.0 % de meses positivos; p = 0.917 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": true,
-                "score_suavizado": -0.1546,
+                "score_suavizado": -0.2681,
                 "motivo": null
             },
             "entrenamiento_pliegues": {
@@ -1104,19 +1104,19 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 2,
                 "pliegues_positivos_pct": 50.0,
-                "trades": 8,
-                "win_rate": 62.5,
-                "max_drawdown_pct": 0.05,
-                "profit_factor": 1.51,
-                "expected_payoff": 0.0463,
-                "pnl": 0.3701,
-                "dias_con_operaciones": 8,
-                "t_dia": 0.528,
-                "p_valor": 0.307
+                "trades": 10,
+                "win_rate": 50.0,
+                "max_drawdown_pct": 0.11,
+                "profit_factor": 0.77,
+                "expected_payoff": -0.0318,
+                "pnl": -0.3179,
+                "dias_con_operaciones": 10,
+                "t_dia": -0.367,
+                "p_valor": 0.639
             },
             "pliegues": [
                 ["2023-07", 24, 3.0, 30, 0.6962, 2, -0.6587],
@@ -1160,24 +1160,24 @@
             ],
             "pliegues_validacion": [
                 ["2026-09", 52, 3.2, 33, 1.9961, 5, 0.7541],
-                ["2026-10", 48, 3.2, 35, 1.5856, 3, -0.384]
+                ["2026-10", 48, 3.2, 35, 1.5856, 5, -1.072]
             ]
         },
         "VolatilitySqueeze": {
             "window": 64,
             "multiplier": 3.2,
-            "trades": 37,
-            "win_rate": 48.65,
+            "trades": 35,
+            "win_rate": 48.57,
             "max_drawdown_pct": 0.19,
-            "profit_factor": 1.86,
-            "expected_payoff": 0.1497,
-            "pnl": 5.5404,
+            "profit_factor": 1.83,
+            "expected_payoff": 0.1468,
+            "pnl": 5.1372,
             "status": "rechazada",
             "motivo": "solo 48.6 % de meses positivos; p = 0.431 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": true,
-                "score_suavizado": 2.5401,
+                "score_suavizado": 2.2373,
                 "motivo": null
             },
             "entrenamiento_pliegues": {
@@ -1205,7 +1205,7 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 2,
                 "pliegues_positivos_pct": 50.0,
@@ -1272,18 +1272,18 @@
         "MeanReversion": {
             "window": 16,
             "multiplier": 3.0,
-            "trades": 49,
-            "win_rate": 51.02,
+            "trades": 51,
+            "win_rate": 52.94,
             "max_drawdown_pct": 0.15,
-            "profit_factor": 1.03,
-            "expected_payoff": 0.0037,
-            "pnl": 0.1834,
+            "profit_factor": 1.17,
+            "expected_payoff": 0.0185,
+            "pnl": 0.9422,
             "status": "rechazada",
             "motivo": "PnL OOS -0.32 USDT <= 0; p = 0.514 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": true,
-                "score_suavizado": -3.528,
+                "score_suavizado": -3.0064,
                 "motivo": null
             },
             "entrenamiento_pliegues": {
@@ -1311,19 +1311,19 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 2,
                 "pliegues_positivos_pct": 0.0,
-                "trades": 9,
-                "win_rate": 22.22,
-                "max_drawdown_pct": 0.24,
-                "profit_factor": 0.36,
-                "expected_payoff": -0.2178,
-                "pnl": -1.9603,
-                "dias_con_operaciones": 6,
-                "t_dia": -1.197,
-                "p_valor": 0.858
+                "trades": 11,
+                "win_rate": 27.27,
+                "max_drawdown_pct": 0.28,
+                "profit_factor": 0.4,
+                "expected_payoff": -0.1941,
+                "pnl": -2.1353,
+                "dias_con_operaciones": 8,
+                "t_dia": -1.225,
+                "p_valor": 0.87
             },
             "pliegues": [
                 ["2023-07", 88, 3.2, 49, 10.5647, 6, 0.2942],
@@ -1367,7 +1367,7 @@
             ],
             "pliegues_validacion": [
                 ["2026-09", 76, 3.2, 47, 1.1806, 5, -1.7795],
-                ["2026-10", 76, 3.2, 46, 0.6211, 4, -0.1808]
+                ["2026-10", 76, 3.2, 46, 0.6211, 6, -0.3558]
             ]
         },
         "TrendFollowing": {
@@ -1384,7 +1384,7 @@
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": true,
-                "score_suavizado": -1.5449,
+                "score_suavizado": -1.5289,
                 "motivo": null
             },
             "entrenamiento_pliegues": {
@@ -1412,7 +1412,7 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 1,
                 "pliegues_positivos_pct": 0.0,
@@ -1477,15 +1477,15 @@
             "trades": 35,
             "win_rate": 68.57,
             "max_drawdown_pct": 0.08,
-            "profit_factor": 2.55,
-            "expected_payoff": 0.1056,
-            "pnl": 3.6956,
+            "profit_factor": 2.71,
+            "expected_payoff": 0.1164,
+            "pnl": 4.0739,
             "status": "rechazada",
             "motivo": "PnL OOS -7.02 USDT <= 0; solo 37.9 % de meses positivos; p = 0.84 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": true,
-                "score_suavizado": 2.427,
+                "score_suavizado": 2.7219,
                 "motivo": null
             },
             "entrenamiento_pliegues": {
@@ -1513,19 +1513,19 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 2,
                 "pliegues_positivos_pct": 100.0,
-                "trades": 9,
-                "win_rate": 77.78,
+                "trades": 10,
+                "win_rate": 80.0,
                 "max_drawdown_pct": 0.02,
-                "profit_factor": 5.7,
-                "expected_payoff": 0.2036,
-                "pnl": 1.8322,
-                "dias_con_operaciones": 9,
-                "t_dia": 2.122,
-                "p_valor": 0.0333
+                "profit_factor": 7.0,
+                "expected_payoff": 0.2337,
+                "pnl": 2.3375,
+                "dias_con_operaciones": 10,
+                "t_dia": 2.569,
+                "p_valor": 0.0151
             },
             "pliegues": [
                 ["2023-07", 96, 2.4, 94, 6.6925, 11, 0.4669],
@@ -1569,7 +1569,7 @@
             ],
             "pliegues_validacion": [
                 ["2026-09", 56, 3.2, 32, 1.0472, 5, 0.7574],
-                ["2026-10", 56, 3.2, 34, 2.3297, 4, 1.0748]
+                ["2026-10", 56, 3.2, 34, 2.3297, 5, 1.58]
             ]
         },
         "VolatilitySqueeze": {
@@ -1577,16 +1577,16 @@
             "multiplier": 3.2,
             "trades": 42,
             "win_rate": 38.1,
-            "max_drawdown_pct": 0.19,
-            "profit_factor": 1.24,
-            "expected_payoff": 0.0436,
-            "pnl": 1.8332,
+            "max_drawdown_pct": 0.2,
+            "profit_factor": 1.29,
+            "expected_payoff": 0.051,
+            "pnl": 2.1431,
             "status": "rechazada",
             "motivo": "PnL OOS -5.74 USDT <= 0; solo 35.7 % de meses positivos; p = 0.707 >= 0.003125",
             "pasa_walk_forward": false,
             "entrenamiento_vivo": {
                 "operar": true,
-                "score_suavizado": -1.7553,
+                "score_suavizado": -1.3059,
                 "motivo": null
             },
             "entrenamiento_pliegues": {
@@ -1614,7 +1614,7 @@
             },
             "validacion_final": {
                 "desde": "2026-09-01",
-                "hasta": "2026-10-14",
+                "hasta": "2026-10-19",
                 "pliegues": 2,
                 "pliegues_con_operaciones": 1,
                 "pliegues_positivos_pct": 100.0,
