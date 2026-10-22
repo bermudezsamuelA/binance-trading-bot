@@ -448,6 +448,7 @@ En la v2 sobre monedas nuevas, el límite inferior del WR corregido por la corre
 - **No demostrado:** la E absoluta. El *holdout* fue bajista: el azar perdía −0.73 % por operación (v1) y la ventaja apenas lo compensó.
 - **No validado fuera de muestra:** la co-señal, E7 y D1.
 - **La ganancia se concentra:** en la v2, los 10 días más activos (pánicos multi-moneda) reúnen 168 de 621 operaciones con E +1.18 %; el resto tiene E ≈ 0.
+- **Medición descriptiva de P1 (2026-10-22)** sobre las 4 monedas originales en 2025-07..2026-09 (periodo ya gastado; no decide nada; `nn/nn_v3_desc.py`, reproduce exacto el v2 de `desc_v2_originales`): P1 = 169 op, WR **75.7 % [68.8, 81.6]**, E **+0.17 %** ($t_{\text{día}}$ 0.37), 10/12 meses positivos; C0 (sin compuerta, 384 velas) = 200 op, 75.5 %, +0.23 %; señales aisladas ($A_4 = 0$) = 49 op, 71.4 %, +0.41 %. Ventaja sobre el azar: +12.9 pt y +0.88 % ($t$ 1.89). **La barrera de 384 velas sube WR y E frente a 288; la compuerta no mejoró en este periodo.** La E absoluta sigue sin distinguirse de 0.
 - **El modelo envejece:** por trimestre, la v2 dio 78 % (2025-T3), 71 % (T4), 63 % (2026-T1), 60 % (T2) y 78 % (T3). Salidas: 68 % por TP, 19 % por SL y 13 % por tiempo.
 
 **La información manda, no la arquitectura** (E en *walk-forward*):

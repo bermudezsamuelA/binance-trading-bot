@@ -20,6 +20,7 @@ Las partes están agrupadas por tema. Para seguirlas en el orden en que el bot h
   - [7. Reversión al VWAP (VWAPReversionStrategy)](#7-reversión-al-vwap-vwapreversionstrategy)
   - [8. Compresión de volatilidad (VolatilitySqueezeStrategy)](#8-compresión-de-volatilidad-volatilitysqueezestrategy)
   - [9. Arbitraje estadístico por z-score (StatisticalArbitrageStrategy)](#9-arbitraje-estadístico-por-z-score-statisticalarbitragestrategy)
+  - [9 bis. Compra de capitulación (CapitulationStrategy)](#9-bis-compra-de-capitulación-capitulationstrategy)
 - **[Parte 3 — Ejecución y gestión del dinero](#parte-3--ejecución-y-gestión-del-dinero)**
   - [10. Tamaño de la posición (Node.js)](#10-tamaño-de-la-posición-nodejs)
   - [11. Ganancia o pérdida de la operación (PnL en vivo)](#11-ganancia-o-pérdida-de-la-operación-pnl-en-vivo)
@@ -495,6 +496,52 @@ $$
 > **Nota.** Esta estrategia no está conectada a `strategy_engine.py`, así que hoy no opera. Además, un arbitraje de pares real compraría el activo barato **y** vendería en corto el caro; aquí solo se compra una de las dos patas.
 
 *Origen:* [statistical_arbitrage.py](../binance-research/quantitative_strategies/statistical_arbitrage.py).
+
+## 9 bis. Compra de capitulación (`CapitulationStrategy`)
+
+**Objetivo.** Las cuatro estrategias anteriores no tienen ventaja medible: su tasa de acierto es la que da la geometría del TP/SL ([agente-rl-y-esperanza-positiva.md](agente-rl-y-esperanza-positiva.md), sección 2). Esta estrategia prueba la única idea con evidencia para un bot solo largo en spot: comprar la **sobrerreacción tras una caída extrema con volumen climático** (práctica 5 de ese documento) y salir con la geometría X5 de la [estrategia v3](estrategia-v3-hacia-el-80.md) (sección 2.10). Es la versión **solo con velas spot**: la v3 usa además datos de futuros, que el bot no puede leer en vivo.
+
+$$
+\sigma_t = \text{std}\big(r_{t-n+1}, \dots, r_t\big),\quad r_j = \frac{P_j}{P_{j-1}} - 1,
+\qquad
+D_t = \frac{P_t}{P_{t-4}} - 1
+$$
+
+**Qué es cada símbolo:**
+
+- $r_j$: retorno simple de la vela $j$.
+- $\sigma_t$: desviación muestral de los últimos $n$ retornos (volatilidad de una vela).
+- $D_t$: caída de las últimas 4 velas (1 hora con velas de 15 min).
+
+$$
+\text{BUY si } D_t < -k\,\sigma_t\sqrt{4}\quad\text{y}\quad v_t \ge 2\,\bar v_t
+$$
+
+**Qué es cada símbolo:**
+
+- $k$: multiplicador de la rejilla: cuántas desviaciones de una hora tiene que caer el precio.
+- $v_t$, $\bar v_t$: volumen de la vela y media del volumen de las últimas $n$ velas (incluida la actual).
+
+$$
+s_d = \sigma_t\sqrt{N_d},\qquad TP = P_t\,(1 + 0.7\,s_d),\qquad SL = P_t\,(1 - 1.75\,s_d),\qquad \text{se descarta si } P_t - SL < 0.005\,P_t
+$$
+
+- $s_d$: volatilidad diaria estimada con la ventana.
+- $N_d$: velas por día: 96 con velas de 15 min (24 con 1 h y 6 con 4 h, en los estudios de `ml_evaluator.py --interval`).
+- La relación es $b = 0.7/1.75 = 0.4$: el azar ya acierta ≈ 71 %. Solo hay ventaja si gana más que eso después de costos.
+
+> **Ejemplo:** con $\sigma = 0.4\,\%$, $k = 2.5$ y $P_{t-4} = 100$, hace falta $D < -2.5 \times 0.4 \times 2 = -2\,\%$. Si $P_t = 97.5$ y el volumen de la vela es 2.3 veces la media, se compra. $s_d = 0.4 \times 9.80 = 3.92\,\%$: $TP = 97.5 \times 1.0274 = 100.17$ y $SL = 97.5 \times 0.9314 = 90.81$.
+
+**Desglose paso a paso**
+
+1. Se guardan los últimos $n + 1$ cierres y los últimos $n$ volúmenes.
+2. Se calculan los $n$ retornos simples y su desviación muestral $\sigma_t$.
+3. Se mide la caída de la última hora $D_t$ y se compara con $k$ desviaciones de una hora ($\sigma_t\sqrt 4$).
+4. Además, la vela tiene que traer al menos el doble del volumen medio: una caída sin volumen no es capitulación.
+5. TP y SL se fijan en múltiplos de la volatilidad diaria, como la salida X5 de la v3, pero **sin la barrera de 96 h**: el bot solo sale por TP o SL.
+6. Las constantes (4 velas, volumen 2×, 0.7 y 1.75) son fijas; el optimizador solo elige $n$ y $k$, igual que en las demás.
+
+*Origen:* [capitulation.py](../binance-research/quantitative_strategies/capitulation.py). Versión rápida con paridad exacta en `fast_backtest.FastSymbol` (`ret_std`, `vol_mean`).
 
 ---
 
