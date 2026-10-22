@@ -11,7 +11,7 @@ import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from config import ACTIVE_ROSTER
-from fast_backtest import STRATEGY_CLASSES, check_parity, check_stats_bitwise, load_history
+from fast_backtest import INTERVAL_MS, STRATEGY_CLASSES, check_parity, check_stats_bitwise, load_history, set_interval
 import walk_forward as wf
 
 # Modelos ML
@@ -21,10 +21,16 @@ RESULTS_FILE = os.path.join(os.path.dirname(__file__), "ml_results.json")
 FOLD_COLUMNS = ["prueba", "n", "k", "ops_ent", "pnl_ent", "ops", "pnl"]
 
 
-def parity_smoke_test(symbol: str) -> bool:
+def results_file(interval: str) -> str:
+    """ml_results.json es el de 15 min, el unico que lee strategy_engine.py; las otras temporalidades son estudios
+    aparte (ml_results_1h.json, ml_results_4h.json) que no cambian lo que carga el bot."""
+    return RESULTS_FILE if interval == "15m" else RESULTS_FILE.replace(".json", f"_{interval}.json")
+
+
+def parity_smoke_test(symbol: str, interval: str = "15m") -> bool:
     """FASE 0: la version rapida solo se usa si da EXACTAMENTE las mismas operaciones que simulate_live con las
     clases reales (en este equipo y con estas versiones de pandas/numpy). Prueba completa: python fast_backtest.py"""
-    hist = load_history(symbol)
+    hist = load_history(symbol, interval=interval)
     t = pd.to_datetime(hist["open_time"], unit="ms", utc=True)
     last_month = t.iloc[-1].normalize().replace(day=1) - pd.DateOffset(months=1)
     month = hist[(t >= last_month) & (t < last_month + pd.DateOffset(months=1))].reset_index(drop=True)
@@ -37,7 +43,7 @@ def parity_smoke_test(symbol: str) -> bool:
     # anterior sigue abierta, el mes no abre hasta la vela siguiente a su salida (una posicion por moneda).
     start = int(np.searchsorted(hist["open_time"].to_numpy(), (last_month - pd.DateOffset(months=1)).value // 10**6))
     end = int(np.searchsorted(hist["open_time"].to_numpy(), last_month.value // 10**6))
-    for s, (w, m) in zip(STRATEGY_CLASSES, [(20, 1.4), (56, 2.2), (32, 1.8), (88, 2.6)]):
+    for s, (w, m) in zip(STRATEGY_CLASSES, [(20, 1.4), (56, 2.2), (32, 1.8), (88, 2.6), (12, 1.0)]):
         for delay in (0, 500):
             cases.append((symbol, hist, s, w, m, (start - wf.preseed_candles(w), start + delay, end,
                                                   min(len(hist), 2 * end - start))))
@@ -94,34 +100,39 @@ def _print_summary(analysis: dict, roster: list):
     print("=" * 132)
 
 
-def run_ml_evaluation(roster: list):
-    print(f"[ML EVALUATOR] Iniciando evaluación maestra para {len(roster)} activos...")
+def run_ml_evaluation(roster: list, interval: str = "15m"):
+    out_file = results_file(interval)
+    print(f"[ML EVALUATOR] Iniciando evaluación maestra para {len(roster)} activos en velas de {interval}...")
+    if interval != "15m":
+        print(f"[ML EVALUATOR] Estudio de temporalidad: velas de {interval} armadas con las de 15 min. Se guarda en "
+              f"{os.path.basename(out_file)}; el bot sigue leyendo ml_results.json (15 min).")
     t_start = time.perf_counter()
+    set_interval(interval)
 
     # --- FASE 0: PARIDAD DE LA VERSION RAPIDA ---
     print("\n[FASE 0] Verificando paridad exacta de la simulacion rapida con optimize.simulate_live...")
-    if not parity_smoke_test(roster[0]):
-        print("[FASE 0] ❌ Sin paridad exacta: no se usa la version rapida y no se actualiza ml_results.json.")
+    if not parity_smoke_test(roster[0], interval):
+        print(f"[FASE 0] ❌ Sin paridad exacta: no se usa la version rapida y no se actualiza {os.path.basename(out_file)}.")
         sys.exit(1)
     print("[FASE 0] ✅ Paridad exacta (mismas operaciones, mismos precios, mismo PnL).")
 
     # --- FASE 1: SELECCION CON WALK-FORWARD ---
-    candles = load_history(roster[0])
-    periods = wf.build_periods(candles["open_time"].to_numpy(np.int64))
+    candles = load_history(roster[0], interval=interval)
+    periods = wf.build_periods(candles["open_time"].to_numpy(np.int64), candle_ms=INTERVAL_MS[interval])
     dev, hold = periods["dev"], periods["holdout"]
     print(f"\n[FASE 1] Walk-forward: {wf.TRAIN_MONTHS} meses de entrenamiento -> 1 mes de prueba, "
           f"{len(dev)} pliegues ({dev[0]['name']} a {dev[-1]['name']}).")
     print(f"[FASE 1] Validacion final reservada: {periods['holdout_start']:%Y-%m-%d} a "
           f"{periods['end'] - pd.Timedelta(days=1):%Y-%m-%d} (no elige nada; solo veta si pierde dinero).")
     print(f"[FASE 1] Rejilla: {len(wf.WINDOWS)} ventanas x {len(wf.MULTIPLIERS)} multiplicadores por estrategia.")
-    results = wf.run_walk_forward(roster)
+    results = wf.run_walk_forward(roster, interval=interval)
     n_tests = len(results)
 
     ml_analysis = {"_protocolo": {
         "version": "walk-forward-v1",
         "generado": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "datos": {"desde": f"{periods['start']:%Y-%m-%d}", "hasta": f"{periods['end'] - pd.Timedelta(days=1):%Y-%m-%d}",
-                  "vela": "15m"},
+                  "vela": interval},
         "entrenamiento_meses": wf.TRAIN_MONTHS,
         "desarrollo": {"pliegues": len(dev), "primer_mes_prueba": dev[0]["name"], "ultimo_mes_prueba": dev[-1]["name"]},
         "validacion_final": {"desde": f"{periods['holdout_start']:%Y-%m-%d}",
@@ -166,8 +177,9 @@ def run_ml_evaluation(roster: list):
 
     # --- FASE 2: ENTRENAMIENTO DE MACHINE LEARNING (XGBOOST) ---
     # Igual que antes: el ultimo mes completo, etiquetas a 12 velas. No se usa en vivo ni en la seleccion.
+    # Solo con velas de 15 min (lee los CSV de 15 min); en los estudios de otra temporalidad se omite.
     data_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
-    for symbol in roster:
+    for symbol in (roster if interval == "15m" else []):
         files = glob.glob(f"{data_path}/**/*{symbol}*.csv", recursive=True)
         m15_files = sorted(f for f in files if '15m' in f and 'monthly' in f)
         if not m15_files:
@@ -191,14 +203,18 @@ def run_ml_evaluation(roster: list):
         # Marcamos en el JSON que el modelo está entrenado y listo
         ml_analysis[symbol]["XGBoost_Status"] = "Trained"
 
-    with open(RESULTS_FILE, 'w', encoding='utf-8', newline='\n') as f:
+    with open(out_file, 'w', encoding='utf-8', newline='\n') as f:
         f.write(_compact_json(ml_analysis) + "\n")
 
     _print_summary(ml_analysis, roster)
-    print(f"\n[ML EVALUATOR] ✅ Ciclo completado en {time.perf_counter() - t_start:.0f} s. Archivo actualizado: {RESULTS_FILE}")
+    print(f"\n[ML EVALUATOR] ✅ Ciclo completado en {time.perf_counter() - t_start:.0f} s. Archivo actualizado: {out_file}")
     return ml_analysis
 
 
 if __name__ == "__main__":
+    import argparse
     sys.stdout.reconfigure(encoding="utf-8")
-    run_ml_evaluation(ACTIVE_ROSTER)
+    parser = argparse.ArgumentParser(description="Seleccion walk-forward de estrategias por moneda.")
+    parser.add_argument("--interval", choices=list(INTERVAL_MS), default="15m",
+                        help="temporalidad de las velas (1h y 4h se arman con las de 15 min; por defecto 15m)")
+    run_ml_evaluation(ACTIVE_ROSTER, parser.parse_args().interval)

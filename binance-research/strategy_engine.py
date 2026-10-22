@@ -5,6 +5,7 @@ from quantitative_strategies.mean_reversion import MeanReversionStrategy
 from quantitative_strategies.rolling_volatility import RollingVolatilityStrategy
 from quantitative_strategies.vwap_strategy import VWAPReversionStrategy
 from quantitative_strategies.volatility_squeeze import VolatilitySqueezeStrategy
+from quantitative_strategies.capitulation import CapitulationStrategy
 from config import BINANCE_MARKET, KLINE_INTERVAL_MS
 
 # Modo OPCIONAL y desactivado por defecto: ALLOW_UNVALIDATED_STRATEGIES=1 en el .env carga, en las monedas sin
@@ -43,7 +44,8 @@ class StrategyEngine:
             "MeanReversion": MeanReversionStrategy,
             "TrendFollowing": RollingVolatilityStrategy,
             "VWAP": VWAPReversionStrategy,
-            "VolatilitySqueeze": VolatilitySqueezeStrategy
+            "VolatilitySqueeze": VolatilitySqueezeStrategy,
+            "Capitulation": CapitulationStrategy
         }
 
         try:
@@ -140,7 +142,7 @@ class StrategyEngine:
                 print(f"[ENGINE] ⚠️ {symbol}: faltan {faltan} vela(s) entre {last} y {open_time}.")
             self.last_open_time[symbol] = open_time
 
-        # Todas las estrategias aceptan la vela completa (dict); VWAP lee de ahi el volumen.
+        # Todas las estrategias aceptan la vela completa (dict); VWAP y Capitulation leen de ahi el volumen.
         # Igual que optimize.simulate_live, para que vivo y backtest den las mismas senales.
         strat = self.strategies[symbol]
         signal = strat.evaluate(symbol, {"close": float(market_data.get('close', 0.0)),

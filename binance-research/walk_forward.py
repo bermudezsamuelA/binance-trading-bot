@@ -40,7 +40,7 @@ from scipy import stats as sp_stats
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from config import PRESEED_MARGIN, PRESEED_MIN
-from fast_backtest import CANDLE_MS, STRATEGY_CLASSES, FastSymbol, load_history
+from fast_backtest import CANDLE_MS, INTERVAL_MS, STRATEGY_CLASSES, FastSymbol, load_history, set_interval
 from optimize import INITIAL_CAPITAL, trades_to_metrics
 
 WINDOWS = list(range(8, 100, 4))                          # 23 ventanas
@@ -68,10 +68,11 @@ def _month_floor(ts: pd.Timestamp) -> pd.Timestamp:
     return ts.normalize().replace(day=1)
 
 
-def build_periods(open_time: np.ndarray, train_months: int = TRAIN_MONTHS, holdout_start: str = None) -> dict:
+def build_periods(open_time: np.ndarray, train_months: int = TRAIN_MONTHS, holdout_start: str = None,
+                  candle_ms: int = CANDLE_MS) -> dict:
     """Pliegues de desarrollo, de validacion final y la ventana de entrenamiento en vivo (fechas UTC)."""
     start = _month_floor(_ts(open_time[0]))
-    end = _ts(open_time[-1] + CANDLE_MS)                      # fin exclusivo (cierre de la ultima vela)
+    end = _ts(open_time[-1] + candle_ms)                      # fin exclusivo (cierre de la ultima vela)
     current = _month_floor(end - pd.Timedelta(milliseconds=1))
     if holdout_start is not None:
         hold = pd.Timestamp(holdout_start, tz="UTC")
@@ -252,11 +253,12 @@ def summarize_train(rows, train_months: int = TRAIN_MONTHS) -> dict:
 
 def evaluate_pair(task):
     """Trabajo de un proceso: una moneda y una estrategia. Devuelve un dict serializable."""
-    symbol, strategy, train_months, holdout_start = task
+    symbol, strategy, train_months, holdout_start, interval = task
     t0 = time.perf_counter()
-    candles = load_history(symbol)
+    set_interval(interval)
+    candles = load_history(symbol, interval=interval)
     open_time = candles["open_time"].to_numpy(np.int64)
-    periods = build_periods(open_time, train_months, holdout_start)
+    periods = build_periods(open_time, train_months, holdout_start, INTERVAL_MS[interval])
     ev = PairEvaluator(FastSymbol(candles), open_time, strategy)
     t_sim = time.perf_counter() - t0
 
@@ -310,10 +312,10 @@ def decide(result: dict, n_tests: int) -> tuple:
 
 
 def run_walk_forward(roster: list, workers: int = None, train_months: int = TRAIN_MONTHS,
-                     holdout_start: str = None) -> list:
+                     holdout_start: str = None, interval: str = "15m") -> list:
     """Evalua todos los pares (moneda, estrategia) en paralelo (deja 2 nucleos libres)."""
     from multiprocessing import Pool
-    tasks = [(s, st, train_months, holdout_start) for s in roster for st in STRATEGIES]
+    tasks = [(s, st, train_months, holdout_start, interval) for s in roster for st in STRATEGIES]
     workers = workers or max(1, (os.cpu_count() or 3) - 2)
     results = []
     with Pool(processes=min(workers, len(tasks))) as pool:
@@ -321,5 +323,5 @@ def run_walk_forward(roster: list, workers: int = None, train_months: int = TRAI
             print(f"[WALK-FORWARD] {res['symbol']:<8} {res['strategy']:<17} listo en {res['segundos']} s "
                   f"(OOS: {res['oos']['trades'] if res['oos'] else 0} ops, PnL {res['oos']['pnl'] if res['oos'] else 0:+.2f})")
             results.append(res)
-    order = {(s, st): i for i, (s, st, _, _) in enumerate(tasks)}
+    order = {(s, st): i for i, (s, st, *_) in enumerate(tasks)}
     return sorted(results, key=lambda r: order[(r["symbol"], r["strategy"])])

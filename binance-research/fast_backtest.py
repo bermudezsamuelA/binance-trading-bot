@@ -1,6 +1,6 @@
 # fast_backtest.py
 """
-Version rapida (numpy) de optimize.simulate_live para las cuatro estrategias de quantitative_strategies/.
+Version rapida (numpy) de optimize.simulate_live para las estrategias de quantitative_strategies/.
 
 Da EXACTAMENTE las mismas operaciones que simulate_live con las clases reales (mismas velas de entrada y
 salida, mismos precios y mismo PnL hasta el ultimo bit):
@@ -40,9 +40,13 @@ from quantitative_strategies.mean_reversion import MeanReversionStrategy
 from quantitative_strategies.rolling_volatility import RollingVolatilityStrategy
 from quantitative_strategies.vwap_strategy import VWAPReversionStrategy
 from quantitative_strategies.volatility_squeeze import VolatilitySqueezeStrategy
+from quantitative_strategies.capitulation import CapitulationStrategy
+from quantitative_strategies import capitulation as CAP
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "spot")
 CANDLE_MS = 15 * 60 * 1000
+# Temporalidades que el evaluador puede probar: las de 1 h y 4 h se arman con las velas de 15 min descargadas
+INTERVAL_MS = {"15m": CANDLE_MS, "1h": 60 * 60 * 1000, "4h": 4 * 60 * 60 * 1000}
 
 # Mismos nombres que ml_results.json / strategy_engine.py
 STRATEGY_CLASSES = {
@@ -50,6 +54,7 @@ STRATEGY_CLASSES = {
     "TrendFollowing": RollingVolatilityStrategy,
     "VWAP": VWAPReversionStrategy,
     "VolatilitySqueeze": VolatilitySqueezeStrategy,
+    "Capitulation": CapitulationStrategy,
 }
 
 # Constantes copiadas de evaluate() de cada estrategia (la prueba de paridad avisa si cambian)
@@ -60,9 +65,26 @@ SQUEEZE_THRESHOLD = VolatilitySqueezeStrategy().squeeze_threshold
 ROWS_PER_BLOCK = 8192         # filas por bloque al calcular ventanas (acota la memoria)
 
 
-def load_history(symbol: str, data_dir: str = DATA_DIR, end_date: str = None) -> pd.DataFrame:
+def set_interval(interval: str):
+    """Temporalidad de las estrategias que dependen de ella (CapitulationStrategy pasa su volatilidad a diaria)."""
+    CAP.set_candle_ms(INTERVAL_MS[interval])
+
+
+def resample(df: pd.DataFrame, interval: str) -> pd.DataFrame:
+    """Velas de `interval` armadas con las de 15 min, como las de Binance (alineadas a UTC): apertura de la primera,
+    maximo, minimo, cierre de la ultima y suma del volumen. Solo se conservan las velas completas."""
+    ms = INTERVAL_MS[interval]
+    g = df.groupby(df["open_time"] // ms * ms, sort=True)
+    out = pd.DataFrame({"open": g["open"].first(), "high": g["high"].max(), "low": g["low"].min(),
+                        "close": g["close"].last(), "volume": g["volume"].sum()})
+    out = out[g.size() == ms // CANDLE_MS]
+    return out.rename_axis("open_time").reset_index()
+
+
+def load_history(symbol: str, data_dir: str = DATA_DIR, end_date: str = None, interval: str = "15m") -> pd.DataFrame:
     """Todas las velas de 15 min descargadas (meses completos + dias sueltos del mes en curso), en orden.
-    open_time en ms (Binance paso a microsegundos en 2025). Opcional: solo hasta end_date (YYYY-MM-DD, incluido)."""
+    open_time en ms (Binance paso a microsegundos en 2025). Opcional: solo hasta end_date (YYYY-MM-DD, incluido) y
+    en otra temporalidad (interval = "1h" o "4h", armadas con resample)."""
     files = sorted(glob.glob(os.path.join(data_dir, "monthly", "klines", symbol, "15m", f"{symbol}-15m-*.csv")))
     files += sorted(glob.glob(os.path.join(data_dir, "daily", "klines", symbol, "15m", f"{symbol}-15m-*.csv")))
     if not files:
@@ -84,7 +106,7 @@ def load_history(symbol: str, data_dir: str = DATA_DIR, end_date: str = None) ->
     if end_date is not None:
         limit = int(pd.Timestamp(end_date, tz="UTC").value // 10**6) + 86_400_000
         df = df[df["open_time"] < limit].reset_index(drop=True)
-    return df
+    return df if interval == "15m" else resample(df, interval)
 
 
 def _window_sums(x: np.ndarray, w: int, with_var: bool):
@@ -120,6 +142,8 @@ class FastSymbol:
         self.n = len(self.c)
         self._stats = {}
         self._vwap = {}
+        self._ret_std = {}
+        self._vol_mean = {}
 
     def stats(self, w: int):
         """(media, desviacion muestral) de los ultimos w cierres; NaN mientras la ventana no esta llena."""
@@ -141,6 +165,22 @@ class FastSymbol:
                 vwap = pv_sum / vol_sum
             self._vwap[w] = (vwap, vol_sum)
         return self._vwap[w]
+
+    def ret_std(self, w: int):
+        """Desviacion muestral de los ultimos w retornos simples (c[j] / c[j-1] - 1), como CapitulationStrategy."""
+        if w not in self._ret_std:
+            r = np.full(self.n, np.nan)
+            r[1:] = self.c[1:] / self.c[:-1] - 1
+            _, sq = _window_sums(r, w, with_var=True)
+            self._ret_std[w] = np.sqrt(sq / (np.float64(w) - np.float64(1)))
+        return self._ret_std[w]
+
+    def vol_mean(self, w: int):
+        """Media del volumen de las ultimas w velas (Series.mean: suma / n)."""
+        if w not in self._vol_mean:
+            s, _ = _window_sums(self.v, w, with_var=False)
+            self._vol_mean[w] = s / np.float64(w)
+        return self._vol_mean[w]
 
     # --- Senales: indices de las velas en las que evaluate() devuelve BUY ---
     def buy_indices(self, strategy: str, w: int, m: float, first: int = 0, end: int = None) -> np.ndarray:
@@ -191,11 +231,27 @@ class FastSymbol:
                     return events
                 risk = c[events] - mean[events]
                 return events[~(risk < c[events] * MIN_RISK_PCT)]
+            if strategy == "Capitulation":
+                # w retornos necesitan w + 1 cierres: la primera senal posible es first + w
+                std = self.ret_std(w)
+                drop = np.full(self.n, np.nan)
+                drop[CAP.DROP_CANDLES:] = c[CAP.DROP_CANDLES:] / c[:-CAP.DROP_CANDLES] - 1
+                sd = std * CAP.SQRT_DAY
+                risk = c - c * (1 - CAP.SL_SD * sd)
+                buy = ((drop < -(std * m * CAP.SQRT_DROP)) & (self.v >= self.vol_mean(w) * CAP.VOLUME_SPIKE)
+                       & ~(risk < c * CAP.MIN_RISK_PCT))
+                idx = np.flatnonzero(buy)
+                return idx[np.searchsorted(idx, first + w):np.searchsorted(idx, end)]
         raise ValueError(f"Estrategia desconocida: {strategy}")
 
     def entry_levels(self, strategy: str, w: int, i: int):
         """(entrada, TP, SL) de la senal en la vela i, con las mismas operaciones escalares que evaluate()."""
         current_price = float(self.c[i])
+        if strategy == "Capitulation":
+            sd = self.ret_std(w)[i] * CAP.SQRT_DAY
+            tp = current_price * (1 + CAP.TP_SD * sd)
+            sl = current_price * (1 - CAP.SL_SD * sd)
+            return current_price, float(round(tp, 8)), float(round(sl, 8))
         if strategy == "VWAP":
             center = self.vwap(w)[0][i]
         else:

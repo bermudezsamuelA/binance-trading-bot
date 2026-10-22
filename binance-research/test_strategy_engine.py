@@ -14,9 +14,11 @@ from quantitative_strategies.mean_reversion import MeanReversionStrategy
 from quantitative_strategies.rolling_volatility import RollingVolatilityStrategy
 from quantitative_strategies.volatility_squeeze import VolatilitySqueezeStrategy
 from quantitative_strategies.vwap_strategy import VWAPReversionStrategy
+from quantitative_strategies.capitulation import CapitulationStrategy
 
 CLASSES = {"MeanReversion": MeanReversionStrategy, "TrendFollowing": RollingVolatilityStrategy,
-           "VWAP": VWAPReversionStrategy, "VolatilitySqueeze": VolatilitySqueezeStrategy}
+           "VWAP": VWAPReversionStrategy, "VolatilitySqueeze": VolatilitySqueezeStrategy,
+           "Capitulation": CapitulationStrategy}
 
 
 def entry(status, window, multiplier, oos_pnl, operar=True, hold_pnl=0.1):
@@ -79,27 +81,55 @@ class StrategyEngineTest(unittest.TestCase):
         self.assertIn("se ignora en mainnet", text)
 
     def test_ml_results_real(self):
-        # Ninguna validada: en modo normal (o en mainnet) no opera ninguna moneda
-        self.assertEqual(self.load(False, "testnet")[0].strategies, {})
-        self.assertEqual(self.load(True, "mainnet")[0].strategies, {})
-        # Experimental en testnet: una por moneda, la de mejor PnL OOS entre las que tienen parámetros en vivo
-        engine, _ = self.load(True, "testnet")
         with open(strategy_engine.__file__.replace("strategy_engine.py", "machine_learning_strategies/ml_results.json"),
                   encoding="utf-8") as f:
             results = json.load(f)
-        for symbol, data in results.items():
-            if symbol.startswith("_"):
-                continue
-            names = [n for n in ("MeanReversion", "TrendFollowing", "VWAP", "VolatilitySqueeze")
-                     if isinstance(data.get(n), dict) and data[n].get("entrenamiento_vivo", {}).get("operar")
-                     and data[n].get("window")]
-            if not names:
-                self.assertNotIn(symbol, engine.strategies)
-                continue
-            best = max(names, key=lambda n: data[n]["oos"]["pnl"])
+        coins = {s: d for s, d in results.items() if not s.startswith("_")}
+        validated = {s: d["seleccionada"] for s, d in coins.items() if d.get("seleccionada")}
+        # Modo normal (y experimental en mainnet): solo las monedas con estrategia validada, con esa estrategia
+        for engine in (self.load(False, "testnet")[0], self.load(True, "mainnet")[0]):
+            self.assertEqual(set(engine.strategies), set(validated))
+            for symbol, name in validated.items():
+                self.assertIs(type(engine.strategies[symbol]), CLASSES[name])
+        # Experimental en testnet: las validadas igual; el resto, la de mejor PnL OOS con parámetros en vivo
+        engine, _ = self.load(True, "testnet")
+        for symbol, data in coins.items():
+            if symbol in validated:
+                best = validated[symbol]
+            else:
+                names = [n for n in CLASSES
+                         if isinstance(data.get(n), dict) and data[n].get("entrenamiento_vivo", {}).get("operar")
+                         and data[n].get("window")]
+                if not names:
+                    self.assertNotIn(symbol, engine.strategies)
+                    continue
+                best = max(names, key=lambda n: data[n]["oos"]["pnl"])
             s = engine.strategies[symbol]
             self.assertIs(type(s), CLASSES[best])
             self.assertEqual((s.window, s.std_dev_multiplier), (data[best]["window"], float(data[best]["multiplier"])))
+
+
+class CapitulationTest(unittest.TestCase):
+    """Compra solo si la última hora cae más de k desviaciones Y la vela trae volumen climático."""
+
+    def feed(self, crash_volume):
+        s = CapitulationStrategy(window=20, std_dev_multiplier=2.0)
+        prices = [100 + 0.1 * ((-1) ** i) for i in range(30)] + [99.5, 99.0, 98.0, 96.0]
+        volumes = [10.0] * 33 + [crash_volume]
+        signals = [s.evaluate("X", {"close": p, "volume": v}) for p, v in zip(prices, volumes)]
+        return signals
+
+    def test_caida_con_volumen_compra_con_geometria_x5(self):
+        signals = self.feed(crash_volume=40.0)
+        self.assertTrue(all(x["action"] == "HOLD" for x in signals[:-1]))
+        last = signals[-1]
+        self.assertEqual(last["action"], "BUY")
+        self.assertEqual(last["entry_price"], 96.0)
+        up, down = last["take_profit"] - 96.0, 96.0 - last["stop_loss"]
+        self.assertAlmostEqual(down / up, 1.75 / 0.7, places=5)   # SL a 1.75 sd y TP a 0.7 sd
+
+    def test_caida_sin_volumen_no_compra(self):
+        self.assertTrue(all(x["action"] == "HOLD" for x in self.feed(crash_volume=10.0)))
 
 
 if __name__ == "__main__":
