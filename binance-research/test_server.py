@@ -148,7 +148,9 @@ class PreseedTest(unittest.TestCase):
     START = 400
 
     def setUp(self):
-        self.saved = (server.engine, server.fetch_closed_klines)
+        self.saved = (server.engine, server.fetch_closed_klines, ledger.SIGNALS_FILE)
+        self.tmp = tempfile.TemporaryDirectory()
+        ledger.SIGNALS_FILE = os.path.join(self.tmp.name, "signals.csv")   # nunca orders/signals.csv
         self.calls, self.data, self.available = [], {}, {}
 
         def fake_fetch(symbol, limit=None, start_time=None, end_time=None):
@@ -163,11 +165,13 @@ class PreseedTest(unittest.TestCase):
         server.fetch_closed_klines = fake_fetch
 
     def tearDown(self):
-        server.engine, server.fetch_closed_klines = self.saved
+        server.engine, server.fetch_closed_klines, ledger.SIGNALS_FILE = self.saved
+        self.tmp.cleanup()
 
     def make_engine(self, strategies):
-        engine = StrategyEngine.__new__(StrategyEngine)   # sin leer ml_results.json
-        engine.strategies, engine.last_open_time = strategies, {}
+        engine = StrategyEngine.__new__(StrategyEngine)   # sin leer ml_results.json ni filtros de entrada
+        engine.init_state(min_risk=None, cosignal=None, momentum=None)
+        engine.strategies = strategies
         server.engine = engine
         for symbol in strategies:
             self.data[symbol] = squeeze_case(self.START)

@@ -8,7 +8,7 @@
     "start:node": "npx tsx src/index.ts",
     "dev": "concurrently --kill-others-on-fail -c \"cyan.bold,green.bold\" -n \"BRAIN,HANDS\" \"npm run start:python\" \"npm run start:node\"",
     "test": "tsx --test \"test/**/*.test.ts\"",
-    "test:python": "cd binance-research && .venv\\Scripts\\python -m unittest test_ledger test_report test_server test_strategy_engine test_walk_forward -v"
+    "test:python": "cd binance-research && .venv\\Scripts\\python -m unittest test_ledger test_report test_server test_strategy_engine test_walk_forward test_filters -v"
   },
   "keywords": [],
   "author": "",

@@ -79,36 +79,46 @@ def reset_strategy(symbol: str):
 
 def pre_seed_engine(roster: list, required_candles: int = None):
     """Calienta cada estrategia con sus velas cerradas mas recientes (sus senales se ignoran), como el backtest
-    antes del primer dia en que puede abrir. required_candles fuerza la misma cantidad para todas (pruebas)."""
+    antes del primer dia en que puede abrir. required_candles fuerza la misma cantidad para todas (pruebas).
+    Co-senal: la regla de X en sombra sobre la moneda Y recibe las ultimas preseed_count(X) velas de Y, para empezar a
+    la vez que la de X (strategy_filters.FilteredFS hace lo mismo en el backtest)."""
     global engine
     print(f"[PRE-SEED] Precarga de velas cerradas de {KLINE_INTERVAL} vía REST ({MARKET_DATA_REST_URL}), "
           f"max(ventana + {PRESEED_MARGIN}, {PRESEED_MIN}) por moneda...")
     for symbol in roster:
-        if symbol not in engine.strategies:
-            continue  # sin estrategia cargada no hay nada que calentar
-        count = required_candles or preseed_count(symbol)
+        own = symbol in engine.strategies
+        shadow_counts = {x: required_candles or preseed_count(x) for x in engine.watchers(symbol)}
+        if not own and not shadow_counts:
+            continue  # sin estrategia cargada ni regla en sombra no hay nada que calentar
+        own_count = (required_candles or preseed_count(symbol)) if own else 0
+        count = max([own_count] + list(shadow_counts.values()))
         try:
             # limit + 1 porque la ultima suele ser la vela en formacion, que se descarta
             klines = fetch_closed_klines(symbol, limit=count + 1)[-count:]
 
-            for kline in klines:
-                engine.get_signal(symbol, kline_to_market_data(kline))
+            for k, kline in enumerate(klines):
+                left = len(klines) - k  # velas que quedan, incluida esta
+                engine.get_signal(symbol, kline_to_market_data(kline), own=left <= own_count,
+                                  shadow_for={x for x, c in shadow_counts.items() if left <= c})
 
-            print(f"[PRE-SEED] Buffer de memoria lleno para {symbol} ({len(klines)} velas).")
+            print(f"[PRE-SEED] Buffer de memoria lleno para {symbol} ({len(klines)} velas"
+                  + (f"; co-senal de {', '.join(shadow_counts)}" if shadow_counts else "") + ").")
         except Exception as e:
             print(f"[PRE-SEED] Error cargando contexto para {symbol}: {e}")
 
 def fill_gap(symbol: str, open_time: int):
     """Si entre la ultima vela procesada y la que llega faltan velas (reconexion, arranque entre la
     precarga y el WebSocket), se piden al REST para que la ventana no tenga huecos."""
-    if symbol not in engine.strategies:
+    own = symbol in engine.strategies
+    watchers = engine.watchers(symbol)
+    if not own and not watchers:
         return
     expected = engine.expected_next_open_time(symbol)
     if expected is not None and open_time <= expected:
         return
-    needed = preseed_count(symbol)
+    needed = max([preseed_count(symbol) if own else 0] + [preseed_count(x) for x in watchers])
     missing = needed if expected is None else (open_time - expected) // KLINE_INTERVAL_MS
-    if missing > needed:
+    if missing > needed and own:
         # Hueco mayor que la precarga (bot o red caidos mucho tiempo): se empieza como al arrancar, con una
         # instancia nueva precargada con sus `needed` velas; continuar la vieja dejaria su estado (la trampa de
         # VolatilitySqueeze) distinto del que tendria el backtest.
@@ -152,6 +162,15 @@ def handle_request(message: dict):
             fill_gap(symbol, int(market_data["open_time"]))
         
         signal = engine.get_signal(symbol, market_data)
+        # Diario de senales: cada BUY de la estrategia en una vela del WebSocket, abierto o bloqueado por un filtro
+        # (las de la precarga y del relleno de huecos no pasan por aqui)
+        if engine.journal_entry:
+            try:
+                ledger.append_signal(engine.journal_entry)
+            except Exception as e:
+                print(f"[LEDGER] No se pudo escribir el diario de senales: {e}")
+            if signal and signal.get("bloqueada"):
+                print(f"[SIGNAL] {symbol}: BUY bloqueado por los filtros de entrada ({signal['bloqueada']}).")
         return signal
         
     elif req_type == "sync_pending":

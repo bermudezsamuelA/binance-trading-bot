@@ -29,6 +29,13 @@ from decimal import Decimal
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LEDGER_DIR = os.path.join(BASE_DIR, "orders")
 LEDGER_FILE = os.path.join(LEDGER_DIR, "trades.csv")
+# Diario de senales: cada BUY de una estrategia, abierto o bloqueado por un filtro de entrada (strategy_engine.py),
+# para medir despues si los filtros ayudan. El resultado de las bloqueadas se puede simular con las velas.
+SIGNALS_FILE = os.path.join(LEDGER_DIR, "signals.csv")
+SIGNALS_COLUMNS = [
+    "logged_at", "symbol", "open_time", "strategy", "window", "multiplier", "entry_price", "take_profit", "stop_loss",
+    "risk_pct", "decision", "reason", "momentum_on", "market",
+]
 
 LEGACY_COLUMNS = [
     "order_id", "symbol", "action", "entry_price", "take_profit", "stop_loss", "quantity", "status",
@@ -137,6 +144,18 @@ def append_trade(trade: dict, path: str = None):
         if needs_newline:
             f.write("\n")
         csv.writer(f, lineterminator="\n").writerow([format_value(trade.get(c)) for c in header])
+
+
+def append_signal(signal: dict, path: str = None):
+    """Añade una fila al diario de señales (orders/signals.csv); lo crea con su encabezado si no existe."""
+    path = path or SIGNALS_FILE
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    new = not os.path.exists(path) or os.path.getsize(path) == 0
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, lineterminator="\n")
+        if new:
+            writer.writerow(SIGNALS_COLUMNS)
+        writer.writerow([format_value(signal.get(c)) for c in SIGNALS_COLUMNS])
 
 
 def _ends_with_newline(path: str) -> bool:

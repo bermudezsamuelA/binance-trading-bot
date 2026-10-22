@@ -10,7 +10,7 @@ import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from config import ACTIVE_ROSTER
+from config import ACTIVE_ROSTER, COSIGNAL_CANDLES, ENTRY_MIN_RISK_PCT, MOMENTUM_MONTHS
 from fast_backtest import INTERVAL_MS, STRATEGY_CLASSES, check_parity, check_stats_bitwise, load_history, set_interval
 import walk_forward as wf
 
@@ -18,7 +18,7 @@ import walk_forward as wf
 from machine_learning_strategies.xgboost_classifier import XGBoostClassifier
 
 RESULTS_FILE = os.path.join(os.path.dirname(__file__), "ml_results.json")
-FOLD_COLUMNS = ["prueba", "n", "k", "ops_ent", "pnl_ent", "ops", "pnl"]
+FOLD_COLUMNS = ["prueba", "n", "k", "ops_ent", "pnl_ent", "ops", "pnl", "ops_sombra", "pnl_sombra", "encendido"]
 
 
 def results_file(interval: str) -> str:
@@ -71,10 +71,12 @@ def _strategy_entry(res: dict, status: str, motivo: str, passed_wf: bool) -> dic
     entry["entrenamiento_vivo"] = {"operar": bool(res["vivo"] and res["vivo"]["operar"]),
                                    "score_suavizado": res["vivo"]["score_suavizado"] if res["vivo"] else None,
                                    "motivo": res["vivo_motivo"]}
+    entry["momentum"] = res.get("momentum")
     entry["entrenamiento_pliegues"] = res["entrenamiento_pliegues"]
     entry["oos"] = res["oos"]
     entry["validacion_final"] = res["validacion_final"]
-    rows = lambda rs: [[r["prueba"], r["n"], r["k"], r["ops_ent"], round(r["pnl_ent"], 4), r["ops"], round(r["pnl"], 4)]
+    rows = lambda rs: [[r["prueba"], r["n"], r["k"], r["ops_ent"], round(r["pnl_ent"], 4), r["ops"], round(r["pnl"], 4),
+                        r.get("ops_sombra", r["ops"]), round(r.get("pnl_sombra", r["pnl"]), 4), int(r.get("encendido", True))]
                        for r in rs]
     entry["pliegues"] = rows(res["pliegues"])
     entry["pliegues_validacion"] = rows(res["pliegues_validacion"])
@@ -94,7 +96,8 @@ def _print_summary(analysis: dict, roster: list):
             print(f"{symbol:<9}{name:<18}| {tr['ops_por_mes']:>6.1f} {tr['win_rate']:>5.1f} {tr['expected_payoff']:>+9.4f}{'':<5}"
                   f"| {oos['trades']:>4} {oos['win_rate']:>5.1f} {oos['pnl']:>+8.2f} {oos['expected_payoff']:>+8.4f}"
                   f" {oos['pliegues_positivos_pct']:>5.0f}% {oos['t_dia']:>+6.2f} {oos['p_valor']:<7.3g}"
-                  f"| {hold['trades']:>3} {hold['win_rate']:>5.1f} {hold['pnl']:>+7.2f}   | {e['status']}")
+                  f"| {hold['trades']:>3} {hold['win_rate']:>5.1f} {hold['pnl']:>+7.2f}   | {e['status']}"
+                  + (f" · momentum {'ON' if e['momentum']['encendido'] else 'OFF'}" if e.get("momentum") else ""))
         sel = analysis[symbol]["seleccionada"]
         print(f"{'':<9}-> {'opera con ' + sel if sel else 'NO OPERA'}: {analysis[symbol]['motivo']}")
     print("=" * 132)
@@ -154,6 +157,11 @@ def run_ml_evaluation(roster: list, interval: str = "15m"):
                       "prueba": "t de una cola sobre el PnL por dia (dias con operaciones cerradas)",
                       "pares_probados": n_tests, "alfa": wf.ALPHA, "alfa_bonferroni": round(wf.ALPHA / n_tests, 6),
                       "veto_validacion_final": "PnL < 0 en la validacion final -> rechazada"},
+        "filtros": {"riesgo_minimo_pct": ENTRY_MIN_RISK_PCT, "cosenal_velas": COSIGNAL_CANDLES,
+                    "momentum_meses": MOMENTUM_MONTHS,
+                    "detalle": "strategy_filters.py; los aplica igual strategy_engine.py en vivo. ops/pnl de cada pliegue "
+                               "= lo operado con el interruptor de momentum; ops_sombra/pnl_sombra = lo que habria dado "
+                               "sin el; encendido = si ese mes se opero"},
         "costos": "0.12 % por lado (0.10 % comision + 0.02 % deslizamiento), 15 USDT por operacion",
         "pliegues_columnas": FOLD_COLUMNS,
     }}

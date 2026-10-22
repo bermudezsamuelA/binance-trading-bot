@@ -38,3 +38,11 @@ MARKET_DATA_REST_URL = _MARKET_REST_URLS[BINANCE_MARKET]
 # Precarga: max(ventana de las estrategias cargadas) + margen, con un minimo.
 PRESEED_MARGIN = 20
 PRESEED_MIN = 100
+
+# Filtros de entrada (doc/agente-rl-y-esperanza-positiva.md, sugerencias 3, 5 y 6). Los aplican igual el evaluador
+# (walk_forward.py, al elegir los parametros y al probar) y el bot en vivo (strategy_engine.py), para que el bot opere
+# lo mismo que se valido. None desactiva cada uno. Detalle en strategy_filters.py.
+ENTRY_MIN_RISK_PCT = 0.015   # descarta el BUY si entrada - SL < 1.5 % del precio (con 0.5 % el costo es ~0.5 R)
+COSIGNAL_CANDLES = 48        # el BUY necesita que la misma regla haya dado BUY en otra moneda del roster en las 48 velas
+                             # anteriores (12 h con velas de 15 min), sin contar la actual
+MOMENTUM_MONTHS = 12         # una moneda solo opera su estrategia si el PnL en sombra de sus ultimos 12 meses es > 0

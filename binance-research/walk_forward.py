@@ -19,6 +19,9 @@ Protocolo (fijado antes de mirar los resultados; ver doc/matematica-del-bot.md, 
 8. La validacion final aplica el mismo procedimiento a la reserva. No elige parametros ni estrategia, pero VETA:
    una estrategia que pasa el walk-forward y pierde dinero (PnL < 0) en la reserva queda rechazada (en modo normal
    no se carga; el modo experimental de strategy_engine.py si puede cargarla, marcada).
+9. Filtros de entrada (config.py, strategy_filters.py; los mismos del bot en vivo): riesgo minimo y co-senal se aplican
+   al elegir (n, k) y al probar cada mes; el interruptor de momentum apaga los meses cuyo PnL en sombra de los 12 meses
+   anteriores no es > 0, y su estado actual decide si el bot abre hoy.
 
 Simulacion: fast_backtest.FastSymbol, con paridad exacta con optimize.simulate_live (mismas reglas que el bot).
 - Entrenamiento: cada combinacion se simula una sola vez sobre toda la serie y se toman las operaciones que
@@ -32,6 +35,7 @@ Simulacion: fast_backtest.FastSymbol, con paridad exacta con optimize.simulate_l
 import os
 import sys
 import time
+from functools import lru_cache
 
 import numpy as np
 import pandas as pd
@@ -39,7 +43,8 @@ from scipy import stats as sp_stats
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from config import PRESEED_MARGIN, PRESEED_MIN
+import strategy_filters as SF
+from config import COSIGNAL_CANDLES, ENTRY_MIN_RISK_PCT, MOMENTUM_MONTHS, PRESEED_MARGIN, PRESEED_MIN
 from fast_backtest import CANDLE_MS, INTERVAL_MS, STRATEGY_CLASSES, FastSymbol, load_history, set_interval
 from optimize import INITIAL_CAPITAL, trades_to_metrics
 
@@ -251,22 +256,40 @@ def summarize_train(rows, train_months: int = TRAIN_MONTHS) -> dict:
             "expected_payoff": round(pnl / ops, 4) if ops else 0.0}
 
 
+@lru_cache(maxsize=None)
+def _symbol_data(symbol: str, interval: str) -> tuple:
+    """(FastSymbol, open_time) de una moneda; cada proceso los carga una vez (la co-senal usa las de las demas)."""
+    candles = load_history(symbol, interval=interval)
+    return FastSymbol(candles), candles["open_time"].to_numpy(np.int64)
+
+
 def evaluate_pair(task):
-    """Trabajo de un proceso: una moneda y una estrategia. Devuelve un dict serializable."""
-    symbol, strategy, train_months, holdout_start, interval = task
+    """Trabajo de un proceso: una moneda y una estrategia, con los filtros de entrada de config.py (los mismos que
+    aplica el bot en vivo). Devuelve un dict serializable."""
+    symbol, strategy, train_months, holdout_start, interval, roster = task
     t0 = time.perf_counter()
     set_interval(interval)
-    candles = load_history(symbol, interval=interval)
-    open_time = candles["open_time"].to_numpy(np.int64)
+    fs, open_time = _symbol_data(symbol, interval)
     periods = build_periods(open_time, train_months, holdout_start, INTERVAL_MS[interval])
-    ev = PairEvaluator(FastSymbol(candles), open_time, strategy)
+    others = [_symbol_data(o, interval) for o in roster if o != symbol] if COSIGNAL_CANDLES else []
+    ev = PairEvaluator(SF.FilteredFS(fs, open_time, others, INTERVAL_MS[interval], ENTRY_MIN_RISK_PCT, COSIGNAL_CANDLES),
+                       open_time, strategy)
     t_sim = time.perf_counter() - t0
 
-    dev_rows, _, dev_exit, dev_pnl, dev_open_until = run_folds(ev, periods["dev"])
-    hold_rows, _, hold_exit, hold_pnl, _ = run_folds(ev, periods["holdout"], dev_open_until)
+    dev_rows, dev_entry, dev_exit, dev_pnl, dev_open_until = run_folds(ev, periods["dev"])
+    hold_rows, hold_entry, hold_exit, hold_pnl, _ = run_folds(ev, periods["holdout"], dev_open_until)
     live = ev.select(periods["live"]["train"])
+    momentum = None
+    if MOMENTUM_MONTHS:
+        on_dev = SF.momentum_gate(dev_rows, [], MOMENTUM_MONTHS)
+        on_hold = SF.momentum_gate(hold_rows, [r["pnl"] for r in dev_rows], MOMENTUM_MONTHS)
+        dev_rows, dev_entry, dev_exit, dev_pnl = SF.gate_trades(dev_rows, dev_entry, dev_exit, dev_pnl, open_time, on_dev)
+        hold_rows, hold_entry, hold_exit, hold_pnl = SF.gate_trades(hold_rows, hold_entry, hold_exit, hold_pnl,
+                                                                     open_time, on_hold)
+        shadow = sum(r["pnl_sombra"] for r in (dev_rows + hold_rows)[-MOMENTUM_MONTHS:])
+        momentum = {"meses": MOMENTUM_MONTHS, "pnl_sombra": round(float(shadow), 4), "encendido": bool(shadow > 0)}
 
-    result = {"symbol": symbol, "strategy": strategy,
+    result = {"symbol": symbol, "strategy": strategy, "momentum": momentum,
               "oos": summarize_oos(dev_rows, dev_exit, dev_pnl, open_time, periods["dev"][0]["test"][0],
                                    periods["holdout_start"]) if dev_rows else None,
               "entrenamiento_pliegues": summarize_train(dev_rows, train_months),
@@ -308,6 +331,10 @@ def decide(result: dict, n_tests: int) -> tuple:
         return "rechazada", f"pasa el walk-forward ({passed}), pero pierde en la validacion final (PnL {hold['pnl']:+.2f} USDT)", True
     if result["vivo"] is None or not result["vivo"]["operar"]:
         return "rechazada", f"pasa el walk-forward ({passed}), pero no tiene parametros rentables en la ventana mas reciente", True
+    momentum = result.get("momentum")
+    if momentum and not momentum["encendido"]:
+        passed += (f"; interruptor de momentum apagado (PnL en sombra de {momentum['meses']} meses "
+                   f"{momentum['pnl_sombra']:+.2f} USDT): no abre hasta que vuelva a ser > 0")
     return "validada", passed, True
 
 
@@ -315,7 +342,7 @@ def run_walk_forward(roster: list, workers: int = None, train_months: int = TRAI
                      holdout_start: str = None, interval: str = "15m") -> list:
     """Evalua todos los pares (moneda, estrategia) en paralelo (deja 2 nucleos libres)."""
     from multiprocessing import Pool
-    tasks = [(s, st, train_months, holdout_start, interval) for s in roster for st in STRATEGIES]
+    tasks = [(s, st, train_months, holdout_start, interval, tuple(roster)) for s in roster for st in STRATEGIES]
     workers = workers or max(1, (os.cpu_count() or 3) - 2)
     results = []
     with Pool(processes=min(workers, len(tasks))) as pool:
