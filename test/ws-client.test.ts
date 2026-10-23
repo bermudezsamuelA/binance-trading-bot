@@ -814,6 +814,16 @@ test('el tamaño por operación es el que se le pasa (el de Python) y debe ser p
     assert.throws(() => new BinanceWSClient(['DOGEUSDT'], Number.NaN), /Tamaño por operación/);
 });
 
+test('se suscribe a las velas que da Python en el handshake (config.KLINE_INTERVAL)', async () => {
+    const sockets: FakeSocket[] = [];
+    const client = new BinanceWSClient(['DOGEUSDT', 'BTCUSDT'], 15, {
+        rest: new FakeRest(), brain: new FakeBrain(), telegram: new FakeTelegram(), sleep: async () => {},
+        createSocket: url => { const s = new FakeSocket(url); sockets.push(s); return s; }, klineInterval: '1h'
+    });
+    await client.start();
+    assert.match(sockets[0]!.url, /\/stream\?streams=dogeusdt@kline_1h\/btcusdt@kline_1h$/);
+});
+
 test('si el ledger falla al abrir, la posición se gestiona igual y se avisa', async () => {
     const h = await makeClient();
     h.brain.ledgerOpenResult = { error: 'Permission denied' };

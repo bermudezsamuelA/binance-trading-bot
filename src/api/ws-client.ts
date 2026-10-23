@@ -11,9 +11,6 @@ import {
     mergeExecutions, netPnl, sellableQuantity, soldQuantity
 } from './execution';
 
-// Velas de 15 min, igual que el backtest (download_data.py usa data_frequency="15m" y optimize.py
-// evalua cierres de 15 min). Si se cambia, cambiar tambien KLINE_INTERVAL en binance-research/config.py.
-const KLINE_INTERVAL = '15m';
 // Tras un error de orden no se intenta otra compra del mismo simbolo durante este tiempo.
 const ORDER_ERROR_COOLDOWN_MS = 60000;
 // Tras un fallo de venta se espera esto antes de reintentar (no inundar el REST); si mientras tanto el precio
@@ -130,6 +127,7 @@ export interface WSClientDeps {
     telegram: { sendMessage(message: string): Promise<void> };
     createSocket: (url: string) => SocketLike;
     sleep: (ms: number) => Promise<void>;
+    klineInterval: string;   // velas del WebSocket; index.ts pasa la del handshake con Python ('15m' solo en pruebas)
 }
 
 /** Posición a partir de una fila OPEN del ledger (las filas antiguas no tienen datos de ejecución). */
@@ -204,7 +202,8 @@ export class BinanceWSClient {
         this.telegram = deps.telegram ?? new TelegramClient();
         this.createSocket = deps.createSocket ?? ((url: string) => new WebSocket(url));
         this.sleep = deps.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
-        const streams = roster.map(symbol => `${symbol.toLowerCase()}@kline_${KLINE_INTERVAL}`).join('/');
+        // Velas de la temporalidad que evalua la estrategia: la da Python en el handshake (config.KLINE_INTERVAL)
+        const streams = roster.map(symbol => `${symbol.toLowerCase()}@kline_${deps.klineInterval ?? '15m'}`).join('/');
         this.url = `${this.baseUrl}${streams}`;
     }
 

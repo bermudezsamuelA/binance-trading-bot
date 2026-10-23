@@ -3,10 +3,12 @@ import os
 
 ACTIVE_ROSTER = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT"]
 
-# Temporalidad de las velas que ve la estrategia. Debe ser la misma del backtest
-# (download_data.py usa data_frequency="15m" y optimize.py evalua cierres de 15 min).
-KLINE_INTERVAL = "15m"
-KLINE_INTERVAL_MS = 15 * 60 * 1000
+# Temporalidad de las velas que ve la estrategia. Es la unica fuente: Node la recibe en el handshake 'market'
+# (server.py) y se suscribe a esas velas. El backtest arma las velas de 1 h y 4 h con las de 15 min descargadas
+# (download_data.py baja 15 min; fast_backtest.resample). ml_evaluator.py sin --interval evalua esta temporalidad
+# y escribe ml_results.json, el que carga el bot; strategy_engine.py no lo carga si es de otra temporalidad.
+KLINE_INTERVAL = "1h"
+KLINE_INTERVAL_MS = {"15m": 15 * 60 * 1000, "1h": 60 * 60 * 1000, "4h": 4 * 60 * 60 * 1000}[KLINE_INTERVAL]
 
 # Mercado de Binance: lo decide BINANCE_MARKET ("testnet" o "mainnet") en el .env de la raiz, el mismo
 # que lee Node (src/config/env.ts) para las ordenes y el WebSocket. Asi la precarga de velas (server.py)
@@ -44,5 +46,5 @@ PRESEED_MIN = 100
 # lo mismo que se valido. None desactiva cada uno. Detalle en strategy_filters.py.
 ENTRY_MIN_RISK_PCT = 0.015   # descarta el BUY si entrada - SL < 1.5 % del precio (con 0.5 % el costo es ~0.5 R)
 COSIGNAL_CANDLES = 48        # el BUY necesita que la misma regla haya dado BUY en otra moneda del roster en las 48 velas
-                             # anteriores (12 h con velas de 15 min), sin contar la actual
+                             # anteriores (48 h con velas de 1 h; 12 h con 15 min), sin contar la actual
 MOMENTUM_MONTHS = 12         # una moneda solo opera su estrategia si el PnL en sombra de sus ultimos 12 meses es > 0

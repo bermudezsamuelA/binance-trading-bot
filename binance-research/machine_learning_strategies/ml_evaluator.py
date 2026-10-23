@@ -10,7 +10,7 @@ import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from config import ACTIVE_ROSTER, COSIGNAL_CANDLES, ENTRY_MIN_RISK_PCT, MOMENTUM_MONTHS
+from config import ACTIVE_ROSTER, COSIGNAL_CANDLES, ENTRY_MIN_RISK_PCT, KLINE_INTERVAL, MOMENTUM_MONTHS
 from fast_backtest import INTERVAL_MS, STRATEGY_CLASSES, check_parity, check_stats_bitwise, load_history, set_interval
 import walk_forward as wf
 
@@ -22,9 +22,9 @@ FOLD_COLUMNS = ["prueba", "n", "k", "ops_ent", "pnl_ent", "ops", "pnl", "ops_som
 
 
 def results_file(interval: str) -> str:
-    """ml_results.json es el de 15 min, el unico que lee strategy_engine.py; las otras temporalidades son estudios
-    aparte (ml_results_1h.json, ml_results_4h.json) que no cambian lo que carga el bot."""
-    return RESULTS_FILE if interval == "15m" else RESULTS_FILE.replace(".json", f"_{interval}.json")
+    """ml_results.json es el de la temporalidad del bot (config.KLINE_INTERVAL), el unico que lee strategy_engine.py;
+    las otras son estudios aparte (p. ej. ml_results_15m.json, ml_results_4h.json) que no cambian lo que carga el bot."""
+    return RESULTS_FILE if interval == KLINE_INTERVAL else RESULTS_FILE.replace(".json", f"_{interval}.json")
 
 
 def parity_smoke_test(symbol: str, interval: str = "15m") -> bool:
@@ -103,12 +103,12 @@ def _print_summary(analysis: dict, roster: list):
     print("=" * 132)
 
 
-def run_ml_evaluation(roster: list, interval: str = "15m"):
+def run_ml_evaluation(roster: list, interval: str = KLINE_INTERVAL):
     out_file = results_file(interval)
     print(f"[ML EVALUATOR] Iniciando evaluación maestra para {len(roster)} activos en velas de {interval}...")
-    if interval != "15m":
-        print(f"[ML EVALUATOR] Estudio de temporalidad: velas de {interval} armadas con las de 15 min. Se guarda en "
-              f"{os.path.basename(out_file)}; el bot sigue leyendo ml_results.json (15 min).")
+    if interval != KLINE_INTERVAL:
+        print(f"[ML EVALUATOR] Estudio de temporalidad: se guarda en {os.path.basename(out_file)}; el bot sigue "
+              f"leyendo ml_results.json (velas de {KLINE_INTERVAL}, config.py).")
     t_start = time.perf_counter()
     set_interval(interval)
 
@@ -223,6 +223,7 @@ if __name__ == "__main__":
     import argparse
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="Seleccion walk-forward de estrategias por moneda.")
-    parser.add_argument("--interval", choices=list(INTERVAL_MS), default="15m",
-                        help="temporalidad de las velas (1h y 4h se arman con las de 15 min; por defecto 15m)")
+    parser.add_argument("--interval", choices=list(INTERVAL_MS), default=KLINE_INTERVAL,
+                        help=f"temporalidad de las velas (1h y 4h se arman con las de 15 min; por defecto la del bot, "
+                             f"{KLINE_INTERVAL}, que escribe ml_results.json)")
     run_ml_evaluation(ACTIVE_ROSTER, parser.parse_args().interval)

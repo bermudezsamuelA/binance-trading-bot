@@ -7,13 +7,16 @@ from quantitative_strategies.rolling_volatility import RollingVolatilityStrategy
 from quantitative_strategies.vwap_strategy import VWAPReversionStrategy
 from quantitative_strategies.volatility_squeeze import VolatilitySqueezeStrategy
 from quantitative_strategies.capitulation import CapitulationStrategy
-from config import (ACTIVE_ROSTER, BINANCE_MARKET, COSIGNAL_CANDLES, ENTRY_MIN_RISK_PCT, KLINE_INTERVAL_MS,
-                    MOMENTUM_MONTHS)
+from config import (ACTIVE_ROSTER, BINANCE_MARKET, COSIGNAL_CANDLES, ENTRY_MIN_RISK_PCT, KLINE_INTERVAL,
+                    KLINE_INTERVAL_MS, MOMENTUM_MONTHS)
 
 # Modo OPCIONAL y desactivado por defecto: ALLOW_UNVALIDATED_STRATEGIES=1 en el .env carga, en las monedas sin
 # estrategia validada, la de mejor PnL fuera de muestra aunque NO haya pasado la validacion (lo esperable es que
 # pierda dinero). Solo para ver al bot operar en la testnet: con BINANCE_MARKET=mainnet se ignora.
 ALLOW_UNVALIDATED = os.environ.get("ALLOW_UNVALIDATED_STRATEGIES", "").strip().lower() in ("1", "true", "yes", "si")
+# Opcional, solo en la testnet: TESTNET_IGNORE_MOMENTUM=1 en el .env abre aunque el interruptor de momentum este
+# apagado (el diario de senales lo anota), para juntar resultados reales de las senales. Con mainnet se ignora.
+TESTNET_IGNORE_MOMENTUM = os.environ.get("TESTNET_IGNORE_MOMENTUM", "").strip().lower() in ("1", "true", "yes", "si")
 
 # Mismos nombres que ml_results.json / fast_backtest.STRATEGY_CLASSES
 STRATEGY_MAP = {
@@ -25,6 +28,17 @@ STRATEGY_MAP = {
 }
 
 
+def shadow_oos(entry: dict, columns: list) -> tuple:
+    """(operaciones, PnL) OOS de desarrollo SIN el interruptor de momentum: la suma de la sombra de cada pliegue. Es
+    lo que hace el bot cuando el interruptor se ignora en la testnet."""
+    if "pnl_sombra" not in columns:
+        oos = entry.get("oos") or {}
+        return oos.get("trades", 0), oos.get("pnl", float("-inf"))
+    ops, pnl = columns.index("ops_sombra"), columns.index("pnl_sombra")
+    rows = entry.get("pliegues") or []
+    return sum(r[ops] for r in rows), sum(r[pnl] for r in rows)
+
+
 def rule_copy(strategy):
     """Instancia NUEVA de la misma estrategia con los mismos parametros (sin historial de velas)."""
     params = {name: getattr(strategy, name) for name in inspect.signature(type(strategy).__init__).parameters
@@ -34,14 +48,16 @@ def rule_copy(strategy):
 
 class StrategyEngine:
     def __init__(self):
-        self.init_state()
+        self.init_state(ignore_momentum=TESTNET_IGNORE_MOMENTUM and BINANCE_MARKET == "testnet")
         self.load_best_strategies()
         self.build_shadows()
 
     def init_state(self, min_risk=ENTRY_MIN_RISK_PCT, cosignal=COSIGNAL_CANDLES, momentum=MOMENTUM_MONTHS,
-                   roster=None):
+                   roster=None, ignore_momentum=False):
         """Estado vacio y filtros de entrada (config.py; los mismos que valida walk_forward.py con strategy_filters.py).
-        Las pruebas lo llaman con otros filtros sobre un motor creado sin leer ml_results.json."""
+        Las pruebas lo llaman con otros filtros sobre un motor creado sin leer ml_results.json. ignore_momentum: el
+        interruptor apagado no bloquea (solo en la testnet, TESTNET_IGNORE_MOMENTUM)."""
+        self.ignore_momentum = ignore_momentum
         self.strategies = {}
         # open_time (ms) de la ultima vela cerrada procesada por simbolo: la precarga REST y el
         # WebSocket se solapan, y una vela repetida no debe entrar dos veces en la ventana.
@@ -99,6 +115,11 @@ class StrategyEngine:
             print("[ENGINE] ⚠️ ml_results.json no tiene la validacion walk-forward (formato viejo): no se carga ninguna "
                   "estrategia. Ejecuta: python machine_learning_strategies/ml_evaluator.py")
             return
+        candle = (protocol.get("datos") or {}).get("vela")
+        if candle != KLINE_INTERVAL:
+            print(f"[ENGINE] ⚠️ ml_results.json es de velas de {candle} y el bot usa {KLINE_INTERVAL} (config.py): no se "
+                  f"carga ninguna estrategia. Ejecuta: python machine_learning_strategies/ml_evaluator.py")
+            return
         criteria = protocol.get("criterios", {})
         print(f"[ENGINE] Seleccion walk-forward del {protocol.get('generado')}: OOS {protocol.get('desarrollo', {}).get('primer_mes_prueba')}"
               f" a {protocol.get('desarrollo', {}).get('ultimo_mes_prueba')}, validacion final "
@@ -110,6 +131,11 @@ class StrategyEngine:
         experimental = ALLOW_UNVALIDATED and BINANCE_MARKET == "testnet"
         if ALLOW_UNVALIDATED and not experimental:
             print(f"[ENGINE] ⚠️ ALLOW_UNVALIDATED_STRATEGIES se ignora en {BINANCE_MARKET}: solo vale en la testnet.")
+        if TESTNET_IGNORE_MOMENTUM and BINANCE_MARKET != "testnet":
+            print(f"[ENGINE] ⚠️ TESTNET_IGNORE_MOMENTUM se ignora en {BINANCE_MARKET}: el interruptor de momentum se respeta.")
+        elif self.ignore_momentum:
+            print("[ENGINE] 🧪 TESTNET_IGNORE_MOMENTUM: el interruptor de momentum no bloquea (el diario de senales lo anota).")
+        columns = protocol.get("pliegues_columnas") or []
 
         for symbol, data in results.items():
             if symbol.startswith("_") or not isinstance(data, dict):
@@ -135,8 +161,16 @@ class StrategyEngine:
                 if not candidates:
                     print(f"[ENGINE]      Modo experimental: {symbol} tampoco tiene parametros rentables en la ventana mas reciente.")
                     continue
-                name = max(candidates, key=lambda n: data[n].get("oos", {}).get("pnl", float("-inf")))
                 tag = "NO VALIDADA, modo experimental ALLOW_UNVALIDATED_STRATEGIES"
+                if self.ignore_momentum:
+                    # Con el interruptor ignorado, el bot hace lo que la sombra: se elige por el PnL OOS sin interruptor
+                    # (y con operaciones, para no cargar una que nunca opero)
+                    shadow = {n: shadow_oos(data[n], columns) for n in candidates}
+                    candidates = [n for n in candidates if shadow[n][0] > 0] or candidates
+                    name = max(candidates, key=lambda n: shadow[n][1])
+                    tag += f"; elegida por su PnL OOS sin interruptor ({shadow[name][0]} ops, {shadow[name][1]:+.2f} USDT)"
+                else:
+                    name = max(candidates, key=lambda n: data[n].get("oos", {}).get("pnl", float("-inf")))
                 if data[name].get("pasa_walk_forward"):
                     tag += "; pasa el walk-forward pero no la validacion final"
 
@@ -161,7 +195,8 @@ class StrategyEngine:
             self.momentum_on[symbol] = bool(momentum and momentum.get("encendido"))
             switch = ""
             if self.momentum:
-                switch = (f" | Momentum {'ENCENDIDO' if self.momentum_on[symbol] else 'APAGADO (no abre)'}"
+                off = "APAGADO (ignorado en testnet: abre igual)" if self.ignore_momentum else "APAGADO (no abre)"
+                switch = (f" | Momentum {'ENCENDIDO' if self.momentum_on[symbol] else off}"
                           + (f", PnL en sombra {momentum.get('meses')} meses {momentum.get('pnl_sombra')} USDT"
                              if momentum else ", sin dato en ml_results.json"))
 
@@ -176,23 +211,25 @@ class StrategyEngine:
             print("[ENGINE] ⏸️ Ninguna moneda tiene una estrategia validada: el bot no abrira operaciones. "
                   "Es un resultado valido de la validacion (ver ml_results.json y doc/matematica-del-bot.md, seccion 14).")
 
-    def blocked_reasons(self, symbol: str, buy: dict, open_time) -> list:
-        """Filtros de entrada que bloquean este BUY (vacio = se abre). Los mismos de strategy_filters.py."""
-        reasons = []
+    def filter_checks(self, symbol: str, buy: dict, open_time) -> list:
+        """(motivo, bloquea) de cada filtro de entrada que este BUY no cumple (vacio = se abre). Los mismos de
+        strategy_filters.py; el momentum apagado no bloquea si se ignora en la testnet (queda anotado)."""
+        checks = []
         if self.momentum and not self.momentum_on.get(symbol, False):
-            reasons.append(f"momentum apagado ({self.momentum} meses en sombra <= 0)")
+            checks.append(("momentum apagado, ignorado en testnet", False) if self.ignore_momentum
+                          else (f"momentum apagado ({self.momentum} meses en sombra <= 0)", True))
         entry, stop = float(buy["entry_price"]), float(buy["stop_loss"])
         if self.min_risk is not None and entry - stop < entry * self.min_risk:
-            reasons.append(f"riesgo {(entry - stop) / entry:.2%} < {self.min_risk:.1%}")
+            checks.append((f"riesgo {(entry - stop) / entry:.2%} < {self.min_risk:.1%}", True))
         if self.cosignal:
             if open_time is None:
-                reasons.append("sin open_time para la co-senal")
+                checks.append(("sin open_time para la co-senal", True))
             else:
                 lo, hi = open_time - self.cosignal * KLINE_INTERVAL_MS, open_time - KLINE_INTERVAL_MS
                 hits = self.cosignal_hits[symbol] = [h for h in self.cosignal_hits.get(symbol, []) if h >= lo]
                 if not any(lo <= h <= hi for h in hits):
-                    reasons.append(f"sin co-senal en las {self.cosignal} velas previas")
-        return reasons
+                    checks.append((f"sin co-senal en las {self.cosignal} velas previas", True))
+        return checks
 
     def get_signal(self, symbol: str, market_data: dict, own: bool = True, shadow_for=None) -> dict:
         """Procesa una vela cerrada de `symbol`: alimenta las instancias en sombra de la co-senal que miran esta moneda
@@ -239,7 +276,8 @@ class StrategyEngine:
             "take_profit": signal.get("take_profit"),
             "stop_loss": signal.get("stop_loss")
         }
-        reasons = self.blocked_reasons(symbol, buy, open_time)
+        checks = self.filter_checks(symbol, buy, open_time)
+        reasons = [text for text, blocks in checks if blocks]
         name = next((n for n, c in STRATEGY_MAP.items() if type(strat) is c), type(strat).__name__)
         entry, stop = float(buy["entry_price"]), float(buy["stop_loss"])
         self.journal_entry = {
@@ -247,7 +285,7 @@ class StrategyEngine:
             "symbol": symbol.upper(), "open_time": open_time, "strategy": name, "window": getattr(strat, "window", None),
             "multiplier": getattr(strat, "std_dev_multiplier", None), "entry_price": entry,
             "take_profit": float(buy["take_profit"]), "stop_loss": stop, "risk_pct": round(100 * (entry - stop) / entry, 4),
-            "decision": "bloqueada" if reasons else "BUY", "reason": "; ".join(reasons),
+            "decision": "bloqueada" if reasons else "BUY", "reason": "; ".join(text for text, _ in checks),
             "momentum_on": self.momentum_on.get(symbol) if self.momentum else None, "market": BINANCE_MARKET}
         if reasons:
             return {"symbol": symbol.upper(), "action": "HOLD", "bloqueada": "; ".join(reasons)}

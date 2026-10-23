@@ -41,9 +41,10 @@ def correlated_coins(n=1500, seed=7):
     return out
 
 
-def make_engine(min_risk=None, cosignal=None, momentum=None, roster=COINS):
+def make_engine(min_risk=None, cosignal=None, momentum=None, roster=COINS, ignore_momentum=False):
     engine = StrategyEngine.__new__(StrategyEngine)   # sin leer ml_results.json
-    engine.init_state(min_risk=min_risk, cosignal=cosignal, momentum=momentum, roster=roster)
+    engine.init_state(min_risk=min_risk, cosignal=cosignal, momentum=momentum, roster=roster,
+                      ignore_momentum=ignore_momentum)
     engine.strategies = {s: MeanReversionStrategy(window=w, std_dev_multiplier=m) for s, (w, m) in RULES.items()
                          if s in roster}
     engine.build_shadows()
@@ -141,6 +142,20 @@ class MomentumTest(unittest.TestCase):
                 self.assertTrue(all(r["strategy"] == "MeanReversion" and r["window"] == "20" for r in rows))
             finally:
                 server.engine, ledger.SIGNALS_FILE = saved
+
+    def test_ignorado_en_testnet_abre_y_lo_anota(self):
+        data = correlated_coins()["AAAUSDT"]
+        engine = make_engine(momentum=12, roster=["AAAUSDT"], ignore_momentum=True)
+        engine.momentum_on["AAAUSDT"] = False
+        buys = []
+        with contextlib.redirect_stdout(io.StringIO()):
+            for i in range(600):
+                signal = engine.get_signal("AAAUSDT", market_data(data.iloc[i]))
+                if signal and signal.get("action") == "BUY":
+                    buys.append(engine.journal_entry)
+        self.assertTrue(buys)
+        self.assertTrue(all(j["decision"] == "BUY" and j["reason"] == "momentum apagado, ignorado en testnet"
+                            and j["momentum_on"] is False for j in buys))
 
 
 if __name__ == "__main__":

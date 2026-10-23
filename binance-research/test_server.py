@@ -19,7 +19,7 @@ import ledger
 import optimize
 import server
 import walk_forward
-from config import BINANCE_MARKET, KLINE_INTERVAL_MS
+from config import BINANCE_MARKET, KLINE_INTERVAL, KLINE_INTERVAL_MS
 from fast_backtest import FastSymbol
 from quantitative_strategies.mean_reversion import MeanReversionStrategy
 from quantitative_strategies.volatility_squeeze import VolatilitySqueezeStrategy
@@ -29,7 +29,8 @@ from strategy_engine import StrategyEngine
 class HandshakeTest(unittest.TestCase):
     def test_market_devuelve_mercado_y_nocional_del_backtest(self):
         response = server.handle_request({"type": "market"})
-        self.assertEqual(response, {"market": BINANCE_MARKET, "notional_usdt": float(optimize.NOTIONAL_USDT)})
+        self.assertEqual(response, {"market": BINANCE_MARKET, "notional_usdt": float(optimize.NOTIONAL_USDT),
+                                    "kline_interval": KLINE_INTERVAL})
         json.dumps(response, allow_nan=False)
         self.assertGreater(response["notional_usdt"], 0)
 

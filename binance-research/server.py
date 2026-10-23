@@ -142,9 +142,9 @@ def handle_request(message: dict):
         return ACTIVE_ROSTER
 
     elif req_type == "market":
-        # Node compara el mercado con el suyo antes de conectarse al WebSocket y compra notional_usdt
-        # por operacion (el mismo NOTIONAL_USDT que simula el backtest en optimize.py)
-        return {"market": BINANCE_MARKET, "notional_usdt": float(NOTIONAL_USDT)}
+        # Node compara el mercado con el suyo antes de conectarse al WebSocket, compra notional_usdt por operacion
+        # (el mismo NOTIONAL_USDT que simula el backtest en optimize.py) y se suscribe a las velas de kline_interval
+        return {"market": BINANCE_MARKET, "notional_usdt": float(NOTIONAL_USDT), "kline_interval": KLINE_INTERVAL}
 
     elif req_type == "sync_positions":
         # Vacios como null (pandas devolvia NaN, que no es JSON valido para Node)

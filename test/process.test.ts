@@ -6,17 +6,20 @@ import { EventEmitter } from 'events';
 import { parseBrainHandshake } from '../src/brain-handshake';
 import { GUARD_ALERT_INTERVAL_MS, installProcessGuards } from '../src/process-guards';
 
-test('handshake: mismo mercado y nocional de Python (optimize.NOTIONAL_USDT)', () => {
-    assert.deepEqual(parseBrainHandshake({ market: 'testnet', notional_usdt: 15 }, 'testnet'), { market: 'testnet', notionalUsdt: 15 });
-    assert.equal(parseBrainHandshake({ market: 'mainnet', notional_usdt: 25.5 }, 'mainnet').notionalUsdt, 25.5);
+test('handshake: mismo mercado, nocional (optimize.NOTIONAL_USDT) y velas (config.KLINE_INTERVAL) de Python', () => {
+    assert.deepEqual(parseBrainHandshake({ market: 'testnet', notional_usdt: 15, kline_interval: '1h' }, 'testnet'),
+        { market: 'testnet', notionalUsdt: 15, klineInterval: '1h' });
+    assert.equal(parseBrainHandshake({ market: 'mainnet', notional_usdt: 25.5, kline_interval: '15m' }, 'mainnet').notionalUsdt, 25.5);
 });
 
-test('handshake: mercado distinto o nocional ausente/no válido -> error (Node aborta)', () => {
-    assert.throws(() => parseBrainHandshake({ market: 'mainnet', notional_usdt: 15 }, 'testnet'), /Mercado distinto/);
+test('handshake: mercado distinto, nocional o velas ausentes/no válidos -> error (Node aborta)', () => {
+    assert.throws(() => parseBrainHandshake({ market: 'mainnet', notional_usdt: 15, kline_interval: '1h' }, 'testnet'), /Mercado distinto/);
     assert.throws(() => parseBrainHandshake({ market: 'testnet' }, 'testnet'), /tamaño por operación/);   // server.py antiguo
     assert.throws(() => parseBrainHandshake({ market: 'testnet', notional_usdt: null }, 'testnet'), /tamaño por operación/);
     assert.throws(() => parseBrainHandshake({ market: 'testnet', notional_usdt: 0 }, 'testnet'), /tamaño por operación/);
     assert.throws(() => parseBrainHandshake({ market: 'testnet', notional_usdt: 'abc' }, 'testnet'), /tamaño por operación/);
+    assert.throws(() => parseBrainHandshake({ market: 'testnet', notional_usdt: 15 }, 'testnet'), /temporalidad/);   // sin velas
+    assert.throws(() => parseBrainHandshake({ market: 'testnet', notional_usdt: 15, kline_interval: '17m' }, 'testnet'), /temporalidad/);
     assert.throws(() => parseBrainHandshake({ error: 'Tipo de solicitud desconocida' }, 'testnet'), /Mercado distinto/);
     assert.throws(() => parseBrainHandshake(undefined, 'testnet'), /Mercado distinto/);
 });

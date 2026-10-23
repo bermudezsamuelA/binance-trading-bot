@@ -55,25 +55,27 @@ async function main() {
     }
 
     // Handshake: Python precarga velas por REST (tiene que leer el mismo mercado que las órdenes y el WebSocket)
-    // y es la única fuente del tamaño por operación (optimize.NOTIONAL_USDT, el que simula el backtest).
+    // y es la única fuente del tamaño por operación (optimize.NOTIONAL_USDT, el que simula el backtest) y de la
+    // temporalidad de las velas (config.KLINE_INTERVAL).
     let tradeQuoteUsdt: number;
+    let klineInterval: string;
     try {
-        tradeQuoteUsdt = parseBrainHandshake(await brain.ask('market'), config.MARKET).notionalUsdt;
+        ({ notionalUsdt: tradeQuoteUsdt, klineInterval } = parseBrainHandshake(await brain.ask('market'), config.MARKET));
     } catch (error: any) {
         console.error(`❌ ${error.message}`);
         await telegram.sendMessage(`❌ <b>ERROR CRÍTICO:</b> ${escapeHtml(error.message)}`);
         process.exit(1);
     }
-    console.log(`💰 Tamaño por operación (backtest): ${tradeQuoteUsdt} USDT`);
+    console.log(`💰 Tamaño por operación (backtest): ${tradeQuoteUsdt} USDT | Velas: ${klineInterval}`);
 
     console.log(`\nConnecting to live order book for all rostered coins...`);
     // El cliente WebSocket usa el mismo cliente REST (y el mismo desfase horario); start() recupera las
     // posiciones del ledger antes de conectarse a los precios.
-    const wsClient = new BinanceWSClient(roster, tradeQuoteUsdt, { rest: restClient, telegram });
+    const wsClient = new BinanceWSClient(roster, tradeQuoteUsdt, { rest: restClient, telegram, klineInterval });
     await wsClient.start();
-    
+
     // Notificación de encendido exitoso
-    await telegram.sendMessage(`🟢 <b>BOT INICIADO</b>\nConectado al mercado con ${roster.length} activos.\n<i>Esperando señales del algoritmo...</i>`);
+    await telegram.sendMessage(`🟢 <b>BOT INICIADO</b>\nConectado al mercado con ${roster.length} activos (velas de ${klineInterval}).\n<i>Esperando señales del algoritmo...</i>`);
     
     process.on('SIGINT', async () => {
         console.log("\nShutting down bot...");
