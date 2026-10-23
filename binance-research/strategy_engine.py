@@ -8,7 +8,9 @@ from quantitative_strategies.vwap_strategy import VWAPReversionStrategy
 from quantitative_strategies.volatility_squeeze import VolatilitySqueezeStrategy
 from quantitative_strategies.capitulation import CapitulationStrategy
 from config import (ACTIVE_ROSTER, BINANCE_MARKET, COSIGNAL_CANDLES, ENTRY_MIN_RISK_PCT, KLINE_INTERVAL,
-                    KLINE_INTERVAL_MS, MOMENTUM_MONTHS)
+                    KLINE_INTERVAL_MS, META_SHADOW, MOMENTUM_MONTHS)
+from meta_filter import MetaFilter
+from optimize import FEE_PER_SIDE, NOTIONAL_USDT, SLIPPAGE_PER_SIDE
 
 # Modo OPCIONAL y desactivado por defecto: ALLOW_UNVALIDATED_STRATEGIES=1 en el .env carga, en las monedas sin
 # estrategia validada, la de mejor PnL fuera de muestra aunque NO haya pasado la validacion (lo esperable es que
@@ -51,6 +53,9 @@ class StrategyEngine:
         self.init_state(ignore_momentum=TESTNET_IGNORE_MOMENTUM and BINANCE_MARKET == "testnet")
         self.load_best_strategies()
         self.build_shadows()
+        if META_SHADOW:
+            self.meta = MetaFilter(KLINE_INTERVAL, KLINE_INTERVAL_MS, FEE_PER_SIDE + SLIPPAGE_PER_SIDE, NOTIONAL_USDT)
+            print(f"[ENGINE] {self.meta.describe()}")
 
     def init_state(self, min_risk=ENTRY_MIN_RISK_PCT, cosignal=COSIGNAL_CANDLES, momentum=MOMENTUM_MONTHS,
                    roster=None, ignore_momentum=False):
@@ -68,6 +73,8 @@ class StrategyEngine:
         self.shadows = {}          # simbolo X -> {otra moneda Y: instancia de la regla de X que ve las velas de Y}
         self.cosignal_hits = {}    # simbolo X -> open_time de los BUY de la regla de X en otras monedas
         self.journal_entry = None  # BUY de la ultima vela evaluada (abierto o bloqueado), para orders/signals.csv
+        self.meta = None           # MetaFilter en sombra (META_SHADOW); None = apagado
+        self.fold_rows = {}        # simbolo -> (filas de los pliegues de su estrategia en ml_results.json, columnas)
 
     def max_window(self) -> int:
         """Ventana mas grande entre las estrategias cargadas (0 si no hay ninguna)."""
@@ -189,6 +196,7 @@ class StrategyEngine:
             elif 'multiplier' in sig.parameters:
                 valid_kwargs['multiplier'] = float(params['multiplier'])
             self.strategies[symbol] = strat_class(**valid_kwargs)
+            self.fold_rows[symbol] = ((params.get("pliegues") or []) + (params.get("pliegues_validacion") or []), columns)
 
             # Interruptor de momentum: lo calcula ml_evaluator.py; sin ese dato (JSON viejo) la moneda no abre
             momentum = params.get("momentum")
@@ -231,11 +239,23 @@ class StrategyEngine:
                     checks.append((f"sin co-senal en las {self.cosignal} velas previas", True))
         return checks
 
+    def meta_records(self) -> list:
+        """Pasa al filtro en sombra el BUY de la ultima vela evaluada (si hubo) y devuelve los registros ya juzgados
+        (cada uno espera la vela de BTC de su mismo open_time). Solo para las velas del WebSocket, como el diario."""
+        if self.meta is None or not self.meta.enabled:
+            return []
+        if self.journal_entry:
+            rows, columns = self.fold_rows.get(self.journal_entry["symbol"], ([], []))
+            self.meta.on_buy(self.journal_entry, rows, columns)
+        return self.meta.pop_ready()
+
     def get_signal(self, symbol: str, market_data: dict, own: bool = True, shadow_for=None) -> dict:
         """Procesa una vela cerrada de `symbol`: alimenta las instancias en sombra de la co-senal que miran esta moneda
         y, si tiene estrategia, la evalua y aplica los filtros de entrada. own / shadow_for: la precarga
         (server.pre_seed_engine) da a cada instancia solo sus velas (None = todas las que miran esta moneda)."""
         self.journal_entry = None
+        if self.meta is not None:
+            self.meta.add_candle(symbol, market_data)
         watchers = self.watchers(symbol)
         if symbol not in self.strategies and not watchers:
             return None

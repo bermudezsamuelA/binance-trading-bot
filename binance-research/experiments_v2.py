@@ -53,6 +53,7 @@ from scipy import stats as sp_stats
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import strategy_filters as SF
+from meta_filter import CANDLE_FEATURES, FEATURES, TRADE_FEATURES, candle_feature_frame  # noqa: F401
 import walk_forward as wf
 from config import ACTIVE_ROSTER, COSIGNAL_CANDLES, ENTRY_MIN_RISK_PCT, KLINE_INTERVAL, MOMENTUM_MONTHS
 from fast_backtest import INTERVAL_MS, STRATEGY_CLASSES, load_history, set_interval
@@ -87,10 +88,6 @@ ARMS = {
     "LIMIT": {"sim": "limit", "meta": False, "size": False, "desc": "TP con orden LIMIT"},
     "TODO": {"sim": "limit", "meta": True, "size": True, "desc": "LIMIT + META + TAMANO"},
 }
-CANDLE_FEATURES = ["ret_1", "ret_24", "ret_168", "btc_ret_24", "btc_ret_168", "vol_ratio", "er_24", "imb", "imb_z",
-                   "cvd_24", "vol_rel", "dd_168", "dow"]
-TRADE_FEATURES = ["risk_pct", "b", "c_r", "e3", "e12", "strategy"]
-FEATURES = CANDLE_FEATURES + TRADE_FEATURES
 
 
 class _ArmFS(SF.FilteredFS):
@@ -152,22 +149,7 @@ def candle_features(symbol: str) -> np.ndarray:
     """Variables de cada vela, calculadas solo con velas hasta su cierre (las mismas que veria el bot en vivo)."""
     d = load_history(symbol, interval=INTERVAL)
     btc = load_history("BTCUSDT", interval=INTERVAL)
-    c, h, v, ot = d["close"], d["high"], d["volume"], d["open_time"].to_numpy(np.int64)
-    btc_c = pd.Series(btc["close"].to_numpy(float), index=btc["open_time"].to_numpy(np.int64))
-    bc = pd.Series(btc_c.reindex(ot).to_numpy(), index=d.index)
-    r = c.pct_change()
-    with np.errstate(divide="ignore", invalid="ignore"):
-        imb = 2 * d["taker_buy"] / v - 1
-        f = pd.DataFrame({
-            "ret_1": r, "ret_24": c / c.shift(24) - 1, "ret_168": c / c.shift(168) - 1,
-            "btc_ret_24": bc / bc.shift(24) - 1, "btc_ret_168": bc / bc.shift(168) - 1,
-            "vol_ratio": r.rolling(24).std() / r.rolling(168).std(),
-            "er_24": (c - c.shift(24)).abs() / c.diff().abs().rolling(24).sum(),
-            "imb": imb, "imb_z": (imb - imb.rolling(96).mean()) / imb.rolling(96).std(),
-            "cvd_24": (2 * d["taker_buy"] - v).rolling(24).sum() / v.rolling(24).sum(),
-            "vol_rel": v / v.rolling(24).mean(), "dd_168": c / h.rolling(168).max() - 1,
-            "dow": ((ot + CANDLE_MS) // DAY_MS + 3) % 7})
-    return f[CANDLE_FEATURES].replace([np.inf, -np.inf], np.nan).to_numpy(float)
+    return candle_feature_frame(d, btc, CANDLE_MS).to_numpy(float)
 
 
 def pair_edge(folds: list, j: int, months: int) -> float:
@@ -207,10 +189,9 @@ def month_start_ms(month: str) -> int:
     return int(pd.Timestamp(month + "-01", tz="UTC").value // 10**6)
 
 
-def train_models(results: list) -> tuple:
-    """Un LightGBM por mes (desarrollo y validacion final) con las operaciones en sombra de todas las parejas que ya
-    cerraron antes de que empiece ese mes. Devuelve (modelos por mes, tabla de operaciones con variables y etiqueta)."""
-    import lightgbm as lgb
+def trade_table(results: list) -> pd.DataFrame:
+    """Operaciones en sombra de todas las parejas con sus variables, etiqueta (PnL neto > 0) y momento en que se conoce
+    el resultado (salida + 1 vela). La usan los modelos mensuales y el modelo vivo de meta_filter.py."""
     parts = []
     for res in results:
         t, folds = res["trades"], res["folds"]
@@ -228,7 +209,14 @@ def train_models(results: list) -> tuple:
             x["_mes"] = folds[j]["mes"]
             x["_on"] = folds[j]["on"]
             parts.append(x)
-    table = pd.concat(parts, ignore_index=True)
+    return pd.concat(parts, ignore_index=True)
+
+
+def train_models(results: list) -> tuple:
+    """Un LightGBM por mes (desarrollo y validacion final) con las operaciones en sombra de todas las parejas que ya
+    cerraron antes de que empiece ese mes. Devuelve (modelos por mes, tabla de operaciones con variables y etiqueta)."""
+    import lightgbm as lgb
+    table = trade_table(results)
     months = sorted({f["mes"] for res in results for f in res["folds"]})
     models = {}
     for month in months:

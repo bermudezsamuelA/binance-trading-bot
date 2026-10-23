@@ -20,6 +20,29 @@ Copiado el 2026-10-23. Pesa ~7 MB; no hay ningún archivo de más de 10 MB.
 | `output/analista/` | ídem | Solo `C1_spec_v2.json`. |
 | `cache/deribit/` | `E:/tmp/r2_data/deribit/` | `dvol_BTC_1h.json` y `dvol_ETH_1h.json`: índice de volatilidad DVOL de Deribit, por hora. |
 
+## Canal sombra de la v3 (`shadow/`)
+
+Es la prueba **prospectiva** pre-registrada de la sección 8 de [estrategia-v3-hacia-el-80.md](../../doc/estrategia-v3-hacia-el-80.md). No opera ni envía órdenes: mide qué habría hecho la v3 desde el 2026-10-01.
+
+| Archivo | Qué hace |
+|---|---|
+| `shadow/feeds.py` | Descargas incrementales: velas spot de 15 min y futuros (metrics, prima, velas y *funding*) de data.binance.vision para las 4 anclas, y el DVOL de Deribit (BTC y ETH) en `cache/deribit/`. Usa los parsers de `nn/nn_download_futures.py`. |
+| `shadow/run_daily.py` | Verifica los *hashes* de `spec_nn_v2.json`, sus 13 modelos y los scripts, y evalúa con el ensamble congelado (mismo cálculo que `nn/nn_v3_desc.py`). Simula los brazos P1 (v2 + $A_4 \ge 1$ + X5 con 384 velas), C0 (sin compuerta) y S3 (P1 + veto D1 por DVOL), con costos de 0.24 %, 0.30 % y 0.19 %, y el azar por moneda y mes (también condicionado a $A_4 \ge 1$). |
+| `shadow/test_run_daily.py` | Pruebas sin red con datos sintéticos, incluida una corrida completa con los modelos reales. |
+
+Uso, desde `binance-research` y **con la VPN apagada** para las descargas:
+
+```text
+.venv\Scripts\python v3_research\shadow\run_daily.py --download
+```
+
+Sin `--download` solo recalcula con los datos que ya hay. La salida queda en `output/prospectivo/`: `resumen.md` (tabla de brazos y los 6 criterios de la sección 8.3 con lo que hay hasta hoy, más el e-proceso del WR y la futilidad), `resumen.json`, `senales.csv` (cada vela con $\hat p \ge \theta$, su $A_4$ y su $z_{30}$) y `operaciones_{P1,C0,S3}.csv`.
+
+- **Retraso de los datos:** data.binance.vision publica al día siguiente, y el *funding* solo sale por mes. Cada corrida evalúa hasta el mínimo común de todas las series y recalcula desde el 2026-10-01, así que el periodo del mes en curso avanza cuando sale el *funding* de ese mes. Las operaciones abiertas en ese corte no cuentan todavía.
+- **Precalentamiento:** descarga desde 45 días antes del inicio (la especificación pide ≥ 35).
+- **Fuera de este canal:** S1 (18 monedas), S2 (ENS12U, aún sin congelar) y S4 (opcional).
+- **No cambiar** `nn/`, `models_v2/`, `scripts/harness.py` ni `spec_nn_v2.json`: los *hashes* forman parte del pre-registro y `run_daily.py` se detiene si no coinciden.
+
 ## Datos que faltan y cómo regenerarlos
 
 Ninguno de estos datos está en git. Los scripts esperan encontrarlos **dentro de la carpeta de investigación** (la carpeta padre de `scripts/` y `nn/`), así que en una copia nueva hay que crearlos aquí, en `v3_research/`.

@@ -320,7 +320,8 @@ export class BinanceWSClient {
             high: parseFloat(kline.h),
             low: parseFloat(kline.l),
             close: currentPrice,
-            volume: parseFloat(kline.v)
+            volume: parseFloat(kline.v),
+            taker_buy: parseFloat(kline.V)  // volumen comprador agresivo: lo usa el meta-etiquetado en sombra
         };
         await this.evaluateNewTrade(symbol, marketData, data.E);
     }

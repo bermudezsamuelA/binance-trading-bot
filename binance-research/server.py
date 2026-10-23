@@ -11,6 +11,7 @@ import ledger
 # Tamano por operacion del backtest: unica fuente. Node lo recibe en el handshake 'market' y lo usa.
 from optimize import NOTIONAL_USDT
 from strategy_engine import StrategyEngine
+from meta_filter import BUFFER_CANDLES as META_BUFFER_CANDLES
 from download_data import sync_historical_data
 from config import (ACTIVE_ROSTER, BINANCE_MARKET, KLINE_INTERVAL, KLINE_INTERVAL_MS, MARKET_DATA_REST_URL,
                     PRESEED_MARGIN, PRESEED_MIN)
@@ -56,7 +57,9 @@ def kline_to_market_data(kline: list) -> dict:
         "high": float(kline[2]),
         "low": float(kline[3]),
         "close": float(kline[4]),
-        "volume": float(kline[5])
+        "volume": float(kline[5]),
+        # volumen comprador agresivo (columna 9 de Binance): lo usa el meta-etiquetado en sombra
+        "taker_buy": float(kline[9]) if len(kline) > 9 else None
     }
 
 def preseed_count(symbol: str) -> int:
@@ -88,16 +91,23 @@ def pre_seed_engine(roster: list, required_candles: int = None):
     for symbol in roster:
         own = symbol in engine.strategies
         shadow_counts = {x: required_candles or preseed_count(x) for x in engine.watchers(symbol)}
-        if not own and not shadow_counts:
-            continue  # sin estrategia cargada ni regla en sombra no hay nada que calentar
+        # El meta-etiquetado en sombra necesita sus propias velas de TODAS las monedas (BTC incluida); las de mas solo
+        # van a su bufer, para que las estrategias vean las mismas velas de precarga que en el backtest
+        meta_count = META_BUFFER_CANDLES if engine.meta is not None and engine.meta.enabled else 0
+        if not own and not shadow_counts and not meta_count:
+            continue  # sin estrategia cargada, regla en sombra ni meta-etiquetado no hay nada que calentar
         own_count = (required_candles or preseed_count(symbol)) if own else 0
         count = max([own_count] + list(shadow_counts.values()))
+        fetch_count = max(count, meta_count)
         try:
             # limit + 1 porque la ultima suele ser la vela en formacion, que se descarta
-            klines = fetch_closed_klines(symbol, limit=count + 1)[-count:]
+            klines = fetch_closed_klines(symbol, limit=fetch_count + 1)[-fetch_count:]
 
             for k, kline in enumerate(klines):
                 left = len(klines) - k  # velas que quedan, incluida esta
+                if left > count:
+                    engine.meta.add_candle(symbol, kline_to_market_data(kline))
+                    continue
                 engine.get_signal(symbol, kline_to_market_data(kline), own=left <= own_count,
                                   shadow_for={x for x, c in shadow_counts.items() if left <= c})
 
@@ -171,6 +181,14 @@ def handle_request(message: dict):
                 print(f"[LEDGER] No se pudo escribir el diario de senales: {e}")
             if signal and signal.get("bloqueada"):
                 print(f"[SIGNAL] {symbol}: BUY bloqueado por los filtros de entrada ({signal['bloqueada']}).")
+        # Meta-etiquetado en sombra (no cambia la senal): los BUY ya juzgados van a orders/meta_signals.csv
+        try:
+            for record in engine.meta_records():
+                ledger.append_meta_signal(record)
+                print(f"[META] {record['symbol']}: el filtro {record['meta_decision']} este BUY "
+                      f"(p = {record['meta_p']}, p* = {record['meta_p_min']}; solo se anota).")
+        except Exception as e:
+            print(f"[META] No se pudo juzgar o anotar el BUY en sombra: {e}")
         return signal
         
     elif req_type == "sync_pending":

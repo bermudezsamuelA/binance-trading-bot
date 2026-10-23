@@ -48,3 +48,7 @@ ENTRY_MIN_RISK_PCT = 0.015   # descarta el BUY si entrada - SL < 1.5 % del preci
 COSIGNAL_CANDLES = 48        # el BUY necesita que la misma regla haya dado BUY en otra moneda del roster en las 48 velas
                              # anteriores (48 h con velas de 1 h; 12 h con 15 min), sin contar la actual
 MOMENTUM_MONTHS = 12         # una moneda solo opera su estrategia si el PnL en sombra de sus ultimos 12 meses es > 0
+
+# Meta-etiquetado EN SOMBRA (meta_filter.py): un LightGBM juzga cada BUY y anota en orders/meta_signals.csv si lo habria
+# tomado. No bloquea nada; False lo apaga. El modelo se entrena con: python meta_filter.py --train
+META_SHADOW = True
