@@ -8,7 +8,7 @@ Incluye notificaciones ejecutivas en tiempo real vía Telegram. El mercado (Test
 
 El bot opera bajo una estructura modular comunicada internamente mediante **ZeroMQ (ZMQ)**:
 *   **Motor de Ejecución (Node.js / TypeScript):** Mantiene la conexión WebSocket con Binance, gestiona el libro de órdenes, administra el riesgo en milisegundos y despacha alertas a Telegram.
-*   **Cerebro Cuantitativo (Python 3.12):** Alberga las estrategias matemáticas (Mean Reversion, Trend Following, VWAP, Volatility Squeeze), que deciden con cada vela **cerrada** de 15 minutos, y la selección *walk-forward* que decide qué estrategia usa cada moneda (o si no opera). También entrena un modelo XGBoost experimental que hoy no filtra ninguna operación.
+*   **Cerebro Cuantitativo (Python 3.12):** Alberga las estrategias matemáticas (Mean Reversion, Trend Following, VWAP, Volatility Squeeze), que deciden con cada vela **cerrada** de 1 hora (`KLINE_INTERVAL` en `binance-research/config.py`; Node.js la recibe de Python al arrancar), y la selección *walk-forward* que decide qué estrategia usa cada moneda (o si no opera). También entrena un modelo XGBoost experimental que hoy no filtra ninguna operación.
 *   **Ledger Local:** Registro CSV transaccional inmutable que asegura la persistencia de las operaciones abiertas/cerradas ante reinicios inesperados. Cada compra se anota como `PENDING` (con su `client_order_id`) **antes** de enviarse y pasa a `OPEN`/`CLOSED`, o a `CANCELLED` si Binance no la tiene: si el proceso muere con la compra en vuelo, al arrancar se busca en Binance y se adopta. Una orden que Binance tarda en mostrar se vuelve a consultar a los 10, 30 y 90 s antes de darla por inexistente (sin bloquear el resto del bot). El PnL de cada operación es neto de comisiones y valora al precio de venta el residuo que queda por debajo del `stepSize` de Binance.
 
 ---
@@ -61,11 +61,14 @@ Variables de Entorno
     TELEGRAM_CHAT_ID="tu_id_numerico_personal"
     # Opcional, solo en la testnet: carga estrategias NO validadas para ver al bot operar
     # ALLOW_UNVALIDATED_STRATEGIES=1
+    # Opcional, solo en la testnet: abre aunque el interruptor de momentum esté apagado (para juntar datos)
+    # TESTNET_IGNORE_MOMENTUM=1
 
     BINANCE_MARKET elige el mercado de todo el bot: "testnet" (por defecto) o "mainnet". Con esa sola
     variable Node.js arma las URL del REST y del WebSocket, y Python precarga las velas del mismo mercado.
     BINANCE_REST_URL y BINANCE_WS_URL ya no se usan (si siguen en el .env, Node.js avisa y las ignora).
-    ALLOW_UNVALIDATED_STRATEGIES=1 solo tiene efecto con BINANCE_MARKET="testnet" (ver "Selección de estrategias").
+    ALLOW_UNVALIDATED_STRATEGIES=1 y TESTNET_IGNORE_MOMENTUM=1 solo tienen efecto con BINANCE_MARKET="testnet"
+    (ver "Selección de estrategias"); en mainnet se ignoran.
     BRAIN_ZMQ_BIND (Python) y BRAIN_ZMQ_URL (Node.js) son opcionales: dirección del canal ZMQ entre ambos motores
     (por defecto tcp://127.0.0.1:5555). Solo hacen falta si Node.js corre en Docker (ver más abajo).
 
@@ -94,7 +97,8 @@ Para obtener tu TELEGRAM_BOT_TOKEN Crea el Bot en Telegram (BotFather)
 
 Selección de estrategias (walk-forward)
     Antes de encender el bot, hay que elegir qué estrategia y qué parámetros usa cada moneda. Las velas
-    históricas de 15 minutos las descarga server.py al arrancar (o python download_data.py).
+    históricas de 15 minutos las descarga server.py al arrancar (o python download_data.py); las de 1 hora
+    del bot se arman con ellas.
 
     Con el entorno virtual de Python activado, desde binance-research/ ejecuta (tarda unos 2 minutos):
 
@@ -102,17 +106,22 @@ Selección de estrategias (walk-forward)
 
     Este script:
         Comprueba que su simulación rápida da exactamente las mismas operaciones que el backtest de referencia.
-        Simula las 4 estrategias con 299 combinaciones de parámetros sobre toda la historia descargada.
+        Simula las 5 estrategias con 299 combinaciones de parámetros sobre toda la historia descargada, en las
+        velas del bot (config.KLINE_INTERVAL) y con los filtros de entrada de config.py (riesgo mínimo,
+        co-señal e interruptor de momentum), los mismos que aplica el bot en vivo.
         Elige los parámetros mes a mes con los 6 meses anteriores y los prueba en el mes siguiente (walk-forward),
         y reserva el último mes completo y los días del mes en curso como validación final.
         Marca cada estrategia como "validada" o "rechazada" (ganancia fuera de muestra con significancia
         estadística) y guarda todo en machine_learning_strategies/ml_results.json.
-        Entrena un modelo XGBoost con el último mes (experimental: no se usa en vivo).
+        Con --interval 15m o --interval 4h evalúa otra temporalidad y la guarda aparte (ml_results_15m.json,
+        ml_results_4h.json), sin cambiar lo que carga el bot.
 
     El bot en vivo solo carga estrategias validadas. Si ninguna lo está, no abre operaciones y explica por
     consola el motivo de cada moneda; es un resultado válido. Para ver al bot operar en la testnet de todos
     modos, ALLOW_UNVALIDATED_STRATEGIES=1 en el .env carga en cada moneda la mejor estrategia NO validada
-    (lo esperable es que pierda dinero). Detalles en doc/matematica-del-bot.md (Parte 4, sección 14).
+    (lo esperable es que pierda dinero), y TESTNET_IGNORE_MOMENTUM=1 hace que abra aunque su interruptor de
+    momentum esté apagado. Cada señal, abierta o bloqueada por un filtro, queda en binance-research/orders/signals.csv.
+    Detalles en doc/matematica-del-bot.md (Parte 4, sección 14).
 
 Ejecución del Bot
 

@@ -956,6 +956,8 @@ $$
 
 **Diario de señales.** Cada BUY de una estrategia, abierto o bloqueado, se guarda en `orders/signals.csv` con el motivo (`decision`, `reason`). Sirve para medir después si los filtros ayudan: el resultado de las bloqueadas se puede simular con las velas.
 
+**Velas de 1 hora y testnet (desde el 2026-10-22).** El bot opera con velas de **1 h** (`KLINE_INTERVAL` en `config.py`, que Node recibe en el handshake): fue la temporalidad en la que los filtros dejaron la esperanza casi en cero (−0.03 % por operación frente a −0.15 % con 15 min). Con velas de 1 h, las 48 velas de la co-señal son 48 h. En la testnet, `TESTNET_IGNORE_MOMENTUM=1` hace que el interruptor apagado no bloquee (el diario lo anota como `momentum apagado, ignorado en testnet`) para juntar resultados reales; el modo experimental elige entonces cada estrategia por su PnL OOS **sin** interruptor. En mainnet el interruptor siempre se respeta.
+
 *Origen:* [strategy_filters.py](../binance-research/strategy_filters.py) (backtest), [strategy_engine.py](../binance-research/strategy_engine.py) (vivo), [test_filters.py](../binance-research/test_filters.py) (mismas señales en los dos).
 
 ---
