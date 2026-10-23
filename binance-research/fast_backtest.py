@@ -268,12 +268,16 @@ class FastSymbol:
         return current_price, float(round(tp, 8)), float(round(sl, 8))
 
     # --- Simulacion: igual que optimize.simulate_live ---
-    def _first_exit(self, start: int, tp: float, sl: float, stop: int):
+    def _first_exit(self, start: int, tp: float, sl: float, stop: int, tp_limit: bool = False):
         o, h, l = self.o, self.h, self.l
         size = 64
         while start < stop:
             end = min(stop, start + size)
-            hit = (o[start:end] <= sl) | (o[start:end] >= tp) | (l[start:end] <= sl) | (h[start:end] >= tp)
+            if tp_limit:
+                # TP con orden LIMIT: solo se llena si el precio la supera (tocarla no basta: puede no tocarle el turno)
+                hit = (o[start:end] <= sl) | (l[start:end] <= sl) | (h[start:end] > tp)
+            else:
+                hit = (o[start:end] <= sl) | (o[start:end] >= tp) | (l[start:end] <= sl) | (h[start:end] >= tp)
             if hit.any():
                 return start + int(np.argmax(hit))
             start = end
@@ -282,12 +286,14 @@ class FastSymbol:
 
     def simulate(self, strategy: str, w: int, m: float, detail: bool = False,
                  first: int = 0, start: int = 0, entry_end: int = None, stop: int = None,
-                 cost: float = None, min_risk: float = None, entry_mask: np.ndarray = None):
+                 cost: float = None, min_risk: float = None, entry_mask: np.ndarray = None, tp_limit: bool = False):
         """Operaciones de la estrategia. Devuelve (entrada_idx, salida_idx, pnl) como arreglos, o la lista de dicts
         de simulate_live si detail=True. Por defecto, toda la serie; con first/start/entry_end/stop, el modo tramo
         (instancia nueva precargada desde first, sin posicion, entradas en [start, entry_end), salidas antes de stop).
         Solo para experiments.py (por defecto, como el bot): cost = costo por lado; min_risk = descarta la senal si
-        entrada - SL < min_risk * entrada (la senal no bloquea); entry_mask = filtro externo (bool por vela)."""
+        entrada - SL < min_risk * entrada (la senal no bloquea); entry_mask = filtro externo (bool por vela);
+        tp_limit = TP con orden LIMIT puesta desde la entrada: se llena solo si el maximo supera el TP (tambien si la
+        vela abre por encima), siempre al precio del TP y sin deslizamiento (solo FEE_PER_SIDE en esa pata)."""
         cost = FEE_PER_SIDE + SLIPPAGE_PER_SIDE if cost is None else cost
         stop = self.n if stop is None else stop
         entry_end = stop if entry_end is None else min(entry_end, stop)
@@ -307,20 +313,23 @@ class FastSymbol:
             if min_risk is not None and entry_price - sl < entry_price * min_risk:
                 allowed = i + 1
                 continue
-            j = self._first_exit(i + 1, tp, sl, stop)
+            j = self._first_exit(i + 1, tp, sl, stop, tp_limit)
             if j is None:
                 break  # sigue abierta al final de los datos (o en stop): simulate_live no la cuenta
             if o[j] <= sl:
                 exit_price, reason = o[j], "SL"
-            elif o[j] >= tp:
-                exit_price, reason = o[j], "TP"
+            elif o[j] > tp if tp_limit else o[j] >= tp:
+                exit_price, reason = (tp if tp_limit else o[j]), "TP"
             elif self.l[j] <= sl:
                 exit_price, reason = sl, "SL"
             else:
                 exit_price, reason = tp, "TP"
             qty = NOTIONAL_USDT / entry_price
             gross = qty * (exit_price - entry_price)
-            fees = qty * (entry_price + exit_price) * cost
+            if tp_limit and reason == "TP":
+                fees = qty * (entry_price * cost + exit_price * FEE_PER_SIDE)
+            else:
+                fees = qty * (entry_price + exit_price) * cost
             pnl = gross - fees
             entries.append(i)
             exits.append(j)
