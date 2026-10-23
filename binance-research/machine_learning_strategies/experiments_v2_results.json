@@ -1,0 +1,1244 @@
+{
+ "_protocolo": {
+  "preregistro": "2026-10-23, antes de ver resultados (ver docstring de experiments_v2.py)",
+  "generado": "2026-10-23T19:17:42Z",
+  "vela": "1h",
+  "filtros": {
+   "riesgo_minimo_pct": 0.015,
+   "cosenal_velas": 48,
+   "momentum_meses": 12
+  },
+  "brazos": {
+   "BASE": "bot actual (1 h con filtros de config.py)",
+   "META": "filtro LightGBM (meta-etiquetado)",
+   "TAMANO": "nocional proporcional a la E de 12 meses (5-30 USDT)",
+   "LIMIT": "TP con orden LIMIT",
+   "TODO": "LIMIT + META + TAMANO"
+  },
+  "tamano": "nocional = 15 * E12 / 0.0024, entre 5 y 30 USDT; 0 si E12 <= 0",
+  "meta": {
+   "min_entrenamiento": 300,
+   "lightgbm": {
+    "n_estimators": 200,
+    "learning_rate": 0.03,
+    "num_leaves": 7,
+    "max_depth": 3,
+    "min_child_samples": 40,
+    "subsample": 0.8,
+    "subsample_freq": 1,
+    "colsample_bytree": 0.8,
+    "reg_lambda": 5.0,
+    "random_state": 0,
+    "n_jobs": 1,
+    "verbose": -1
+   },
+   "variables": [
+    "ret_1",
+    "ret_24",
+    "ret_168",
+    "btc_ret_24",
+    "btc_ret_168",
+    "vol_ratio",
+    "er_24",
+    "imb",
+    "imb_z",
+    "cvd_24",
+    "vol_rel",
+    "dd_168",
+    "dow",
+    "risk_pct",
+    "b",
+    "c_r",
+    "e3",
+    "e12",
+    "strategy"
+   ],
+   "regla": "toma si p > (1 + c_R) / (1 + b)",
+   "replicas_azar": 20
+  },
+  "prueba": "pareada contra BASE, t de una cola sobre la diferencia diaria; alfa = 0.05 / 4 = 0.0125",
+  "costos": "0.12 % por lado (0.10 % comision + 0.02 % deslizamiento); LIMIT: 0.10 % en la pata del TP",
+  "base_reproduce_ml_results": true,
+  "diferencias_base": []
+ },
+ "diagnostico_meta": {
+  "base": {
+   "meses_con_modelo": 36,
+   "primer_mes_con_modelo": "2023-11",
+   "operaciones_juzgadas": 3306,
+   "auc_oos": 0.625,
+   "conservadas": {
+    "ops": 1524,
+    "pnl": 2.62,
+    "pnl_op_pct": 0.011,
+    "win_rate": 44.7
+   },
+   "descartadas": {
+    "ops": 1782,
+    "pnl": -95.98,
+    "pnl_op_pct": -0.359,
+    "win_rate": 47.8
+   },
+   "senales_juzgadas_en_vivo": 32082,
+   "senales_omitidas_pct": 52.4
+  },
+  "limit": {
+   "meses_con_modelo": 36,
+   "primer_mes_con_modelo": "2023-11",
+   "operaciones_juzgadas": 3343,
+   "auc_oos": 0.621,
+   "conservadas": {
+    "ops": 1502,
+    "pnl": -12.06,
+    "pnl_op_pct": -0.054,
+    "win_rate": 43.1
+   },
+   "descartadas": {
+    "ops": 1841,
+    "pnl": -77.93,
+    "pnl_op_pct": -0.282,
+    "win_rate": 49.0
+   },
+   "senales_juzgadas_en_vivo": 32513,
+   "senales_omitidas_pct": 54.0
+  }
+ },
+ "BASE": {
+  "oos": {
+   "ops": 1493,
+   "win_rate": 45.4,
+   "pnl": -6.75,
+   "pnl_por_100_usdt": -0.03,
+   "nocional_medio": 15.0,
+   "mdd": 63.33,
+   "meses_pos_pct": 51.4,
+   "t_dia": -0.13,
+   "p_valor": 0.551
+  },
+  "validacion_final": {
+   "ops": 17,
+   "win_rate": 52.9,
+   "pnl": -1.99,
+   "pnl_por_100_usdt": -0.78,
+   "nocional_medio": 15.0,
+   "mdd": 2.55,
+   "meses_pos_pct": 0.0,
+   "t_dia": -0.9,
+   "p_valor": 0.807
+  },
+  "por_estrategia": {
+   "MeanReversion": {
+    "oos": {
+     "ops": 400,
+     "win_rate": 48.5,
+     "pnl": -9.12,
+     "pnl_por_100_usdt": -0.152,
+     "nocional_medio": 15.0,
+     "mdd": 22.26,
+     "meses_pos_pct": 41.7,
+     "t_dia": -0.44,
+     "p_valor": 0.67
+    },
+    "validacion_final": {
+     "ops": 0,
+     "win_rate": 0.0,
+     "pnl": 0.0,
+     "pnl_por_100_usdt": 0.0,
+     "nocional_medio": 0.0,
+     "mdd": 0.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    }
+   },
+   "TrendFollowing": {
+    "oos": {
+     "ops": 421,
+     "win_rate": 37.5,
+     "pnl": 25.52,
+     "pnl_por_100_usdt": 0.404,
+     "nocional_medio": 15.0,
+     "mdd": 17.95,
+     "meses_pos_pct": 46.9,
+     "t_dia": 1.14,
+     "p_valor": 0.128
+    },
+    "validacion_final": {
+     "ops": 1,
+     "win_rate": 0.0,
+     "pnl": -0.62,
+     "pnl_por_100_usdt": -4.15,
+     "nocional_medio": 15.0,
+     "mdd": 0.62,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    }
+   },
+   "VWAP": {
+    "oos": {
+     "ops": 143,
+     "win_rate": 44.1,
+     "pnl": -9.52,
+     "pnl_por_100_usdt": -0.444,
+     "nocional_medio": 15.0,
+     "mdd": 15.2,
+     "meses_pos_pct": 42.9,
+     "t_dia": -0.74,
+     "p_valor": 0.768
+    },
+    "validacion_final": {
+     "ops": 0,
+     "win_rate": 0.0,
+     "pnl": 0.0,
+     "pnl_por_100_usdt": 0.0,
+     "nocional_medio": 0.0,
+     "mdd": 0.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    }
+   },
+   "VolatilitySqueeze": {
+    "oos": {
+     "ops": 267,
+     "win_rate": 29.2,
+     "pnl": -2.27,
+     "pnl_por_100_usdt": -0.057,
+     "nocional_medio": 15.0,
+     "mdd": 12.33,
+     "meses_pos_pct": 60.0,
+     "t_dia": -0.16,
+     "p_valor": 0.563
+    },
+    "validacion_final": {
+     "ops": 4,
+     "win_rate": 25.0,
+     "pnl": -0.6,
+     "pnl_por_100_usdt": -1.005,
+     "nocional_medio": 15.0,
+     "mdd": 1.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": -0.52,
+     "p_valor": 0.68
+    }
+   },
+   "Capitulation": {
+    "oos": {
+     "ops": 262,
+     "win_rate": 70.6,
+     "pnl": -11.35,
+     "pnl_por_100_usdt": -0.289,
+     "nocional_medio": 15.0,
+     "mdd": 20.74,
+     "meses_pos_pct": 54.2,
+     "t_dia": -0.79,
+     "p_valor": 0.784
+    },
+    "validacion_final": {
+     "ops": 12,
+     "win_rate": 66.7,
+     "pnl": -0.76,
+     "pnl_por_100_usdt": -0.425,
+     "nocional_medio": 15.0,
+     "mdd": 1.82,
+     "meses_pos_pct": 0.0,
+     "t_dia": -0.47,
+     "p_valor": 0.676
+    }
+   }
+  }
+ },
+ "META": {
+  "oos": {
+   "ops": 1148,
+   "win_rate": 45.4,
+   "pnl": 11.78,
+   "pnl_por_100_usdt": 0.068,
+   "nocional_medio": 15.0,
+   "mdd": 42.61,
+   "meses_pos_pct": 50.0,
+   "t_dia": 0.25,
+   "p_valor": 0.401
+  },
+  "validacion_final": {
+   "ops": 3,
+   "win_rate": 66.7,
+   "pnl": 0.29,
+   "pnl_por_100_usdt": 0.637,
+   "nocional_medio": 15.0,
+   "mdd": 0.66,
+   "meses_pos_pct": 100.0,
+   "t_dia": 0.24,
+   "p_valor": 0.416
+  },
+  "vs_base": {
+   "oos": {
+    "delta_pnl": 18.52,
+    "dias": 640,
+    "t_dia": 0.89,
+    "p_valor": 0.186
+   },
+   "validacion_final": {
+    "delta_pnl": 2.28,
+    "dias": 14,
+    "t_dia": 1.17,
+    "p_valor": 0.131
+   }
+  },
+  "azar": {
+   "delta_pnl_media": -5.57,
+   "delta_pnl_p95": 8.69,
+   "supera_al_pct_del_azar": 100.0
+  },
+  "mejora_pnl": false,
+  "motivo": "p = 0.186 >= 0.0125",
+  "rentable_por_si_solo": false,
+  "por_estrategia": {
+   "MeanReversion": {
+    "oos": {
+     "ops": 290,
+     "win_rate": 47.2,
+     "pnl": -5.76,
+     "pnl_por_100_usdt": -0.133,
+     "nocional_medio": 15.0,
+     "mdd": 17.65,
+     "meses_pos_pct": 47.8,
+     "t_dia": -0.3,
+     "p_valor": 0.618
+    },
+    "validacion_final": {
+     "ops": 0,
+     "win_rate": 0.0,
+     "pnl": 0.0,
+     "pnl_por_100_usdt": 0.0,
+     "nocional_medio": 0.0,
+     "mdd": 0.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": 3.36,
+      "dias": 269,
+      "t_dia": 0.43,
+      "p_valor": 0.334
+     },
+     "validacion_final": {
+      "delta_pnl": 0.0,
+      "dias": 0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     }
+    },
+    "azar": {
+     "delta_pnl_media": -2.75,
+     "delta_pnl_p95": 3.34,
+     "supera_al_pct_del_azar": 95.0
+    }
+   },
+   "TrendFollowing": {
+    "oos": {
+     "ops": 356,
+     "win_rate": 40.7,
+     "pnl": 23.5,
+     "pnl_por_100_usdt": 0.44,
+     "nocional_medio": 15.0,
+     "mdd": 13.46,
+     "meses_pos_pct": 46.9,
+     "t_dia": 1.1,
+     "p_valor": 0.136
+    },
+    "validacion_final": {
+     "ops": 0,
+     "win_rate": 0.0,
+     "pnl": 0.0,
+     "pnl_por_100_usdt": 0.0,
+     "nocional_medio": 0.0,
+     "mdd": 0.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": -2.01,
+      "dias": 350,
+      "t_dia": -0.16,
+      "p_valor": 0.565
+     },
+     "validacion_final": {
+      "delta_pnl": 0.62,
+      "dias": 1,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     }
+    },
+    "azar": {
+     "delta_pnl_media": -5.73,
+     "delta_pnl_p95": 5.6,
+     "supera_al_pct_del_azar": 75.0
+    }
+   },
+   "VWAP": {
+    "oos": {
+     "ops": 114,
+     "win_rate": 46.5,
+     "pnl": -4.2,
+     "pnl_por_100_usdt": -0.245,
+     "nocional_medio": 15.0,
+     "mdd": 12.39,
+     "meses_pos_pct": 61.5,
+     "t_dia": -0.34,
+     "p_valor": 0.633
+    },
+    "validacion_final": {
+     "ops": 0,
+     "win_rate": 0.0,
+     "pnl": 0.0,
+     "pnl_por_100_usdt": 0.0,
+     "nocional_medio": 0.0,
+     "mdd": 0.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": 5.32,
+      "dias": 117,
+      "t_dia": 1.49,
+      "p_valor": 0.0691
+     },
+     "validacion_final": {
+      "delta_pnl": 0.0,
+      "dias": 0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     }
+    },
+    "azar": {
+     "delta_pnl_media": 2.41,
+     "delta_pnl_p95": 8.06,
+     "supera_al_pct_del_azar": 80.0
+    }
+   },
+   "VolatilitySqueeze": {
+    "oos": {
+     "ops": 223,
+     "win_rate": 29.1,
+     "pnl": -4.48,
+     "pnl_por_100_usdt": -0.134,
+     "nocional_medio": 15.0,
+     "mdd": 11.59,
+     "meses_pos_pct": 48.0,
+     "t_dia": -0.35,
+     "p_valor": 0.637
+    },
+    "validacion_final": {
+     "ops": 2,
+     "win_rate": 50.0,
+     "pnl": 0.02,
+     "pnl_por_100_usdt": 0.066,
+     "nocional_medio": 15.0,
+     "mdd": 0.66,
+     "meses_pos_pct": 100.0,
+     "t_dia": 0.01,
+     "p_valor": 0.495
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": -2.22,
+      "dias": 227,
+      "t_dia": -0.26,
+      "p_valor": 0.604
+     },
+     "validacion_final": {
+      "delta_pnl": 0.62,
+      "dias": 4,
+      "t_dia": 1.72,
+      "p_valor": 0.0916
+     }
+    },
+    "azar": {
+     "delta_pnl_media": -3.61,
+     "delta_pnl_p95": 2.78,
+     "supera_al_pct_del_azar": 60.0
+    }
+   },
+   "Capitulation": {
+    "oos": {
+     "ops": 165,
+     "win_rate": 73.3,
+     "pnl": 2.72,
+     "pnl_por_100_usdt": 0.11,
+     "nocional_medio": 15.0,
+     "mdd": 14.33,
+     "meses_pos_pct": 71.4,
+     "t_dia": 0.23,
+     "p_valor": 0.41
+    },
+    "validacion_final": {
+     "ops": 1,
+     "win_rate": 100.0,
+     "pnl": 0.27,
+     "pnl_por_100_usdt": 1.78,
+     "nocional_medio": 15.0,
+     "mdd": 0.0,
+     "meses_pos_pct": 100.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": 14.07,
+      "dias": 212,
+      "t_dia": 1.75,
+      "p_valor": 0.0408
+     },
+     "validacion_final": {
+      "delta_pnl": 1.03,
+      "dias": 11,
+      "t_dia": 0.65,
+      "p_valor": 0.265
+     }
+    },
+    "azar": {
+     "delta_pnl_media": 4.11,
+     "delta_pnl_p95": 8.64,
+     "supera_al_pct_del_azar": 100.0
+    }
+   }
+  }
+ },
+ "TAMANO": {
+  "oos": {
+   "ops": 1493,
+   "win_rate": 45.4,
+   "pnl": -18.64,
+   "pnl_por_100_usdt": -0.062,
+   "nocional_medio": 20.04,
+   "mdd": 95.1,
+   "meses_pos_pct": 54.1,
+   "t_dia": -0.23,
+   "p_valor": 0.589
+  },
+  "validacion_final": {
+   "ops": 17,
+   "win_rate": 52.9,
+   "pnl": -2.34,
+   "pnl_por_100_usdt": -0.717,
+   "nocional_medio": 19.23,
+   "mdd": 2.92,
+   "meses_pos_pct": 0.0,
+   "t_dia": -0.83,
+   "p_valor": 0.789
+  },
+  "vs_base": {
+   "oos": {
+    "delta_pnl": -11.89,
+    "dias": 610,
+    "t_dia": -0.34,
+    "p_valor": 0.632
+   },
+   "validacion_final": {
+    "delta_pnl": -0.35,
+    "dias": 14,
+    "t_dia": -0.31,
+    "p_valor": 0.619
+   }
+  },
+  "mejora_pnl": false,
+  "motivo": "delta PnL <= 0; p = 0.632 >= 0.0125; empeora en la validacion final",
+  "rentable_por_si_solo": false,
+  "por_estrategia": {
+   "MeanReversion": {
+    "oos": {
+     "ops": 400,
+     "win_rate": 48.5,
+     "pnl": -22.4,
+     "pnl_por_100_usdt": -0.302,
+     "nocional_medio": 18.53,
+     "mdd": 40.66,
+     "meses_pos_pct": 41.7,
+     "t_dia": -0.7,
+     "p_valor": 0.756
+    },
+    "validacion_final": {
+     "ops": 0,
+     "win_rate": 0.0,
+     "pnl": 0.0,
+     "pnl_por_100_usdt": 0.0,
+     "nocional_medio": 0.0,
+     "mdd": 0.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": -13.28,
+      "dias": 259,
+      "t_dia": -0.93,
+      "p_valor": 0.824
+     },
+     "validacion_final": {
+      "delta_pnl": 0.0,
+      "dias": 0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     }
+    }
+   },
+   "TrendFollowing": {
+    "oos": {
+     "ops": 421,
+     "win_rate": 37.5,
+     "pnl": 46.37,
+     "pnl_por_100_usdt": 0.46,
+     "nocional_medio": 23.97,
+     "mdd": 34.35,
+     "meses_pos_pct": 46.9,
+     "t_dia": 1.13,
+     "p_valor": 0.129
+    },
+    "validacion_final": {
+     "ops": 1,
+     "win_rate": 0.0,
+     "pnl": -0.31,
+     "pnl_por_100_usdt": -4.15,
+     "nocional_medio": 7.58,
+     "mdd": 0.31,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": 20.86,
+      "dias": 311,
+      "t_dia": 1.04,
+      "p_valor": 0.15
+     },
+     "validacion_final": {
+      "delta_pnl": 0.31,
+      "dias": 1,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     }
+    }
+   },
+   "VWAP": {
+    "oos": {
+     "ops": 143,
+     "win_rate": 44.1,
+     "pnl": -19.04,
+     "pnl_por_100_usdt": -0.832,
+     "nocional_medio": 16.0,
+     "mdd": 25.14,
+     "meses_pos_pct": 42.9,
+     "t_dia": -0.91,
+     "p_valor": 0.818
+    },
+    "validacion_final": {
+     "ops": 0,
+     "win_rate": 0.0,
+     "pnl": 0.0,
+     "pnl_por_100_usdt": 0.0,
+     "nocional_medio": 0.0,
+     "mdd": 0.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": -9.52,
+      "dias": 114,
+      "t_dia": -1.02,
+      "p_valor": 0.844
+     },
+     "validacion_final": {
+      "delta_pnl": 0.0,
+      "dias": 0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     }
+    }
+   },
+   "VolatilitySqueeze": {
+    "oos": {
+     "ops": 267,
+     "win_rate": 29.2,
+     "pnl": 2.49,
+     "pnl_por_100_usdt": 0.05,
+     "nocional_medio": 18.64,
+     "mdd": 19.43,
+     "meses_pos_pct": 60.0,
+     "t_dia": 0.11,
+     "p_valor": 0.456
+    },
+    "validacion_final": {
+     "ops": 4,
+     "win_rate": 25.0,
+     "pnl": -1.21,
+     "pnl_por_100_usdt": -1.005,
+     "nocional_medio": 30.0,
+     "mdd": 1.99,
+     "meses_pos_pct": 0.0,
+     "t_dia": -0.52,
+     "p_valor": 0.68
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": 4.76,
+      "dias": 208,
+      "t_dia": 0.41,
+      "p_valor": 0.342
+     },
+     "validacion_final": {
+      "delta_pnl": -0.6,
+      "dias": 4,
+      "t_dia": -0.52,
+      "p_valor": 0.68
+     }
+    }
+   },
+   "Capitulation": {
+    "oos": {
+     "ops": 262,
+     "win_rate": 70.6,
+     "pnl": -26.07,
+     "pnl_por_100_usdt": -0.506,
+     "nocional_medio": 19.65,
+     "mdd": 32.84,
+     "meses_pos_pct": 41.7,
+     "t_dia": -1.2,
+     "p_valor": 0.883
+    },
+    "validacion_final": {
+     "ops": 12,
+     "win_rate": 66.7,
+     "pnl": -0.82,
+     "pnl_por_100_usdt": -0.412,
+     "nocional_medio": 16.61,
+     "mdd": 1.88,
+     "meses_pos_pct": 0.0,
+     "t_dia": -0.45,
+     "p_valor": 0.67
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": -14.71,
+      "dias": 201,
+      "t_dia": -1.48,
+      "p_valor": 0.929
+     },
+     "validacion_final": {
+      "delta_pnl": -0.06,
+      "dias": 11,
+      "t_dia": -0.23,
+      "p_valor": 0.588
+     }
+    }
+   }
+  }
+ },
+ "LIMIT": {
+  "oos": {
+   "ops": 1397,
+   "win_rate": 44.2,
+   "pnl": -5.13,
+   "pnl_por_100_usdt": -0.024,
+   "nocional_medio": 15.0,
+   "mdd": 59.03,
+   "meses_pos_pct": 54.1,
+   "t_dia": -0.1,
+   "p_valor": 0.541
+  },
+  "validacion_final": {
+   "ops": 18,
+   "win_rate": 50.0,
+   "pnl": -2.25,
+   "pnl_por_100_usdt": -0.832,
+   "nocional_medio": 15.0,
+   "mdd": 2.53,
+   "meses_pos_pct": 0.0,
+   "t_dia": -1.01,
+   "p_valor": 0.835
+  },
+  "vs_base": {
+   "oos": {
+    "delta_pnl": 1.61,
+    "dias": 618,
+    "t_dia": 0.21,
+    "p_valor": 0.415
+   },
+   "validacion_final": {
+    "delta_pnl": -0.26,
+    "dias": 15,
+    "t_dia": -0.9,
+    "p_valor": 0.807
+   }
+  },
+  "mejora_pnl": false,
+  "motivo": "p = 0.415 >= 0.0125; empeora en la validacion final",
+  "rentable_por_si_solo": false,
+  "por_estrategia": {
+   "MeanReversion": {
+    "oos": {
+     "ops": 370,
+     "win_rate": 47.6,
+     "pnl": -12.52,
+     "pnl_por_100_usdt": -0.226,
+     "nocional_medio": 15.0,
+     "mdd": 24.3,
+     "meses_pos_pct": 41.7,
+     "t_dia": -0.64,
+     "p_valor": 0.737
+    },
+    "validacion_final": {
+     "ops": 0,
+     "win_rate": 0.0,
+     "pnl": 0.0,
+     "pnl_por_100_usdt": 0.0,
+     "nocional_medio": 0.0,
+     "mdd": 0.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": -3.39,
+      "dias": 259,
+      "t_dia": -0.76,
+      "p_valor": 0.775
+     },
+     "validacion_final": {
+      "delta_pnl": 0.0,
+      "dias": 0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     }
+    }
+   },
+   "TrendFollowing": {
+    "oos": {
+     "ops": 406,
+     "win_rate": 37.9,
+     "pnl": 29.77,
+     "pnl_por_100_usdt": 0.489,
+     "nocional_medio": 15.0,
+     "mdd": 17.9,
+     "meses_pos_pct": 50.0,
+     "t_dia": 1.34,
+     "p_valor": 0.091
+    },
+    "validacion_final": {
+     "ops": 2,
+     "win_rate": 0.0,
+     "pnl": -0.91,
+     "pnl_por_100_usdt": -3.021,
+     "nocional_medio": 15.0,
+     "mdd": 0.91,
+     "meses_pos_pct": 0.0,
+     "t_dia": -2.68,
+     "p_valor": 0.886
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": 4.25,
+      "dias": 319,
+      "t_dia": 1.05,
+      "p_valor": 0.146
+     },
+     "validacion_final": {
+      "delta_pnl": -0.28,
+      "dias": 2,
+      "t_dia": -1.0,
+      "p_valor": 0.75
+     }
+    }
+   },
+   "VWAP": {
+    "oos": {
+     "ops": 138,
+     "win_rate": 44.2,
+     "pnl": -8.8,
+     "pnl_por_100_usdt": -0.425,
+     "nocional_medio": 15.0,
+     "mdd": 14.6,
+     "meses_pos_pct": 46.2,
+     "t_dia": -0.68,
+     "p_valor": 0.751
+    },
+    "validacion_final": {
+     "ops": 0,
+     "win_rate": 0.0,
+     "pnl": 0.0,
+     "pnl_por_100_usdt": 0.0,
+     "nocional_medio": 0.0,
+     "mdd": 0.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": 0.72,
+      "dias": 114,
+      "t_dia": 1.11,
+      "p_valor": 0.134
+     },
+     "validacion_final": {
+      "delta_pnl": 0.0,
+      "dias": 0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     }
+    }
+   },
+   "VolatilitySqueeze": {
+    "oos": {
+     "ops": 267,
+     "win_rate": 29.2,
+     "pnl": -2.02,
+     "pnl_por_100_usdt": -0.05,
+     "nocional_medio": 15.0,
+     "mdd": 12.19,
+     "meses_pos_pct": 60.0,
+     "t_dia": -0.14,
+     "p_valor": 0.556
+    },
+    "validacion_final": {
+     "ops": 4,
+     "win_rate": 25.0,
+     "pnl": -0.6,
+     "pnl_por_100_usdt": -1.0,
+     "nocional_medio": 15.0,
+     "mdd": 1.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": -0.52,
+     "p_valor": 0.679
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": 0.25,
+      "dias": 208,
+      "t_dia": 9.28,
+      "p_valor": 1.18e-17
+     },
+     "validacion_final": {
+      "delta_pnl": 0.0,
+      "dias": 4,
+      "t_dia": 1.0,
+      "p_valor": 0.196
+     }
+    }
+   },
+   "Capitulation": {
+    "oos": {
+     "ops": 216,
+     "win_rate": 68.5,
+     "pnl": -11.57,
+     "pnl_por_100_usdt": -0.357,
+     "nocional_medio": 15.0,
+     "mdd": 16.32,
+     "meses_pos_pct": 52.0,
+     "t_dia": -0.91,
+     "p_valor": 0.817
+    },
+    "validacion_final": {
+     "ops": 12,
+     "win_rate": 66.7,
+     "pnl": -0.74,
+     "pnl_por_100_usdt": -0.411,
+     "nocional_medio": 15.0,
+     "mdd": 1.81,
+     "meses_pos_pct": 0.0,
+     "t_dia": -0.45,
+     "p_valor": 0.67
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": -0.21,
+      "dias": 203,
+      "t_dia": -0.05,
+      "p_valor": 0.521
+     },
+     "validacion_final": {
+      "delta_pnl": 0.02,
+      "dias": 11,
+      "t_dia": 5.16,
+      "p_valor": 0.000211
+     }
+    }
+   }
+  }
+ },
+ "TODO": {
+  "oos": {
+   "ops": 1060,
+   "win_rate": 43.6,
+   "pnl": 0.83,
+   "pnl_por_100_usdt": 0.004,
+   "nocional_medio": 20.75,
+   "mdd": 82.0,
+   "meses_pos_pct": 48.6,
+   "t_dia": 0.01,
+   "p_valor": 0.495
+  },
+  "validacion_final": {
+   "ops": 12,
+   "win_rate": 41.7,
+   "pnl": -0.52,
+   "pnl_por_100_usdt": -0.277,
+   "nocional_medio": 15.57,
+   "mdd": 2.47,
+   "meses_pos_pct": 50.0,
+   "t_dia": -0.18,
+   "p_valor": 0.567
+  },
+  "vs_base": {
+   "oos": {
+    "delta_pnl": 7.58,
+    "dias": 644,
+    "t_dia": 0.21,
+    "p_valor": 0.418
+   },
+   "validacion_final": {
+    "delta_pnl": 1.47,
+    "dias": 18,
+    "t_dia": 0.54,
+    "p_valor": 0.297
+   }
+  },
+  "azar": {
+   "delta_pnl_media": -19.99,
+   "delta_pnl_p95": 2.42,
+   "supera_al_pct_del_azar": 95.0
+  },
+  "mejora_pnl": false,
+  "motivo": "p = 0.418 >= 0.0125",
+  "rentable_por_si_solo": false,
+  "por_estrategia": {
+   "MeanReversion": {
+    "oos": {
+     "ops": 260,
+     "win_rate": 45.4,
+     "pnl": -21.12,
+     "pnl_por_100_usdt": -0.41,
+     "nocional_medio": 19.83,
+     "mdd": 39.82,
+     "meses_pos_pct": 50.0,
+     "t_dia": -0.78,
+     "p_valor": 0.782
+    },
+    "validacion_final": {
+     "ops": 0,
+     "win_rate": 0.0,
+     "pnl": 0.0,
+     "pnl_por_100_usdt": 0.0,
+     "nocional_medio": 0.0,
+     "mdd": 0.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": -12.0,
+      "dias": 266,
+      "t_dia": -0.84,
+      "p_valor": 0.798
+     },
+     "validacion_final": {
+      "delta_pnl": 0.0,
+      "dias": 0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     }
+    },
+    "azar": {
+     "delta_pnl_media": -16.14,
+     "delta_pnl_p95": -7.09,
+     "supera_al_pct_del_azar": 70.0
+    }
+   },
+   "TrendFollowing": {
+    "oos": {
+     "ops": 345,
+     "win_rate": 40.3,
+     "pnl": 39.36,
+     "pnl_por_100_usdt": 0.467,
+     "nocional_medio": 24.44,
+     "mdd": 34.7,
+     "meses_pos_pct": 56.2,
+     "t_dia": 1.08,
+     "p_valor": 0.14
+    },
+    "validacion_final": {
+     "ops": 7,
+     "win_rate": 42.9,
+     "pnl": 0.39,
+     "pnl_por_100_usdt": 0.764,
+     "nocional_medio": 7.2,
+     "mdd": 0.47,
+     "meses_pos_pct": 50.0,
+     "t_dia": 0.46,
+     "p_valor": 0.332
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": 13.84,
+      "dias": 354,
+      "t_dia": 0.6,
+      "p_valor": 0.275
+     },
+     "validacion_final": {
+      "delta_pnl": 1.01,
+      "dias": 8,
+      "t_dia": 1.0,
+      "p_valor": 0.175
+     }
+    },
+    "azar": {
+     "delta_pnl_media": 14.69,
+     "delta_pnl_p95": 28.33,
+     "supera_al_pct_del_azar": 40.0
+    }
+   },
+   "VWAP": {
+    "oos": {
+     "ops": 118,
+     "win_rate": 44.9,
+     "pnl": -12.97,
+     "pnl_por_100_usdt": -0.633,
+     "nocional_medio": 17.35,
+     "mdd": 21.14,
+     "meses_pos_pct": 50.0,
+     "t_dia": -0.62,
+     "p_valor": 0.731
+    },
+    "validacion_final": {
+     "ops": 0,
+     "win_rate": 0.0,
+     "pnl": 0.0,
+     "pnl_por_100_usdt": 0.0,
+     "nocional_medio": 0.0,
+     "mdd": 0.0,
+     "meses_pos_pct": 0.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": -3.45,
+      "dias": 119,
+      "t_dia": -0.33,
+      "p_valor": 0.63
+     },
+     "validacion_final": {
+      "delta_pnl": 0.0,
+      "dias": 0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     }
+    },
+    "azar": {
+     "delta_pnl_media": -8.23,
+     "delta_pnl_p95": 0.01,
+     "supera_al_pct_del_azar": 75.0
+    }
+   },
+   "VolatilitySqueeze": {
+    "oos": {
+     "ops": 221,
+     "win_rate": 31.7,
+     "pnl": -2.13,
+     "pnl_por_100_usdt": -0.052,
+     "nocional_medio": 18.51,
+     "mdd": 17.42,
+     "meses_pos_pct": 48.0,
+     "t_dia": -0.11,
+     "p_valor": 0.545
+    },
+    "validacion_final": {
+     "ops": 4,
+     "win_rate": 25.0,
+     "pnl": -1.2,
+     "pnl_por_100_usdt": -1.0,
+     "nocional_medio": 30.0,
+     "mdd": 1.99,
+     "meses_pos_pct": 0.0,
+     "t_dia": -0.52,
+     "p_valor": 0.679
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": 0.14,
+      "dias": 234,
+      "t_dia": 0.01,
+      "p_valor": 0.496
+     },
+     "validacion_final": {
+      "delta_pnl": -0.6,
+      "dias": 4,
+      "t_dia": -0.51,
+      "p_valor": 0.678
+     }
+    },
+    "azar": {
+     "delta_pnl_media": -5.9,
+     "delta_pnl_p95": 2.63,
+     "supera_al_pct_del_azar": 80.0
+    }
+   },
+   "Capitulation": {
+    "oos": {
+     "ops": 116,
+     "win_rate": 70.7,
+     "pnl": -2.3,
+     "pnl_por_100_usdt": -0.101,
+     "nocional_medio": 19.61,
+     "mdd": 16.33,
+     "meses_pos_pct": 61.1,
+     "t_dia": -0.17,
+     "p_valor": 0.566
+    },
+    "validacion_final": {
+     "ops": 1,
+     "win_rate": 100.0,
+     "pnl": 0.3,
+     "pnl_por_100_usdt": 1.8,
+     "nocional_medio": 16.49,
+     "mdd": 0.0,
+     "meses_pos_pct": 100.0,
+     "t_dia": 0.0,
+     "p_valor": 1.0
+    },
+    "vs_base": {
+     "oos": {
+      "delta_pnl": 9.05,
+      "dias": 212,
+      "t_dia": 0.8,
+      "p_valor": 0.213
+     },
+     "validacion_final": {
+      "delta_pnl": 1.06,
+      "dias": 11,
+      "t_dia": 0.67,
+      "p_valor": 0.259
+     }
+    },
+    "azar": {
+     "delta_pnl_media": -4.4,
+     "delta_pnl_p95": 3.25,
+     "supera_al_pct_del_azar": 100.0
+    }
+   }
+  }
+ }
+}
