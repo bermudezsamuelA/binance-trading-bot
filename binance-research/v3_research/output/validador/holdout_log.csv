@@ -1,0 +1,17 @@
+utc,script,who,reason,detail
+2026-10-13 23:50:13,reproduce_ml_results.py,,reproducir ml_results.json (mes de optimizacion del bot; sin ajuste del equipo),BTCUSDT 2026-09-01 00:00..2026-10-01 00:00
+2026-10-13 23:51:47,doge_tf.py,,reproducir ml_results.json (mes de optimizacion del bot; sin ajuste del equipo),DOGEUSDT 2026-09-01 00:00..2026-10-01 00:00
+2026-10-13 23:52:48,reeval_bot.py,validador,"Ronda 1: evaluar config. vigente del bot (ml_results.json, no ajustada con estos datos)",BTCUSDT 2025-07-01 00:00..2026-09-01 00:00
+2026-10-13 23:55:00,reeval_bot.py,validador,"Ronda 1: evaluar config. vigente del bot (ml_results.json, no ajustada con estos datos)",BTCUSDT 2025-07-01 00:00..2026-09-01 00:00
+2026-10-14 04:45:49,holdout_C1_run.py,C1_eval,C1 prueba unica preregistrada v2 (ronda 3) - orden del coordinador,BTCUSDT 2025-07-01 00:00..2026-10-01 00:00
+2026-10-14 04:49:06,riesgo_r3_final.py,C1_eval,Gestor de Riesgo R3: evaluar paquete de riesgo (tamano/interruptores) sobre operaciones de C1 ya RECHAZADO; sin reajuste,BTCUSDT 2025-07-01 00:00..2026-10-01 00:00
+2026-10-14 10:47:40,nn_eval.py,nn_eval,Verificador: prueba PRIMARIA unica pre-registrada ENS6 (monedas reservadas),XRPUSDT 2025-07-01 00:00..2026-10-01 00:00
+2026-10-14 10:48:27,nn_eval.py,nn_eval,"Verificador: prueba SECUNDARIA unica (apoyo, holdout gastado) ENS6",BTCUSDT 2025-07-01 00:00..2026-10-01 00:00
+2026-10-14 11:05:39,nn_v2_eval.py,nn_eval,Verificador: prueba PRIMARIA v2 unica pre-registrada (conjunto reservado nuevo),DOTUSDT 2025-07-01 00:00..2026-10-01 00:00
+2026-10-14 11:07:09,nn_v2_eval.py,nn_eval,"Verificador: v2 DESCRIPTIVO sin peso (fase2coins, ya gastadas)",XRPUSDT 2025-07-01 00:00..2026-10-01 00:00
+2026-10-14 11:08:01,nn_v2_eval.py,nn_eval,"Verificador: v2 DESCRIPTIVO sin peso (originales, ya gastadas)",BTCUSDT 2025-07-01 00:00..2026-10-01 00:00
+2026-10-16 00:56:07,be_structural_bear.py,,be_structural_bear: descriptivo de grid/DCA (solo precios spot) en mercado bajista; no decide nada del modelo,BTCUSDT 2025-07-01 00:00..2026-10-01 00:00
+2026-10-18 23:43:45,nn_eval.py,nn_eval,Re-emision descriptiva del azar tras corregir nn_report.summarize (2026-10-18); sin cambio de veredicto,XRPUSDT 2025-07-01 00:00..2026-10-01 00:00
+2026-10-18 23:44:24,nn_eval.py,nn_eval,Re-emision descriptiva del azar tras corregir nn_report.summarize (2026-10-18); sin cambio de veredicto,BTCUSDT 2025-07-01 00:00..2026-10-01 00:00
+2026-10-18 23:44:53,nn_v2_eval.py,nn_eval,Re-emision descriptiva del azar tras corregir nn_report.summarize (2026-10-18); sin cambio de veredicto,DOTUSDT 2025-07-01 00:00..2026-10-01 00:00
+2026-10-22 17:55:47,nn_v3_desc.py,nn_v3_desc,"Descriptivo v3 (P1) sobre las 4 originales, ya gastadas; pedido del usuario 2026-10-22; no decide nada",BTCUSDT 2025-07-01 00:00..2026-10-01 00:00
