@@ -59,6 +59,17 @@ def last_date(path: str, col: int = 0):
     return dt.datetime.fromtimestamp(float(a[:, col].max()) / 1000, dt.timezone.utc).date()
 
 
+def resume_from(path: str, start: dt.date) -> dt.date:
+    """Primer dia a descargar: el ultimo guardado (se repite, por si estaba incompleto) o `start` si no hay archivo o
+    si el archivo empieza despues de `start` (falta historia al principio)."""
+    if not os.path.exists(path) or not len(a := np.load(path)):
+        return start
+    first = dt.datetime.fromtimestamp(float(a[:, 0].min()) / 1000, dt.timezone.utc).date()
+    if first > start:
+        return start
+    return max(start, last_date(path))
+
+
 def parse_spot(txt: str) -> list:
     rows = []
     for line in txt.splitlines():
@@ -85,7 +96,7 @@ def update_spot(data_dir: str, symbols: list, start: dt.date, end: dt.date, toda
     report = {}
     for sym in symbols:
         path = os.path.join(out_dir, f"{sym}_15m.npy")
-        d0 = max(start, last_date(path) or start)
+        d0 = resume_from(path, start)
         if d0 > end:
             report[sym] = {"nuevas": 0, "faltan": []}
             continue
@@ -114,13 +125,13 @@ def update_futures(data_dir: str, symbols: list, start: dt.date, end: dt.date, t
     for sym in symbols:
         files = {k: os.path.join(out_dir, f"{sym}_{k}.npy") for k in ("metrics", "funding", "premium15m", "fut15m")}
         jobs = []
-        d0 = max(start, last_date(files["metrics"]) or start)
+        d0 = resume_from(files["metrics"], start)
         jobs += [("m", f"{base}/daily/metrics/{sym}/{sym}-metrics-{d.isoformat()}.zip") for d in days_between(d0, end)]
-        d0 = max(start, last_date(files["funding"]) or start)
+        d0 = resume_from(files["funding"], start)
         jobs += [("f", f"{base}/monthly/fundingRate/{sym}/{sym}-fundingRate-{y}-{m:02d}.zip")
                  for y, m in sorted({(d.year, d.month) for d in days_between(d0, end)})]
         for kind, key, folder in (("p", "premium15m", "premiumIndexKlines"), ("k", "fut15m", "klines")):
-            d0 = max(start, last_date(files[key]) or start)
+            d0 = resume_from(files[key], start)
             months, days = split_months(d0, end, today)
             jobs += [(kind, f"{base}/monthly/{folder}/{sym}/15m/{sym}-15m-{y}-{m:02d}.zip") for y, m in months]
             jobs += [(kind, f"{base}/daily/{folder}/{sym}/15m/{sym}-15m-{d.isoformat()}.zip") for d in days]

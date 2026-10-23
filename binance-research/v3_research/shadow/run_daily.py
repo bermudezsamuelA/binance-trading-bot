@@ -43,7 +43,8 @@ ANCHORS = V3.ANCHORS
 DAY_MS = 86_400_000
 OUT_DIR = os.path.join(RESEARCH, "output", "prospectivo")
 DVOL_FILE = os.path.join(RESEARCH, "cache", "deribit", "dvol_BTC_1h.json")
-WARMUP_DAYS = 45            # > 35 dias que pide la spec (W.WARM = 800 velas y z de 672) mas el funding_z de 2016
+WARMUP_DAYS = 75            # > 35 dias que pide la spec (W.WARM = 800 velas, z de 672 y funding_z de 2016) y el mes de
+                            # la prueba de equivalencia del funding provisional (EQUIVALENCE_DAYS) con su calentamiento
 COSTS = {"0.24 %": (H.FEE, H.SLIP), "0.30 %": (0.0013, H.SLIP), "0.19 % (BNB)": (0.00075, H.SLIP)}
 MAIN_COST = "0.24 %"
 
@@ -95,6 +96,129 @@ def data_end_ms(data_dir: str, symbols=ANCHORS) -> tuple:
         limits[f"{sym} funding"] = int(fu["funding"][:, 0].max()) + 8 * 3_600_000
     end = min(limits.values())
     return end - end % C.MS15, limits
+
+
+# ------------------------------------------------------------------ funding provisional
+# Binance publica el funding solo en archivos mensuales: el mes en curso no tiene dato real hasta el mes siguiente. El
+# funding de USD-M se calcula con la prima del perpetuo (que si sale a diario): F = P + clamp(I - P, -0.05 %, 0.05 %),
+# con P = media ponderada (pesos 1..n, mas peso a lo reciente) de la prima de las 8 h previas e I = 0.01 % cada 8 h.
+# Aqui P sale de las 32 velas de 15 min de la prima (Binance usa muestras por minuto): es una aproximacion, y por eso
+# se mide su equivalencia con el funding real (equivalence) antes de usarla y los resultados quedan como PROVISIONALES.
+FUNDING_MS = 8 * 3_600_000
+FUNDING_INTEREST = 0.0001
+FUNDING_CLAMP = 0.0005
+
+
+def funding_proxy(premium: np.ndarray, after_ms: int, until_ms: int) -> np.ndarray:
+    """Filas [calc_time, funding] reconstruidas en la rejilla de 8 h (00, 08 y 16 UTC) con after_ms < T <= until_ms,
+    solo donde estan las 32 velas de prima de [T - 8 h, T)."""
+    premium = premium[np.argsort(premium[:, 0], kind="stable")]
+    t, close = premium[:, 0].astype(np.int64), premium[:, 4]
+    rows, T = [], (int(after_ms) // FUNDING_MS + 1) * FUNDING_MS
+    w = np.arange(1, 33, dtype=float)
+    while T <= until_ms:
+        a, b = np.searchsorted(t, T - FUNDING_MS), np.searchsorted(t, T)
+        x = close[a:b]
+        if b - a == 32 and np.all(np.isfinite(x)):
+            P = float((w * x).sum() / w.sum())
+            rows.append((T, P + float(np.clip(FUNDING_INTEREST - P, -FUNDING_CLAMP, FUNDING_CLAMP))))
+        T += FUNDING_MS
+    return np.array(rows, dtype=np.float64).reshape(-1, 2)
+
+
+class ProxyFunding:
+    """Mientras esta activo, nn_common.load_fut devuelve el funding real hasta `cut_ms` (incluido) y, despues, el
+    reconstruido con la prima. cut_ms None = desde el ultimo funding real. No toca los archivos ni los modelos."""
+
+    def __init__(self, cut_ms=None):
+        self.cut_ms, self.original = cut_ms, None
+
+    def __enter__(self):
+        self.original = C.load_fut
+        original, cut_ms = self.original, self.cut_ms
+
+        def load_fut(data_dir, sym):
+            fu = dict(original(data_dir, sym))
+            fr = fu["funding"]
+            cut = int(fr[:, 0].max()) if cut_ms is None else int(cut_ms)
+            proxy = funding_proxy(fu["premium15m"], cut, int(fu["premium15m"][:, 0].max()) + C.MS15)
+            fu["funding"] = np.vstack([fr[fr[:, 0] <= cut], proxy])
+            return fu
+        C.load_fut = load_fut
+        return self
+
+    def __exit__(self, *exc):
+        C.load_fut = self.original
+
+
+def funding_fit(data_dir: str, days: int = 90) -> dict:
+    """Funding reconstruido frente al real en los ultimos `days` dias con dato real, por moneda."""
+    out = {}
+    for sym in ANCHORS:
+        fu = C.load_fut(data_dir, sym)
+        fr = fu["funding"][np.argsort(fu["funding"][:, 0])]
+        last = int(fr[:, 0].max())
+        real = fr[fr[:, 0] > last - days * DAY_MS]
+        grid = (real[:, 0].astype(np.int64) + 60_000) // FUNDING_MS * FUNDING_MS   # la marca real trae milisegundos
+        proxy = funding_proxy(fu["premium15m"], last - days * DAY_MS - FUNDING_MS, last + 60_000)
+        j = np.searchsorted(proxy[:, 0].astype(np.int64), grid)
+        ok = (j < len(proxy)) & (proxy[np.minimum(j, len(proxy) - 1), 0].astype(np.int64) == grid)
+        r, p = real[ok, 1], proxy[j[ok], 1]
+        varies = ok.sum() > 2 and np.std(r) > 0 and np.std(p) > 0   # dentro de la banda el funding es justo 0.01 %
+        out[sym] = {"n": int(ok.sum()), "corr": round(float(np.corrcoef(r, p)[0, 1]), 4) if varies else None,
+                    "iguales_pct": round(100 * float(np.mean(np.abs(r - p) < 5e-6)), 1) if ok.any() else None,
+                    "error_medio_pb": round(float(np.mean(np.abs(r - p)) * 1e4), 3) if ok.any() else None,
+                    "error_max_pb": round(float(np.max(np.abs(r - p)) * 1e4), 3) if ok.any() else None}
+    return out
+
+
+def signal_sets(ev: dict) -> tuple:
+    """(velas con p >= theta, velas de P1) de una evaluacion, como conjuntos de (moneda, open_time)."""
+    sig, p1 = set(), set()
+    for sym, d in ev["D"].items():
+        for i in np.flatnonzero(d["sig"][d["i0"]:d["i1"]]) + d["i0"]:
+            t = int(d["S"]["t"][i])
+            sig.add((sym, t))
+            if d["A"][i] >= 1:
+                p1.add((sym, t))
+    return sig, p1
+
+
+def jaccard(a: set, b: set) -> float:
+    return 1.0 if not a and not b else len(a & b) / len(a | b)
+
+
+EQUIVALENCE_DAYS = 30
+EQUIVALENCE_MIN_JACCARD = 0.8
+
+
+def equivalence(data_dir: str, out_dir: str) -> dict:
+    """Mismo modelo con el funding real y con el reconstruido en los ultimos EQUIVALENCE_DAYS dias con dato real:
+    coincidencia (Jaccard) de las velas con senal y de las de P1. Se guarda y solo se repite cuando llega un mes nuevo
+    de funding real. Ese periodo es de la reserva gastada: se abre con motivo (queda en holdout_log.csv) y no decide nada."""
+    path = os.path.join(out_dir, "equivalencia_funding.json")
+    real_end = min(int(C.load_fut(data_dir, s)["funding"][:, 0].max()) for s in ANCHORS)
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            cached = json.load(f)
+        if cached.get("funding_real_hasta") == iso(real_end):
+            return cached
+    end = real_end + FUNDING_MS - (real_end + FUNDING_MS) % C.MS15
+    cut = end - EQUIVALENCE_DAYS * DAY_MS
+    start = dt.datetime.fromtimestamp(cut / 1000, dt.timezone.utc).strftime("%Y-%m-%d")
+    reason = "equivalencia del funding provisional (infraestructura; no decide nada)"
+    real = signal_sets(evaluate(data_dir, start, end, reason))
+    with ProxyFunding(cut_ms=to_ms(start) - FUNDING_MS):
+        prox = signal_sets(evaluate(data_dir, start, end, reason))
+    res = {"funding_real_hasta": iso(real_end), "ventana": [start, iso(end)], "funding": funding_fit(data_dir),
+           "senales": {"real": len(real[0]), "provisional": len(prox[0]), "jaccard": round(jaccard(real[0], prox[0]), 4)},
+           "P1": {"real": len(real[1]), "provisional": len(prox[1]), "jaccard": round(jaccard(real[1], prox[1]), 4)}}
+    res["equivalente"] = bool(res["senales"]["jaccard"] >= EQUIVALENCE_MIN_JACCARD
+                              and res["P1"]["jaccard"] >= EQUIVALENCE_MIN_JACCARD)
+    os.makedirs(out_dir, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(res, f, ensure_ascii=False, indent=1)
+    return res
 
 
 # ------------------------------------------------------------------ D1 (DVOL)
@@ -331,7 +455,8 @@ def s3_veto(ev: dict) -> dict:
 
 
 # ------------------------------------------------------------------ salidas
-def write_outputs(ev: dict, sim: dict, crit: dict, veto: dict, end_ms: int, limits: dict, out_dir: str, start: str):
+def write_outputs(ev: dict, sim: dict, crit: dict, veto: dict, end_ms: int, limits: dict, out_dir: str, start: str,
+                  provisional: dict = None):
     os.makedirs(out_dir, exist_ok=True)
     D = ev["D"]
     with open(os.path.join(out_dir, "senales.csv"), "w", newline="", encoding="utf-8") as f:
@@ -365,7 +490,7 @@ def write_outputs(ev: dict, sim: dict, crit: dict, veto: dict, end_ms: int, limi
            "sha256": {"spec_nn_v2.json": sha(V3.SPEC), "run_daily.py": sha(os.path.abspath(__file__))},
            "preregistro": PREREGISTRO, "datos_hasta_por_serie": {k: iso(v) for k, v in limits.items()},
            "metrics_faltantes_pct": {s: round(100 * D[s]["missing"], 2) for s in ANCHORS},
-           "criterios_P1": crit, "S3_vetadas": veto, "brazos": arms}
+           "criterios_P1": crit, "S3_vetadas": veto, "brazos": arms, "provisional": provisional}
     with open(os.path.join(out_dir, "resumen.json"), "w", encoding="utf-8", newline="\n") as f:
         json.dump(res, f, ensure_ascii=False, indent=1, default=float)
     with open(os.path.join(out_dir, "resumen.md"), "w", encoding="utf-8", newline="\n") as f:
@@ -379,10 +504,17 @@ def _f(x, fmt="{:.2f}"):
 
 def render_md(res: dict) -> str:
     c = res["criterios_P1"]
-    L = [f"# Canal sombra v3: prueba prospectiva\n",
+    prov = res.get("provisional")
+    L = [f"# Canal sombra v3: prueba prospectiva{' (PROVISIONAL)' if prov else ''}\n",
          f"Periodo evaluado: **{res['periodo'][0]} a {res['periodo'][1]} UTC** (hasta donde todas las series estan "
          f"completas). Generado {res['generado']}. Umbral θ = {res['umbral']:.4f}. No es la decisión final: el "
          f"pre-registro termina el {PREREGISTRO['fin']}.\n",
+         *([f"> **Provisional:** el funding desde el {prov['funding_reconstruido_desde']} UTC se reconstruyó con la prima "
+            f"del perpetuo (Binance aún no publica el archivo del mes). Equivalencia con el funding real en "
+            f"{prov['equivalencia']['ventana'][0]} a {prov['equivalencia']['ventana'][1]}: señales Jaccard "
+            f"{prov['equivalencia']['senales']['jaccard']}, P1 Jaccard {prov['equivalencia']['P1']['jaccard']} "
+            f"({'equivalente' if prov['equivalencia']['equivalente'] else 'NO equivalente: no fiarse de estas cifras'}). "
+            f"Las cifras definitivas salen cuando se publique el funding real.\n"] if prov else []),
          "| Brazo | Costo | n | Abiertas | WR | Wilson 95 % | E % | t/día | ΔWR azar | ΔE azar % | Episodios + | Meses + |",
          "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for key, m in res["brazos"].items():
@@ -430,6 +562,8 @@ def main(argv=None):
     ap.add_argument("--download", action="store_true", help="descarga antes los datos nuevos (VPN apagada)")
     ap.add_argument("--out", default=OUT_DIR)
     ap.add_argument("--reason", default=None, help="solo si el periodo toca el holdout (queda registrado)")
+    ap.add_argument("--solo-definitivo", action="store_true",
+                    help="no reconstruye el funding del mes en curso: evalua solo hasta el ultimo funding real")
     a = ap.parse_args(argv)
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8")
@@ -444,13 +578,28 @@ def main(argv=None):
         except Exception as e:  # el DVOL solo afecta a S3; sin el, D1 no veta y se anota
             print(f"[V3] ⚠️ No se pudo actualizar el DVOL ({e}); S3 no vetara las velas sin dato.")
     end_ms, limits = data_end_ms(a.data_dir)
+    provisional = None
+    if not a.solo_definitivo and min(limits, key=limits.get).endswith("funding"):
+        # El funding (solo mensual) es lo que frena: se reconstruye con la prima, se mide su equivalencia y se avisa
+        eq = equivalence(a.data_dir, a.out)
+        print(f"[V3] Funding provisional: equivalencia en {eq['ventana'][0]} a {eq['ventana'][1]}: senales Jaccard "
+              f"{eq['senales']['jaccard']}, P1 Jaccard {eq['P1']['jaccard']} "
+              f"({'equivalente' if eq['equivalente'] else 'NO equivalente'}).")
+        real_end = min(int(C.load_fut(a.data_dir, s)["funding"][:, 0].max()) for s in ANCHORS)
+        with ProxyFunding():
+            end_ms, limits = data_end_ms(a.data_dir)
+        provisional = {"funding_reconstruido_desde": iso(real_end + FUNDING_MS), "equivalencia": eq}
     if end_ms <= to_ms(a.start):
         print(f"[V3] Aun no hay datos completos despues de {a.start} (corte {iso(end_ms)}): "
               + ", ".join(f"{k} {iso(v)}" for k, v in limits.items() if v == min(limits.values())))
         return None
-    ev = evaluate(a.data_dir, a.start, end_ms, a.reason)
+    if provisional:
+        with ProxyFunding():
+            ev = evaluate(a.data_dir, a.start, end_ms, a.reason)
+    else:
+        ev = evaluate(a.data_dir, a.start, end_ms, a.reason)
     sim = simulate_arms(ev)
-    res = write_outputs(ev, sim, criteria(sim), s3_veto(ev), end_ms, limits, a.out, a.start)
+    res = write_outputs(ev, sim, criteria(sim), s3_veto(ev), end_ms, limits, a.out, a.start, provisional)
     print(render_md(res))
     print(f"[V3] Salida: {a.out}")
     return res

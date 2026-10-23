@@ -23,8 +23,9 @@ T0 = RD.to_ms("2026-08-10")
 T1 = RD.to_ms("2026-10-20")
 
 
-def write_synthetic(data_dir, seed=0, t0=T0, t1=T1):
-    """Velas spot y series de futuros de las 4 anclas con una caida comun (un 'panico') a mitad de octubre."""
+def write_synthetic(data_dir, seed=0, t0=T0, t1=T1, funding_until=None):
+    """Velas spot y series de futuros de las 4 anclas con una caida comun (un 'panico') a mitad de octubre. El funding
+    sale de la prima con la formula de Binance mas ruido (como el real); funding_until lo corta antes (mes sin archivo)."""
     rng = np.random.default_rng(seed)
     t = np.arange(t0, t1, MS15, dtype=np.int64)
     n = len(t)
@@ -46,10 +47,14 @@ def write_synthetic(data_dir, seed=0, t0=T0, t1=T1):
         oi = 1e6 * np.exp(np.cumsum(rng.normal(0, 0.001, m)))
         metrics = np.column_stack([tm, oi, oi * 100, rng.uniform(1, 3, m), rng.uniform(1, 3, m), rng.uniform(1, 3, m),
                                    rng.uniform(0.7, 1.3, m)])
-        tf = np.arange(t0, t1, 8 * 3_600_000, dtype=np.int64)
-        funding = np.column_stack([tf, rng.normal(1e-4, 5e-5, len(tf))])
-        prem = rng.normal(0, 2e-4, n)
+        # prima que a ratos sale de la banda de +-0.05 % (dentro de ella el funding es justo 0.01 %, como en Binance)
+        prem = np.convolve(rng.normal(0, 2e-3, n), np.ones(8) / 8, mode="same") + 8e-4 * np.sin(np.arange(n) / 300)
         premium = np.column_stack([t, prem, prem + 1e-4, prem - 1e-4, prem])
+        funding = RD.funding_proxy(premium, t0, t1)
+        funding[:, 0] += 5                                  # la marca real trae milisegundos
+        funding[:, 1] += rng.normal(0, 2e-6, len(funding))
+        if funding_until is not None:
+            funding = funding[funding[:, 0] < funding_until]
         fc = c * (1 + rng.normal(0, 3e-4, n))
         fv = v * 5
         fut = np.column_stack([t, o, h, l, fc, fv, fv * rng.uniform(0.3, 0.7, n)])
@@ -145,6 +150,39 @@ class FeedsTest(unittest.TestCase):
         self.assertIn("start_timestamp=10800000", calls[0])   # desde la ultima hora guardada
 
 
+class FundingProxyTest(unittest.TestCase):
+    def premium(self, values, t0=RD.to_ms("2026-10-01")):
+        t = t0 + np.arange(len(values)) * MS15
+        return np.column_stack([t, values, values, values, values]).astype(float)
+
+    def test_formula_de_binance(self):
+        for p, expected in ((0.0, 1e-4), (0.001, 0.0005), (-0.002, -0.0015), (2e-4, 1e-4)):
+            rows = RD.funding_proxy(self.premium(np.full(32, p)), RD.to_ms("2026-10-01"), RD.to_ms("2026-10-01 08:00"))
+            self.assertEqual(rows[:, 0].tolist(), [RD.to_ms("2026-10-01 08:00")])
+            self.assertAlmostEqual(rows[0, 1], expected)
+
+    def test_media_ponderada_y_huecos(self):
+        x = np.linspace(0, 0.0031, 32)
+        rows = RD.funding_proxy(self.premium(x), RD.to_ms("2026-10-01"), RD.to_ms("2026-10-01 08:00"))
+        P = np.sum(np.arange(1, 33) * x) / np.sum(np.arange(1, 33))
+        self.assertAlmostEqual(rows[0, 1], P + np.clip(1e-4 - P, -5e-4, 5e-4))
+        holed = np.delete(self.premium(np.zeros(32)), 5, axis=0)       # falta una vela: no se reconstruye
+        self.assertEqual(len(RD.funding_proxy(holed, RD.to_ms("2026-10-01"), RD.to_ms("2026-10-01 08:00"))), 0)
+
+    def test_reemplaza_solo_despues_del_corte_y_restaura(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_synthetic(tmp, t1=RD.to_ms("2026-09-05"), funding_until=RD.to_ms("2026-09-01"))
+            real = RD.C.load_fut(tmp, "BTCUSDT")["funding"]
+            original = RD.C.load_fut
+            with RD.ProxyFunding():
+                fu = RD.C.load_fut(tmp, "BTCUSDT")["funding"]
+            self.assertIs(RD.C.load_fut, original)
+            self.assertEqual(fu[:len(real)].tolist(), real.tolist())
+            self.assertGreater(len(fu), len(real))
+            self.assertTrue(np.all(fu[len(real):, 0] > real[:, 0].max()))
+            self.assertTrue(np.all(np.diff(fu[:, 0]) > 0))
+
+
 class PipelineTest(unittest.TestCase):
     """De punta a punta con los 13 modelos congelados (hashes verificados) sobre datos sinteticos."""
 
@@ -206,3 +244,38 @@ class PipelineTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ProvisionalPipelineTest(unittest.TestCase):
+    """Sin el archivo de funding del mes en curso: se reconstruye, se mide la equivalencia (y se guarda) y el resumen
+    queda marcado como provisional. La equivalencia abre la reserva con motivo: aqui no se escribe holdout_log.csv."""
+
+    def test_funding_del_mes_en_curso_reconstruido(self):
+        logged = []
+        original_log = RD.H.log_holdout
+        RD.H.log_holdout = lambda reason, who="", detail="": logged.append(reason)
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                write_synthetic(tmp, t0=RD.to_ms("2026-07-20"), funding_until=RD.to_ms("2026-10-01"))
+                out = os.path.join(tmp, "out")
+                with redirect_stdout(io.StringIO()):
+                    self.assertIsNone(RD.main(["--data-dir", tmp, "--out", out, "--solo-definitivo"]))
+                    res = RD.main(["--data-dir", tmp, "--out", out])
+                prov = res["provisional"]
+                self.assertIsNotNone(prov)
+                self.assertTrue(prov["funding_reconstruido_desde"].startswith("2026-10-01"))
+                eq = prov["equivalencia"]
+                self.assertEqual(eq["ventana"][0], "2026-09-01")
+                self.assertGreater(eq["funding"]["BTCUSDT"]["corr"], 0.99)
+                self.assertLess(eq["funding"]["BTCUSDT"]["error_medio_pb"], 0.1)
+                self.assertTrue(eq["equivalente"], eq)
+                self.assertGreater(res["periodo"][1], "2026-10-19")
+                with open(os.path.join(out, "resumen.md"), encoding="utf-8") as f:
+                    self.assertIn("PROVISIONAL", f.read())
+                n_logs = len(logged)
+                self.assertGreater(n_logs, 0)
+                with redirect_stdout(io.StringIO()):
+                    RD.main(["--data-dir", tmp, "--out", out])            # la equivalencia ya esta guardada
+                self.assertEqual(len(logged), n_logs)
+        finally:
+            RD.H.log_holdout = original_log
