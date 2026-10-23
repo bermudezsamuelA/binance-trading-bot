@@ -164,7 +164,9 @@ export class BinanceRestClient {
         const query = Object.entries({ ...params, recvWindow: RECV_WINDOW_MS, timestamp: Date.now() + this.timeOffsetMs })
             .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
             .join('&');
-        const url = `${this.baseUrl}${path}?${query}&signature=${this.sign(query)}`;
+        // Las rutas /sapi/ (cuenta, p. ej. bnbBurn) cuelgan de la raíz del host, no de /api
+        const base = path.startsWith('/sapi/') ? this.baseUrl.replace(/\/api$/, '') : this.baseUrl;
+        const url = `${base}${path}?${query}&signature=${this.sign(query)}`;
         const options = { headers: { 'X-MBX-APIKEY': this.apiKey }, timeout: REQUEST_TIMEOUT_MS };
         try {
             const response = method === 'post'
@@ -237,6 +239,12 @@ export class BinanceRestClient {
         const balances = new Map<string, number>();
         for (const b of account.balances ?? []) balances.set(b.asset, parseFloat(b.free) || 0);
         return balances;
+    }
+
+    /** GET /sapi/v1/bnbBurn: si la cuenta paga las comisiones de spot con BNB (solo mainnet; la testnet no tiene /sapi). */
+    public async getBnbBurnStatus(): Promise<{ spotBNBBurn: boolean }> {
+        const data = await this.signedRequest('get', '/sapi/v1/bnbBurn', {});
+        return { spotBNBBurn: data?.spotBNBBurn === true || data?.spotBNBBurn === 'true' };
     }
 
     /** Último precio del par (público, sin firma). */

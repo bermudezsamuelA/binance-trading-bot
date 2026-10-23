@@ -4,11 +4,16 @@ import numpy as np
 import sys
 import os
 
+from config import PAY_FEES_WITH_BNB
+
 # Lo mismo que hace el bot en vivo (src/api/ws-client.ts): ~15 USDT por operacion, una posicion por moneda.
 NOTIONAL_USDT = 15.0
 INITIAL_CAPITAL = 1000.0
-# Costos por lado: comision de Binance spot (0.10 %) + deslizamiento (0.02 %), como harness.py.
-FEE_PER_SIDE = 0.001
+# Costos por lado: comision de Binance spot + deslizamiento (0.02 %), como harness.py. La comision es 0.10 %, o 0.075 %
+# si se paga con BNB (config.PAY_FEES_WITH_BNB, en el .env).
+FEE_PER_SIDE_STANDARD = 0.001
+FEE_PER_SIDE_BNB = 0.00075
+FEE_PER_SIDE = FEE_PER_SIDE_BNB if PAY_FEES_WITH_BNB else FEE_PER_SIDE_STANDARD
 SLIPPAGE_PER_SIDE = 0.0002
 
 def calculate_metrics(initial_capital, capital_curve, winning_trades, losing_trades, gross_profit, gross_loss):

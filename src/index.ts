@@ -2,6 +2,7 @@ import { BinanceRestClient } from './api/rest-client';
 import { BinanceWSClient } from './api/ws-client';
 import { brain } from './api/zmq-client'; 
 import { TelegramClient, escapeHtml } from './api/telegram-client';
+import { BnbFeeMonitor } from './api/bnb-fees';
 import { config } from './config/env';
 import { parseBrainHandshake } from './brain-handshake';
 import { installProcessGuards } from './process-guards';
@@ -59,8 +60,11 @@ async function main() {
     // temporalidad de las velas (config.KLINE_INTERVAL).
     let tradeQuoteUsdt: number;
     let klineInterval: string;
+    let payFeesWithBnb: boolean;
+    let feePerSide: number | null;
     try {
-        ({ notionalUsdt: tradeQuoteUsdt, klineInterval } = parseBrainHandshake(await brain.ask('market'), config.MARKET));
+        ({ notionalUsdt: tradeQuoteUsdt, klineInterval, payFeesWithBnb, feePerSide } =
+            parseBrainHandshake(await brain.ask('market'), config.MARKET));
     } catch (error: any) {
         console.error(`❌ ${error.message}`);
         await telegram.sendMessage(`❌ <b>ERROR CRÍTICO:</b> ${escapeHtml(error.message)}`);
@@ -68,10 +72,24 @@ async function main() {
     }
     console.log(`💰 Tamaño por operación (backtest): ${tradeQuoteUsdt} USDT | Velas: ${klineInterval}`);
 
+    // Comisiones con BNB (PAY_FEES_WITH_BNB en el .env): el backtest las cobra al 0.075 %; se vigila que Binance también
+    const bnb = new BnbFeeMonitor(restClient, message => { telegram.sendMessage(message).catch(() => {}); },
+        { enabled: payFeesWithBnb, market: config.MARKET });
+    const feeText = feePerSide === null ? '?' : `${(100 * feePerSide).toFixed(3)} %`;
+    if (bnb.enabled) {
+        const bnbUsdt = await bnb.checkBalance();
+        await bnb.checkAccountSetting();
+        console.log(`🟡 Comisiones con BNB (backtest ${feeText} por lado) | BNB libre: ` +
+            `${bnbUsdt === null ? '?' : `${bnbUsdt.toFixed(2)} USDT`}`);
+    } else {
+        console.log(`💸 Comisiones sin BNB (backtest ${feeText} por lado). Con PAY_FEES_WITH_BNB=1 en el .env bajan a 0.075 %.`);
+    }
+
     console.log(`\nConnecting to live order book for all rostered coins...`);
     // El cliente WebSocket usa el mismo cliente REST (y el mismo desfase horario); start() recupera las
     // posiciones del ledger antes de conectarse a los precios.
-    const wsClient = new BinanceWSClient(roster, tradeQuoteUsdt, { rest: restClient, telegram, klineInterval });
+    const wsClient = new BinanceWSClient(roster, tradeQuoteUsdt,
+        { rest: restClient, telegram, klineInterval, ...(bnb.enabled ? { bnb } : {}) });
     await wsClient.start();
 
     // Notificación de encendido exitoso

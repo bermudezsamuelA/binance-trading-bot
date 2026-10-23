@@ -4,6 +4,7 @@ import './setup-env';
 import { afterEach, beforeEach, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { OrderNotFoundError, OrderStatusUnknownError } from '../src/api/rest-client';
+import { feeAssets } from '../src/api/bnb-fees';
 import {
     BinanceWSClient, LATE_BUY_CANCEL_REASON, LATE_ORDER_RECHECKS_MS, STALE_CHECK_MS, STALE_SOCKET_MS, positionFromLedger
 } from '../src/api/ws-client';
@@ -843,6 +844,24 @@ test('comisión de compra en BNB: no reduce la cantidad vendible y suma al PnL',
     assert.equal(h.rest.sells[0]!.qty, '184');
     const quote = 184 * 0.0825;
     close(h.brain.of('ledger_close')[0]!.payload.pnl, quote - quote * 0.001 - p.entryQuote - p.entryFeeQuote);
+});
+
+test('comisiones con BNB: cada compra y venta ejecutada pasa por el monitor de BNB', async () => {
+    const seen: { symbol: string; assets: string[] }[] = [];
+    const bnb = { afterTrade: async (symbol: string, exec: any) => { seen.push({ symbol, assets: feeAssets(exec) }); } };
+    const h = await makeClient(undefined, ({ rest }) => { rest.buyFeeAsset = 'BNB'; }, { bnb });
+    await openDoge(h);
+    assert.deepEqual(seen, [{ symbol: 'DOGEUSDT', assets: ['BNB'] }]);
+    await h.send('DOGEUSDT', T0 + CANDLE, 0.0826, false);
+    assert.equal(seen.length, 2);
+    assert.equal(seen[1]!.symbol, 'DOGEUSDT');
+});
+
+test('monitor de BNB que falla no frena la operación', async () => {
+    const bnb = { afterTrade: async () => { throw new Error('sin red'); } };
+    const h = await makeClient(undefined, undefined, { bnb });
+    await openDoge(h);
+    assert.ok(h.client.getPosition('DOGEUSDT'));
 });
 
 test('conexión muerta sin close: sin mensajes ni pings durante 2 min se corta y se reconecta', async () => {

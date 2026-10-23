@@ -127,6 +127,11 @@ class StrategyEngine:
             print(f"[ENGINE] ⚠️ ml_results.json es de velas de {candle} y el bot usa {KLINE_INTERVAL} (config.py): no se "
                   f"carga ninguna estrategia. Ejecuta: python machine_learning_strategies/ml_evaluator.py")
             return
+        fee = protocol.get("comision_por_lado", 0.001)   # los ml_results.json anteriores a este campo usaban 0.10 %
+        if abs(fee - FEE_PER_SIDE) > 1e-12:
+            print(f"[ENGINE] ⚠️ ml_results.json se calculo con una comision de {100 * fee:.3f} % por lado y el bot usa "
+                  f"{100 * FEE_PER_SIDE:.3f} % (PAY_FEES_WITH_BNB). Las estrategias se cargan igual, pero para que la "
+                  f"seleccion refleje ese costo: python machine_learning_strategies/ml_evaluator.py")
         criteria = protocol.get("criterios", {})
         print(f"[ENGINE] Seleccion walk-forward del {protocol.get('generado')}: OOS {protocol.get('desarrollo', {}).get('primer_mes_prueba')}"
               f" a {protocol.get('desarrollo', {}).get('ultimo_mes_prueba')}, validacion final "

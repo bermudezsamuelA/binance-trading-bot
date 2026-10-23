@@ -15,6 +15,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
+import config
 import ledger
 import optimize
 import server
@@ -30,9 +31,16 @@ class HandshakeTest(unittest.TestCase):
     def test_market_devuelve_mercado_y_nocional_del_backtest(self):
         response = server.handle_request({"type": "market"})
         self.assertEqual(response, {"market": BINANCE_MARKET, "notional_usdt": float(optimize.NOTIONAL_USDT),
-                                    "kline_interval": KLINE_INTERVAL})
+                                    "kline_interval": KLINE_INTERVAL, "pay_fees_with_bnb": config.PAY_FEES_WITH_BNB,
+                                    "fee_per_side": optimize.FEE_PER_SIDE})
         json.dumps(response, allow_nan=False)
         self.assertGreater(response["notional_usdt"], 0)
+
+    def test_comision_del_backtest_sigue_a_bnb(self):
+        # 0.075 % por lado con BNB (descuento del 25 %) y 0.10 % sin el: el backtest cobra lo mismo que Binance
+        expected = optimize.FEE_PER_SIDE_BNB if config.PAY_FEES_WITH_BNB else optimize.FEE_PER_SIDE_STANDARD
+        self.assertEqual(optimize.FEE_PER_SIDE, expected)
+        self.assertAlmostEqual(optimize.FEE_PER_SIDE_BNB, 0.75 * optimize.FEE_PER_SIDE_STANDARD)
 
 
 class LedgerRequestsTest(unittest.TestCase):

@@ -9,12 +9,12 @@ import requests
 
 import ledger
 # Tamano por operacion del backtest: unica fuente. Node lo recibe en el handshake 'market' y lo usa.
-from optimize import NOTIONAL_USDT
+from optimize import FEE_PER_SIDE, NOTIONAL_USDT
 from strategy_engine import StrategyEngine
 from meta_filter import BUFFER_CANDLES as META_BUFFER_CANDLES
 from download_data import sync_historical_data
 from config import (ACTIVE_ROSTER, BINANCE_MARKET, KLINE_INTERVAL, KLINE_INTERVAL_MS, MARKET_DATA_REST_URL,
-                    PRESEED_MARGIN, PRESEED_MIN)
+                    PAY_FEES_WITH_BNB, PRESEED_MARGIN, PRESEED_MIN)
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -154,7 +154,9 @@ def handle_request(message: dict):
     elif req_type == "market":
         # Node compara el mercado con el suyo antes de conectarse al WebSocket, compra notional_usdt por operacion
         # (el mismo NOTIONAL_USDT que simula el backtest en optimize.py) y se suscribe a las velas de kline_interval
-        return {"market": BINANCE_MARKET, "notional_usdt": float(NOTIONAL_USDT), "kline_interval": KLINE_INTERVAL}
+        # y, si las comisiones se pagan con BNB (config.PAY_FEES_WITH_BNB, la comision del backtest), vigila ese saldo
+        return {"market": BINANCE_MARKET, "notional_usdt": float(NOTIONAL_USDT), "kline_interval": KLINE_INTERVAL,
+                "pay_fees_with_bnb": bool(PAY_FEES_WITH_BNB), "fee_per_side": float(FEE_PER_SIDE)}
 
     elif req_type == "sync_positions":
         # Vacios como null (pandas devolvia NaN, que no es JSON valido para Node)

@@ -37,6 +37,12 @@ if BINANCE_MARKET not in _MARKET_REST_URLS:
     raise ValueError(f'BINANCE_MARKET="{BINANCE_MARKET}" no es valido. Usa "testnet" o "mainnet" en el archivo .env')
 MARKET_DATA_REST_URL = _MARKET_REST_URLS[BINANCE_MARKET]
 
+# Comisiones pagadas con BNB (descuento del 25 %: 0.075 % por lado en vez de 0.10 %). Lo decide PAY_FEES_WITH_BNB en el
+# .env (1 por defecto; 0 lo apaga). Es la unica fuente: el backtest y la seleccion (optimize.FEE_PER_SIDE) usan esa
+# comision, y Node la recibe en el handshake 'market' para vigilar el saldo de BNB y avisar si Binance cobra en otra moneda.
+# Hay que tener BNB en la cuenta spot y activar "Usar BNB para pagar comisiones" en Binance; si no, el backtest es optimista.
+PAY_FEES_WITH_BNB = os.environ.get("PAY_FEES_WITH_BNB", "1").strip().lower() in ("1", "true", "yes", "si")
+
 # Precarga: max(ventana de las estrategias cargadas) + margen, con un minimo.
 PRESEED_MARGIN = 20
 PRESEED_MIN = 100

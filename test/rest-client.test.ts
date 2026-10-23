@@ -366,3 +366,14 @@ test('estado desconocido: PARTIALLY_FILLED en la última consulta se toma con lo
     assert.equal(exec.executedQty, 50);
     assert.equal(exec.status, 'PARTIALLY_FILLED');
 });
+
+test('bnbBurn: firmada en /sapi/v1/bnbBurn (raíz del host, no /api)', async () => {
+    const { http, rest } = makeRest((_m, path) => {
+        assert.equal(path, '/sapi/v1/bnbBurn');
+        return { spotBNBBurn: true, interestBNBBurn: false };
+    });
+    assert.deepEqual(await rest.getBnbBurnStatus(), { spotBNBBurn: true });
+    const call = http.of('/sapi/v1/bnbBurn')[0]!;
+    assert.ok(signatureOk(call));
+    assert.equal(call.headers['X-MBX-APIKEY'], process.env.BINANCE_API_KEY);
+});

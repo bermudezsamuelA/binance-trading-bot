@@ -63,12 +63,18 @@ Variables de Entorno
     # ALLOW_UNVALIDATED_STRATEGIES=1
     # Opcional, solo en la testnet: abre aunque el interruptor de momentum esté apagado (para juntar datos)
     # TESTNET_IGNORE_MOMENTUM=1
+    # Opcional: 0 si NO pagas las comisiones con BNB (por defecto 1: 0.075 % por lado en vez de 0.10 %)
+    # PAY_FEES_WITH_BNB=0
 
     BINANCE_MARKET elige el mercado de todo el bot: "testnet" (por defecto) o "mainnet". Con esa sola
     variable Node.js arma las URL del REST y del WebSocket, y Python precarga las velas del mismo mercado.
     BINANCE_REST_URL y BINANCE_WS_URL ya no se usan (si siguen en el .env, Node.js avisa y las ignora).
     ALLOW_UNVALIDATED_STRATEGIES=1 y TESTNET_IGNORE_MOMENTUM=1 solo tienen efecto con BINANCE_MARKET="testnet"
     (ver "Selección de estrategias"); en mainnet se ignoran.
+    PAY_FEES_WITH_BNB (1 por defecto) hace que el backtest y la selección de estrategias cobren 0.075 % por lado,
+    como Binance cuando la comisión se paga con BNB. Para que sea cierto hace falta BNB en la cuenta spot y la opción
+    "Usar BNB para pagar comisiones" activa; Node.js avisa por Telegram si el BNB baja de 2 USDT, si una orden se
+    cobró en otra moneda o (en mainnet) si la opción está apagada. Al cambiarlo, vuelve a correr ml_evaluator.py.
     BRAIN_ZMQ_BIND (Python) y BRAIN_ZMQ_URL (Node.js) son opcionales: dirección del canal ZMQ entre ambos motores
     (por defecto tcp://127.0.0.1:5555). Solo hacen falta si Node.js corre en Docker (ver más abajo).
 

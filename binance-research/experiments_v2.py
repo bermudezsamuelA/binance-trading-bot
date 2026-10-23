@@ -473,7 +473,8 @@ def main():
         "meta": {"min_entrenamiento": META_MIN_TRAIN, "lightgbm": META_PARAMS, "variables": FEATURES,
                  "regla": "toma si p > (1 + c_R) / (1 + b)", "replicas_azar": RANDOM_REPLICAS},
         "prueba": f"pareada contra BASE, t de una cola sobre la diferencia diaria; alfa = 0.05 / {N_ARMS} = {ALPHA}",
-        "costos": "0.12 % por lado (0.10 % comision + 0.02 % deslizamiento); LIMIT: 0.10 % en la pata del TP",
+        "costos": f"{100 * COST:.3f} % por lado ({100 * FEE_PER_SIDE:.3f} % comision + {100 * SLIPPAGE_PER_SIDE:.2f} % "
+                  f"deslizamiento); LIMIT: {100 * FEE_PER_SIDE:.3f} % en la pata del TP",
         "base_reproduce_ml_results": not diffs, "diferencias_base": diffs},
         "diagnostico_meta": diagnostics}
     for arm in ARMS:

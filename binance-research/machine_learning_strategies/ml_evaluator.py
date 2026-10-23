@@ -10,7 +10,9 @@ import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from config import ACTIVE_ROSTER, COSIGNAL_CANDLES, ENTRY_MIN_RISK_PCT, KLINE_INTERVAL, MOMENTUM_MONTHS
+from config import (ACTIVE_ROSTER, COSIGNAL_CANDLES, ENTRY_MIN_RISK_PCT, KLINE_INTERVAL, MOMENTUM_MONTHS,
+                    PAY_FEES_WITH_BNB)
+from optimize import FEE_PER_SIDE, NOTIONAL_USDT, SLIPPAGE_PER_SIDE
 from fast_backtest import INTERVAL_MS, STRATEGY_CLASSES, check_parity, check_stats_bitwise, load_history, set_interval
 import walk_forward as wf
 
@@ -162,7 +164,10 @@ def run_ml_evaluation(roster: list, interval: str = KLINE_INTERVAL):
                     "detalle": "strategy_filters.py; los aplica igual strategy_engine.py en vivo. ops/pnl de cada pliegue "
                                "= lo operado con el interruptor de momentum; ops_sombra/pnl_sombra = lo que habria dado "
                                "sin el; encendido = si ese mes se opero"},
-        "costos": "0.12 % por lado (0.10 % comision + 0.02 % deslizamiento), 15 USDT por operacion",
+        "costos": f"{100 * (FEE_PER_SIDE + SLIPPAGE_PER_SIDE):.3f} % por lado ({100 * FEE_PER_SIDE:.3f} % comision"
+                  f"{' con BNB' if PAY_FEES_WITH_BNB else ''} + {100 * SLIPPAGE_PER_SIDE:.2f} % deslizamiento), "
+                  f"{NOTIONAL_USDT:g} USDT por operacion",
+        "comision_por_lado": FEE_PER_SIDE,
         "pliegues_columnas": FOLD_COLUMNS,
     }}
 

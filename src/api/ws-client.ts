@@ -128,6 +128,8 @@ export interface WSClientDeps {
     createSocket: (url: string) => SocketLike;
     sleep: (ms: number) => Promise<void>;
     klineInterval: string;   // velas del WebSocket; index.ts pasa la del handshake con Python ('15m' solo en pruebas)
+    // Vigila que las comisiones se cobren en BNB (bnb-fees.ts); sin él no se revisa nada
+    bnb?: { afterTrade(symbol: string, exec: Execution): Promise<void> };
 }
 
 /** Posición a partir de una fila OPEN del ledger (las filas antiguas no tienen datos de ejecución). */
@@ -158,6 +160,7 @@ export class BinanceWSClient {
     private rest: RestApi;
     private brain: WSClientDeps['brain'];
     private telegram: WSClientDeps['telegram'];
+    private bnb: WSClientDeps['bnb'];
     private createSocket: WSClientDeps['createSocket'];
     private sleep: WSClientDeps['sleep'];
 
@@ -201,6 +204,7 @@ export class BinanceWSClient {
         this.brain = deps.brain ?? brain;
         this.telegram = deps.telegram ?? new TelegramClient();
         this.createSocket = deps.createSocket ?? ((url: string) => new WebSocket(url));
+        this.bnb = deps.bnb;
         this.sleep = deps.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
         // Velas de la temporalidad que evalua la estrategia: la da Python en el handshake (config.KLINE_INTERVAL)
         const streams = roster.map(symbol => `${symbol.toLowerCase()}@kline_${deps.klineInterval ?? '15m'}`).join('/');
@@ -522,6 +526,7 @@ export class BinanceWSClient {
         const signalText = intent.signalPrice !== null ? px(intent.signalPrice) : '?';
         console.log(`[ENTRY FILLED] ${symbol}: ${exec.executedQty} @ ${px(exec.avgPrice)} (señal ${signalText}), ` +
             `${exec.quoteQty.toFixed(4)} USDT, comisión ${exec.fees.detail || '0'}${adopted ? ' (confirmada tras consultar la orden)' : ''}`);
+        this.checkBnbFees(symbol, exec);
         this.notify(
             `🚀 <b>NUEVA COMPRA: ${symbol}</b>\n` +
             `🔹 <b>Precio:</b> $${px(exec.avgPrice)} (señal $${signalText})\n` +
@@ -777,6 +782,7 @@ export class BinanceWSClient {
             reason: reason + note
         });
 
+        this.checkBnbFees(symbol, exec);
         const fees = position.entryFeeQuote + exec.fees.totalQuote;
         this.notify(
             `<b>${escapeHtml(reason)}</b>\n` +
@@ -949,6 +955,12 @@ export class BinanceWSClient {
     }
 
     // Telegram no debe retrasar las órdenes ni dejar promesas rechazadas sin capturar
+    /** Revisa en segundo plano que la comisión saliera en BNB y el saldo de BNB (nunca frena ni tumba la operación). */
+    private checkBnbFees(symbol: string, exec: Execution) {
+        if (!this.bnb) return;
+        this.bnb.afterTrade(symbol, exec).catch(error => console.warn(`[BNB] ${symbol}: ${error?.message ?? error}`));
+    }
+
     private notify(message: string) {
         try {
             Promise.resolve(this.telegram.sendMessage(message)).catch((error: any) =>
