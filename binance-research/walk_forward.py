@@ -296,6 +296,9 @@ def evaluate_pair(task):
               "validacion_final": summarize_oos(hold_rows, hold_exit, hold_pnl, open_time, periods["holdout_start"],
                                                 periods["end"]) if hold_rows else None,
               "pliegues": dev_rows, "pliegues_validacion": hold_rows,
+              # Operaciones cerradas (vela de salida y PnL), para combinar varias monedas por dia (replication.py)
+              "operaciones": {"oos": {"salida_ms": open_time[dev_exit].tolist(), "pnl": dev_pnl.tolist()},
+                              "validacion": {"salida_ms": open_time[hold_exit].tolist(), "pnl": hold_pnl.tolist()}},
               "vivo": None, "vivo_motivo": live.get("motivo"),
               "segundos": round(time.perf_counter() - t0, 1), "segundos_simulacion": round(t_sim, 1)}
     if live["combo"] is not None:
