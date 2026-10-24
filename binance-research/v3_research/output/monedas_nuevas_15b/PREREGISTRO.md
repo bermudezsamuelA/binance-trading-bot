@@ -6,3 +6,5 @@ Escrito el 2026-10-24, **antes de descargar sus datos**.
 - **Monedas (fijas):** BAT, COMP, DASH, ENJ, FLOW, GRT, IOTA, MINA, NEO, ONE, SNX, STX, THETA, VET y ZEC. Las que no tengan datos spot o de futuros completos desde 2023-03 se descartan antes de mirar resultados.
 - **Universo de la compuerta A18:** estas monedas más las 4 anclas (A18 cuenta las otras monedas de ese conjunto).
 - **Modelo, salida y costos:** los congelados; sin cambiar nada.
+
+**Nota (2026-10-24, antes de ver resultados):** MINA (39 días de *metrics* sin archivo) y STX (55) no tienen los datos completos y se descartan según la regla anterior. Quedan 13 monedas más las 4 anclas.

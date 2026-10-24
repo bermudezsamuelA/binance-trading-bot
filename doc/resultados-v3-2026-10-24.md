@@ -46,3 +46,31 @@ Coincide casi perfecto con Binance en *open interest*, ratio long/short global, 
 1. Acumular operaciones prospectivas (tarea semanal: `scripts/programar_tareas_v3.ps1`).
 2. Que la equivalencia de Coinalyze dé "equivalente" con al menos 5 señales.
 3. Solo entonces: órdenes de la v3 en la testnet (cierre a las 384 velas, tamaño por riesgo y topes de la sección 7.2 de la estrategia v3).
+
+
+## Actualización (2026-10-24, tarde): reglas de cartera y el umbral del modelo
+
+Se probaron en monedas nuevas, eligiendo con el periodo de diseño (2023-03 a 2025-06) y validando en 2025-07 a 2026-09 y en 2022. Todo con las operaciones reales simuladas (una posición por moneda), 15 USDT por operación y 0.24 %. Scripts: `shadow/explore_rules.py` y `shadow/analyze_rules.py`.
+
+**Descartado**
+- **Tope de posiciones abiertas (3, 5, 8, 12):** reduce el PnL más que la caída (PnL/caída empeora en el periodo nuevo). Sirve para limitar el capital, no para mejorar.
+- **Interruptor mensual por PnL de los meses anteriores:** inestable; con 1 mes pierde −69 USDT en el periodo nuevo.
+- **Más co-señal (A18 ≥ 5 u 8):** mejora un poco en los tres periodos, pero poco; no se adopta.
+- **Tamaño según la confianza (0.5x/1x/2x):** esa prueba se hizo filtrando operaciones ya simuladas y sobreestima el efecto; no es fiable sin volver a simular.
+
+**Lo que sí se sostiene: subir el umbral del modelo de 0.7143 a 0.745.** La E por operación sube de forma monótona con p, en los tres periodos, y la caída máxima cae a la mitad:
+
+| S1 (A18 ≥ 3), 19 monedas nuevas | θ = 0.7143 | **θ = 0.745** |
+|---|---|---|
+| Diseño 2023-03..2025-06: E / PnL / caída | +0.97 % / +408 / 63 | +1.67 % / +296 / 30 |
+| **Nuevo 2025-07..2026-09: E / PnL / caída / meses +** | +0.45 % / +95 / 93 / 8 de 15 | **+1.10 % / +100 / 41 / 11 de 15** |
+| Estrés 2022: E / PnL / caída | −0.27 % / −46 / 102 | −0.10 % / −9 / 77 |
+
+**Confirmación pre-registrada en 13 monedas distintas** (`output/monedas_nuevas_15b/PREREGISTRO.md`, escrita antes de descargar los datos): E +0.86 % → **+1.57 %**, caída 78 → 35 USDT, E > 0. La hipótesis se cumplió.
+
+**Lo que no resuelve**
+- El resultado depende de pocos días de pánico: sin los 10 mejores días, el periodo nuevo queda en −34 USDT (S1H) y en −58 (S1). La mediana mensual de S1H es de solo +2 USDT.
+- En 2022 sigue sin ganar (−9 USDT); con θ = 0.76 daría +13, pero ese corte no se eligió con datos de 2022 y no se adopta.
+- Con 15 USDT por operación: ≈ +3 a +7 USDT al mes, con hasta 13-19 posiciones abiertas.
+
+**Registro:** S1H (S1 con p ≥ 0.745) queda como brazo exploratorio en `run_daily.py` y en `v3_live.py`, fijado desde hoy para la prueba prospectiva.
