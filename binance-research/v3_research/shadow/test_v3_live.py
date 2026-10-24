@@ -60,6 +60,7 @@ class LiveTest(unittest.TestCase):
             arms = {(r["symbol"], r["brazo"]) for r in res["senales"]}
             self.assertEqual({s for s, a in arms if a == "S1"}, set(syms))          # 5 otras con senal: A18 = 5 >= 3
             self.assertEqual({s for s, a in arms if a == "P1"}, set(RD.ANCHORS))
+            self.assertEqual({s for s, a in arms if a == "S1H"}, set(syms))                # p = 0.99 >= 0.745
             r0 = res["senales"][0]
             self.assertLess(r0["sl"], r0["precio"])
             self.assertLess(r0["precio"], r0["tp"])

@@ -16,6 +16,9 @@ COMPLETOS y simula los brazos del pre-registro con el arnes del laboratorio (har
   R (exploratorio, hipotesis 4.4 "BTC > SMA30" grabada en el documento): P1+R y S1+R solo compran si el cierre de BTC
       esta por encima de su media de 30 dias (2880 velas de 15 min). Fijada el 2026-10-24 antes de mirarla en 2022
       (estres) y en 2025-07..2026-09; una sola regla, sin variantes.
+  S1H (exploratorio): S1 pero solo con p >= 0.745 (el umbral original es 0.7143). Se encontro el 2026-10-24 al ver que la E
+      sube de forma monotona con p en tres periodos distintos (diseno 2023-25 y 2025-26 en 19 monedas nuevas, y 2022); su
+      umbral se fijo con el diseno y desde esta fecha queda registrado, sin cambios, para la prueba prospectiva.
 S2 (ENS12U, aun sin congelar) y S4 (opcional) no estan aqui.
 
 Los datos llegan con retraso (data.binance.vision publica al dia siguiente y el funding solo por mes), asi que cada
@@ -50,6 +53,7 @@ OTHERS = ["ADAUSDT", "ATOMUSDT", "AVAXUSDT", "BCHUSDT", "BNBUSDT", "DOTUSDT", "E
           "LTCUSDT", "NEARUSDT", "TRXUSDT", "UNIUSDT", "XRPUSDT"]
 UNIVERSE = list(ANCHORS) + OTHERS          # universo de 18 del pre-registro (seccion 8.2)
 S1_MIN = 3
+P_HIGH = 0.745                # brazo S1H (exploratorio, registrado el 2026-10-24): S1 con p >= 0.745 en vez de theta = 0.7143
 REGIME_CANDLES = 30 * 96      # media de 30 dias del cierre de BTC (hipotesis 4.4)
 DAY_MS = 86_400_000
 OUT_DIR = os.path.join(RESEARCH, "output", "prospectivo")
@@ -389,6 +393,7 @@ def evaluate(data_dir: str, start: str, end_ms: int, reason: str = None, dvol_fi
     if len(symbols) > len(anchors):
         arms["S1"] = (lambda d: d["sig"] & (d["A18"] >= S1_MIN), list(symbols))
         arms["C0T"] = (lambda d: d["sig"], list(symbols))        # v2 sin compuerta en todas las monedas
+        arms["S1H"] = (lambda d: d["sig"] & (d["p"] >= P_HIGH) & (d["A18"] >= S1_MIN), list(symbols))
     if "BTCUSDT" in D:
         arms["P1+R"] = (lambda d: d["sig"] & (d["A"] >= 1) & d["btc_up"], anchors)
         if "S1" in arms:
@@ -509,7 +514,7 @@ def write_outputs(ev: dict, sim: dict, crit: dict, veto: dict, end_ms: int, limi
     D = ev["D"]
     with open(os.path.join(out_dir, "senales.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f, lineterminator="\n")
-        w.writerow(["open_time_utc", "symbol", "p", "A4", "A18", "z30_dvol_btc", "P1", "C0", "S3", "S1"])
+        w.writerow(["open_time_utc", "symbol", "p", "A4", "A18", "z30_dvol_btc", "P1", "C0", "S3", "S1", "S1H"])
         for sym in D:
             d, anchor = D[sym], sym in ANCHORS
             for i in np.flatnonzero(d["sig"][d["i0"]:d["i1"]]) + d["i0"]:
@@ -517,8 +522,9 @@ def write_outputs(ev: dict, sim: dict, crit: dict, veto: dict, end_ms: int, limi
                 w.writerow([iso(d["S"]["t"][i]), sym, round(float(d["p"][i]), 5), int(d["A"][i]), int(d["A18"][i]),
                             "" if np.isnan(z) else round(float(z), 3), int(anchor and d["A"][i] >= 1), int(anchor),
                             int(anchor and d["A"][i] >= 1 and not d["veto"][i]),
-                            int("S1" in ev["arms"] and d["A18"][i] >= S1_MIN)])
-    for arm in [a for a in ("P1", "C0", "S3", "S1", "C0T") if a in ev["arms"]]:
+                            int("S1" in ev["arms"] and d["A18"][i] >= S1_MIN),
+                            int("S1" in ev["arms"] and d["A18"][i] >= S1_MIN and d["p"][i] >= P_HIGH)])
+    for arm in [a for a in ("P1", "C0", "S3", "S1", "S1H", "C0T") if a in ev["arms"]]:
         with open(os.path.join(out_dir, f"operaciones_{arm}.csv"), "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f, lineterminator="\n")
             w.writerow(["symbol", "entrada_utc", "salida_utc", "precio_entrada", "precio_salida", "tp", "sl", "motivo",
@@ -534,7 +540,7 @@ def write_outputs(ev: dict, sim: dict, crit: dict, veto: dict, end_ms: int, limi
     for (arm, cost), trs in sim["trades"].items():
         if arm != "C0_A0":
             arms[f"{arm} c={cost}"] = arm_stats(trs, sim["base"][cost], arm)
-    per_coin = {arm: coin_table(sim["trades"][(arm, MAIN_COST)]) for arm in ("P1", "S1", "S1+R") if (arm, MAIN_COST) in sim["trades"]}
+    per_coin = {arm: coin_table(sim["trades"][(arm, MAIN_COST)]) for arm in ("P1", "S1", "S1H", "S1+R") if (arm, MAIN_COST) in sim["trades"]}
     res = {"generado": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
            "periodo": [start, iso(end_ms)], "umbral": ev["thr"], "spec": ev["spec"]["nombre"],
            "sha256": {"spec_nn_v2.json": sha(V3.SPEC), "run_daily.py": sha(os.path.abspath(__file__))},

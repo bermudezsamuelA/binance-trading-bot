@@ -96,6 +96,8 @@ def signals_for(ev: dict, open_time: int) -> list:
             arms.append("P1")
         if d["A18"][i] >= RD.S1_MIN:
             arms.append("S1")
+            if d["p"][i] >= RD.P_HIGH:
+                arms.append("S1H")
         for arm in arms:
             out.append({"open_time_utc": RD.iso(open_time), "symbol": sym, "brazo": arm, "p": round(float(d["p"][i]), 4),
                         "A4": int(d["A"][i]), "A18": int(d["A18"][i]), "precio": c, "tp": round(c * (1 + a * sd), 8),

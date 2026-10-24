@@ -20,3 +20,5 @@ utc,script,who,reason,detail
 2026-10-24 08:15:43,run_daily.py,v3_shadow,equivalencia del funding provisional (infraestructura; no decide nada),BTCUSDT 2026-09-01 00:00..2026-10-01 00:00
 2026-10-24 09:06:20,run_daily.py,v3_shadow,Descriptivo_regimen_BTC_SMA30_hipotesis_4.4_en_18_monedas_(ya_gastado);_no_decide_nada,BTCUSDT 2025-07-01 00:00..2026-10-01 00:00
 2026-10-24 09:25:07,run_daily.py,v3_shadow,Prueba en 20 monedas nuevas pre-registrada (output/monedas_nuevas_20/PREREGISTRO.md); las anclas solo dan la compuerta,BTCUSDT 2025-06-01 00:00..2026-10-01 00:00
+2026-10-24 12:20:42,explore_rules.py,v3_shadow,Exploracion de reglas de cartera sobre monedas nuevas (pre-registro monedas_nuevas_20); no cambia el modelo,BTCUSDT 2025-06-01 00:00..2026-10-01 00:00
+2026-10-24 12:29:55,explore_rules.py,v3_shadow,Exploracion de reglas de cartera sobre monedas nuevas (pre-registro monedas_nuevas_20); no cambia el modelo,BTCUSDT 2025-06-01 00:00..2026-10-01 00:00

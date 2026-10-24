@@ -306,6 +306,7 @@ class UniverseTest(unittest.TestCase):
                     res = RD.main(["--data-dir", tmp, "--out", out])
                 self.assertEqual(res["monedas"], RD.UNIVERSE)
                 self.assertIn("S1 c=0.24 %", res["brazos"])
+                self.assertIn("S1H c=0.24 %", res["brazos"])
                 rows = res["por_moneda"]["S1"]
                 self.assertEqual(rows[-1]["symbol"], "COMBINADO")
                 self.assertEqual(rows[-1]["n"], sum(r["n"] for r in rows[:-1]))
