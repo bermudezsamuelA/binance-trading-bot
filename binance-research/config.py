@@ -58,3 +58,8 @@ MOMENTUM_MONTHS = 12         # una moneda solo opera su estrategia si el PnL en 
 # Meta-etiquetado EN SOMBRA (meta_filter.py): un LightGBM juzga cada BUY y anota en orders/meta_signals.csv si lo habria
 # tomado. No bloquea nada; False lo apaga. El modelo se entrena con: python meta_filter.py --train
 META_SHADOW = True
+
+# Modo V3_TESTNET (solo testnet; con mainnet se ignora): el bot opera en la testnet las senales S1H de la v3
+# (v3_research/shadow/v3_trader.py) con TP/SL en porcentaje y la barrera de 384 velas, y deja de usar las estrategias
+# de Bollinger. Sirve para medir ejecucion real (fills, comisiones, deslizamiento), no la calidad de la senal.
+V3_TESTNET = BINANCE_MARKET == "testnet" and os.environ.get("V3_TESTNET", "").strip().lower() in ("1", "true", "yes", "si")

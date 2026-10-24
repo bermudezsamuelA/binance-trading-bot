@@ -132,7 +132,19 @@ export interface WSClientDeps {
     bnb?: { afterTrade(symbol: string, exec: Execution): Promise<void> };
     // USDT ocioso en Simple Earn (earn.ts): rescata antes de comprar y vuelve a suscribir tras vender
     earn?: { ensureFunds(quote: number): Promise<boolean>; sweep(): Promise<number> };
+    // Señales de la v3 (modo V3_TESTNET, solo testnet): Python las calcula y Node las consulta cada pollMs
+    v3?: { pollMs: number };
 }
+
+/** Señal de la v3 que entrega Python: niveles en fracción del precio de entrada (se aplican al precio de la testnet). */
+export interface V3Signal {
+    symbol: string;
+    open_time: number;
+    tp_pct: number;
+    sl_pct: number;
+    brazo?: string;
+}
+export const V3_TIME_STOP_REASON = 'BARRERA DE TIEMPO ⏱️';
 
 /** Posición a partir de una fila OPEN del ledger (las filas antiguas no tienen datos de ejecución). */
 export function positionFromLedger(trade: any): Position {
@@ -164,6 +176,9 @@ export class BinanceWSClient {
     private telegram: WSClientDeps['telegram'];
     private bnb: WSClientDeps['bnb'];
     private earn: WSClientDeps['earn'];
+    private v3: WSClientDeps['v3'];
+    private v3Timer: ReturnType<typeof setInterval> | null = null;
+    private v3Busy = false;
     private createSocket: WSClientDeps['createSocket'];
     private sleep: WSClientDeps['sleep'];
 
@@ -209,6 +224,7 @@ export class BinanceWSClient {
         this.createSocket = deps.createSocket ?? ((url: string) => new WebSocket(url));
         this.bnb = deps.bnb;
         this.earn = deps.earn;
+        this.v3 = deps.v3;
         this.sleep = deps.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
         // Velas de la temporalidad que evalua la estrategia: la da Python en el handshake (config.KLINE_INTERVAL)
         const streams = roster.map(symbol => `${symbol.toLowerCase()}@kline_${deps.klineInterval ?? '15m'}`).join('/');
@@ -224,6 +240,63 @@ export class BinanceWSClient {
             this.watchdog = setInterval(() => this.checkSocketAlive(), STALE_CHECK_MS);
             (this.watchdog as any).unref?.();   // no mantiene vivo el proceso por sí solo
         }
+        if (this.v3 && !this.v3Timer) {
+            this.v3Timer = setInterval(() => { this.v3Poll().catch(() => {}); }, this.v3.pollMs);
+            (this.v3Timer as any).unref?.();
+        }
+    }
+
+    /**
+     * Modo V3_TESTNET: pregunta a Python por las señales nuevas de la v3 y por las posiciones que cumplieron la barrera
+     * de tiempo (384 velas de 15 min). Las compras usan el precio actual de la testnet con los TP/SL de la señal en
+     * porcentaje (la testnet no tiene los precios de mainnet con los que Python calculó la señal). Nunca lanza.
+     */
+    public async v3Poll() {
+        if (this.v3Busy) return;
+        this.v3Busy = true;
+        try {
+            let reply: any;
+            try {
+                reply = await this.brain.ask('v3_poll', {});
+            } catch (error: any) {
+                console.error('[V3] No se pudo consultar a Python:', error?.message ?? error);
+                return;
+            }
+            for (const symbol of reply?.exits ?? []) await this.v3TimeStop(String(symbol));
+            for (const sig of reply?.signals ?? []) await this.v3Open(sig as V3Signal);
+        } finally {
+            this.v3Busy = false;
+        }
+    }
+
+    private async v3Open(sig: V3Signal) {
+        const symbol = String(sig?.symbol ?? '').toUpperCase();
+        if (!symbol || !Number.isFinite(sig.tp_pct) || !Number.isFinite(sig.sl_pct) || !(sig.tp_pct > 0) || !(sig.sl_pct > 0)
+            || !(sig.sl_pct < 1) || !Number.isFinite(sig.open_time)) {
+            console.error('[V3] Señal no válida, se ignora:', sig);
+            return;
+        }
+        if (!this.canOpenPosition(symbol, sig.open_time)) return;
+        let price: number;
+        try {
+            price = await this.rest.getPrice(symbol);
+        } catch (error: any) {
+            console.error(`[V3] ${symbol}: no se pudo leer el precio de la testnet:`, error?.message ?? error);
+            return;
+        }
+        console.log(`[V3] ${symbol}: señal ${sig.brazo ?? 'S1H'} de la vela ${sig.open_time}; TP +${(100 * sig.tp_pct).toFixed(2)} %, SL -${(100 * sig.sl_pct).toFixed(2)} %.`);
+        await this.openPosition(symbol, { action: 'BUY', entry_price: price, take_profit: price * (1 + sig.tp_pct),
+            stop_loss: price * (1 - sig.sl_pct) });
+    }
+
+    private async v3TimeStop(symbol: string) {
+        const position = this.activePositions.get(symbol);
+        if (!position || position.exitReason !== undefined || this.closing.has(symbol)) return;
+        const price = await this.currentPrice(symbol, position.entryPrice);
+        position.exitReason = V3_TIME_STOP_REASON;
+        position.exitTrigger = price;
+        console.log(`\n[V3] ${symbol}: cumplió la barrera de tiempo; se vende a mercado (precio ${price}).`);
+        await this.manageExistingPosition(symbol, price, Math.floor(Date.now() / 900_000) * 900_000);
     }
 
     /** Si el WebSocket lleva STALE_SOCKET_MS sin mensajes ni pings, se corta: el evento 'close' reconecta. */
@@ -1229,6 +1302,8 @@ export class BinanceWSClient {
         this.stopped = true;
         if (this.watchdog) clearInterval(this.watchdog);
         this.watchdog = null;
+        if (this.v3Timer) clearInterval(this.v3Timer);
+        this.v3Timer = null;
         try {
             this.ws?.close();
         } catch (error: any) {

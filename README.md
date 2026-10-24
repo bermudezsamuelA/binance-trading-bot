@@ -67,6 +67,8 @@ Variables de Entorno
     # PAY_FEES_WITH_BNB=0
     # Opcional, solo mainnet: pone el USDT que no se usa en Simple Earn flexible y lo rescata antes de comprar
     # EARN_IDLE_USDT=1
+    # Opcional, solo testnet: el bot opera las senales S1H de la v3 (en vez de las estrategias de Bollinger)
+    # V3_TESTNET=1
     # Opcional: clave gratuita de coinalyze.net para la v3 (binance-research/v3_research/shadow/coinalyze.py)
     # COINALYZE_API_KEY="tu_clave_de_coinalyze"
 
@@ -83,6 +85,10 @@ Variables de Entorno
     que pasa de una reserva de 2 compras (2 × tamaño por operación + 2 %), al arrancar, tras cada venta y cada hora, y
     antes de cada compra rescata lo que falte. Es un interés que no depende de ninguna señal (la tasa la fija Binance y
     cambia); el riesgo es el de Binance como contraparte. Está apagado por defecto porque mueve saldo de la cuenta.
+    V3_TESTNET=1 (solo testnet) hace que Python calcule cada 15 minutos las señales S1H de la v3 (historia de
+    data.binance.vision, velas de hoy de la API de mainnet y futuros de Coinalyze; necesita COINALYZE_API_KEY y la VPN
+    apagada) y que Node las opere en la testnet con el precio de la testnet, TP y SL en porcentaje (+0.7 y -1.75 de la
+    volatilidad diaria) y venta a mercado a las 385 velas. Solo mide ejecución real: fills, comisiones y deslizamiento.
     BRAIN_ZMQ_BIND (Python) y BRAIN_ZMQ_URL (Node.js) son opcionales: dirección del canal ZMQ entre ambos motores
     (por defecto tcp://127.0.0.1:5555). Solo hacen falta si Node.js corre en Docker (ver más abajo).
 

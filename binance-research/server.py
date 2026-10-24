@@ -14,12 +14,14 @@ from strategy_engine import StrategyEngine
 from meta_filter import BUFFER_CANDLES as META_BUFFER_CANDLES
 from download_data import sync_historical_data
 from config import (ACTIVE_ROSTER, BINANCE_MARKET, KLINE_INTERVAL, KLINE_INTERVAL_MS, MARKET_DATA_REST_URL,
-                    PAY_FEES_WITH_BNB, PRESEED_MARGIN, PRESEED_MIN)
+                    PAY_FEES_WITH_BNB, PRESEED_MARGIN, PRESEED_MIN, V3_TESTNET)
 
 sys.stdout.reconfigure(encoding='utf-8')
 
 # Se declara vacía. Así los subprocesos de Windows no cargan la IA en RAM.
-engine = None 
+engine = None
+v3 = None          # V3Trader del modo V3_TESTNET (v3_research/shadow/v3_trader.py); None = apagado
+
 
 def init_ledger():
     # Crea orders/trades.csv o, si le faltan las columnas de ejecucion real, las anade al final
@@ -146,7 +148,7 @@ def handle_request(message: dict):
     
     if req_type == "roster":
         try:
-            return list(set(ACTIVE_ROSTER + ledger.open_symbols()))
+            return list(set((v3.symbols if v3 is not None else ACTIVE_ROSTER) + ledger.open_symbols()))
         except Exception as e:
             print(f"[LEDGER] No se pudo leer el ledger para el roster: {e}")
         return ACTIVE_ROSTER
@@ -156,7 +158,18 @@ def handle_request(message: dict):
         # (el mismo NOTIONAL_USDT que simula el backtest en optimize.py) y se suscribe a las velas de kline_interval
         # y, si las comisiones se pagan con BNB (config.PAY_FEES_WITH_BNB, la comision del backtest), vigila ese saldo
         return {"market": BINANCE_MARKET, "notional_usdt": float(NOTIONAL_USDT), "kline_interval": KLINE_INTERVAL,
-                "pay_fees_with_bnb": bool(PAY_FEES_WITH_BNB), "fee_per_side": float(FEE_PER_SIDE)}
+                "pay_fees_with_bnb": bool(PAY_FEES_WITH_BNB), "fee_per_side": float(FEE_PER_SIDE),
+                "v3_testnet": v3 is not None}
+
+    elif req_type == "v3_poll":
+        # Senales S1H nuevas de la v3 y monedas que cumplieron la barrera de tiempo (solo con V3_TESTNET)
+        if v3 is None:
+            return {"signals": [], "exits": []}
+        try:
+            return v3.poll(ledger.open_trades())
+        except Exception as e:
+            print(f"[V3] Error en v3_poll: {e}")
+            return {"signals": [], "exits": []}
 
     elif req_type == "sync_positions":
         # Vacios como null (pandas devolvia NaN, que no es JSON valido para Node)
@@ -170,6 +183,8 @@ def handle_request(message: dict):
         payload = message.get("payload", {})
         symbol = payload.get("symbol")
         market_data = payload.get("market_data", {})
+        if v3 is not None:
+            return {"symbol": str(symbol).upper(), "action": "HOLD"}      # en modo V3_TESTNET deciden las senales de la v3
         if market_data.get("open_time") is not None:
             fill_gap(symbol, int(market_data["open_time"]))
         
@@ -309,6 +324,13 @@ if __name__ == "__main__":
     print(f"[SISTEMA] Mercado: {BINANCE_MARKET} ({MARKET_DATA_REST_URL})")
     init_ledger()
     
+    if V3_TESTNET:
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "v3_research", "shadow"))
+        import v3_trader
+        v3 = v3_trader.build(rest_url=MARKET_DATA_REST_URL)
+        print(f"[V3] Modo V3_TESTNET: {len(v3.symbols)} monedas en la testnet: {', '.join(v3.symbols)}")
+        v3.start()
+
     # 1. Sincronizar datos históricos (Solo el proceso maestro lo hace)
     sync_historical_data(ACTIVE_ROSTER)
     

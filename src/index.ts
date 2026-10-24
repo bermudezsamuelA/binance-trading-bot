@@ -63,8 +63,9 @@ async function main() {
     let klineInterval: string;
     let payFeesWithBnb: boolean;
     let feePerSide: number | null;
+    let v3Testnet: boolean;
     try {
-        ({ notionalUsdt: tradeQuoteUsdt, klineInterval, payFeesWithBnb, feePerSide } =
+        ({ notionalUsdt: tradeQuoteUsdt, klineInterval, payFeesWithBnb, feePerSide, v3Testnet } =
             parseBrainHandshake(await brain.ask('market'), config.MARKET));
     } catch (error: any) {
         console.error(`❌ ${error.message}`);
@@ -97,7 +98,9 @@ async function main() {
     earn.schedule();
 
     const wsClient = new BinanceWSClient(roster, tradeQuoteUsdt,
-        { rest: restClient, telegram, klineInterval, ...(bnb.enabled ? { bnb } : {}), ...(earn.active ? { earn } : {}) });
+        { rest: restClient, telegram, klineInterval, ...(bnb.enabled ? { bnb } : {}), ...(earn.active ? { earn } : {}),
+          ...(v3Testnet ? { v3: { pollMs: 30_000 } } : {}) });
+    if (v3Testnet) console.log('🧪 Modo V3_TESTNET: se operan en la testnet las señales S1H de la v3 (TP/SL en %, barrera de 384 velas).');
     await wsClient.start();
 
     // Notificación de encendido exitoso

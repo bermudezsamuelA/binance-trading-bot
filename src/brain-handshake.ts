@@ -7,7 +7,8 @@ export interface BrainHandshake {
     notionalUsdt: number;   // USDT por operación (quoteOrderQty de cada compra)
     klineInterval: string;  // velas del WebSocket (@kline_<intervalo>), las mismas que evalúa la estrategia
     payFeesWithBnb: boolean; // el backtest cobra la comisión con BNB (config.PAY_FEES_WITH_BNB): se vigila el saldo de BNB
-    feePerSide: number | null; // comisión por lado del backtest (0.00075 con BNB, 0.001 sin él); null si Python no la da
+    feePerSide: number | null;
+    v3Testnet: boolean;      // modo V3_TESTNET: Python entrega las señales de la v3 (v3_poll) y el bot las opera en la testnet // comisión por lado del backtest (0.00075 con BNB, 0.001 sin él); null si Python no la da
 }
 
 // Intervalos de velas de Binance spot
@@ -32,5 +33,6 @@ export function parseBrainHandshake(response: any, expectedMarket: string): Brai
         market: response.market, notionalUsdt: notional, klineInterval: response.kline_interval,
         payFeesWithBnb: response?.pay_fees_with_bnb === true,
         feePerSide: response?.fee_per_side === undefined || !Number.isFinite(fee) ? null : fee,
+        v3Testnet: response?.v3_testnet === true && expectedMarket === 'testnet',
     };
 }

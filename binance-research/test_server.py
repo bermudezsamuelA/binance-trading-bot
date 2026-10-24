@@ -32,7 +32,7 @@ class HandshakeTest(unittest.TestCase):
         response = server.handle_request({"type": "market"})
         self.assertEqual(response, {"market": BINANCE_MARKET, "notional_usdt": float(optimize.NOTIONAL_USDT),
                                     "kline_interval": KLINE_INTERVAL, "pay_fees_with_bnb": config.PAY_FEES_WITH_BNB,
-                                    "fee_per_side": optimize.FEE_PER_SIDE})
+                                    "fee_per_side": optimize.FEE_PER_SIDE, "v3_testnet": False})
         json.dumps(response, allow_nan=False)
         self.assertGreater(response["notional_usdt"], 0)
 
@@ -41,6 +41,48 @@ class HandshakeTest(unittest.TestCase):
         expected = optimize.FEE_PER_SIDE_BNB if config.PAY_FEES_WITH_BNB else optimize.FEE_PER_SIDE_STANDARD
         self.assertEqual(optimize.FEE_PER_SIDE, expected)
         self.assertAlmostEqual(optimize.FEE_PER_SIDE_BNB, 0.75 * optimize.FEE_PER_SIDE_STANDARD)
+
+
+class V3ModeTest(unittest.TestCase):
+    """Modo V3_TESTNET: roster de la v3, handshake con la bandera, v3_poll y evaluate en HOLD (deciden las senales de la v3)."""
+
+    def setUp(self):
+        self.saved = server.v3
+        import sys
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "v3_research", "shadow"))
+        import v3_trader
+        self.VT = v3_trader
+        self.tmp = tempfile.TemporaryDirectory()
+        self.saved_ledger = ledger.LEDGER_FILE
+        ledger.LEDGER_FILE = os.path.join(self.tmp.name, "trades.csv")
+        t = 1_792_800_000_000
+        self.row = {"symbol": "AAAUSDT", "brazo": "S1H", "open_time_ms": t - t % self.VT.MS15, "precio": 10.0, "tp": 10.4, "sl": 9.6, "p": 0.8}
+        server.v3 = self.VT.V3Trader(["AAAUSDT"], lambda: [self.row], now=lambda: (self.row["open_time_ms"] + 120_000) / 1000)
+
+    def tearDown(self):
+        server.v3 = self.saved
+        ledger.LEDGER_FILE = self.saved_ledger
+        self.tmp.cleanup()
+
+    def test_handshake_roster_poll_y_evaluate(self):
+        self.assertTrue(server.handle_request({"type": "market"})["v3_testnet"])
+        self.assertIn("AAAUSDT", server.handle_request({"type": "roster"}))
+        self.assertNotIn("BTCUSDT", server.handle_request({"type": "roster"}))
+        self.assertEqual(server.handle_request({"type": "v3_poll"}), {"signals": [], "exits": []})   # nada en cola todavia
+        server.v3.tick()
+        out = server.handle_request({"type": "v3_poll"})
+        self.assertEqual([s["symbol"] for s in out["signals"]], ["AAAUSDT"])
+        self.assertAlmostEqual(out["signals"][0]["tp_pct"], 0.04)
+        self.assertAlmostEqual(out["signals"][0]["sl_pct"], 0.04)
+        json.dumps(out, allow_nan=False)
+        with contextlib.redirect_stdout(io.StringIO()):
+            hold = server.handle_request({"type": "evaluate", "payload": {"symbol": "AAAUSDT", "market_data": {"close": 1.0}}})
+        self.assertEqual(hold["action"], "HOLD")
+
+    def test_apagado_no_cambia_nada(self):
+        server.v3 = None
+        self.assertFalse(server.handle_request({"type": "market"})["v3_testnet"])
+        self.assertEqual(server.handle_request({"type": "v3_poll"}), {"signals": [], "exits": []})
 
 
 class LedgerRequestsTest(unittest.TestCase):

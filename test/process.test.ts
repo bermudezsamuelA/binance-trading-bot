@@ -8,11 +8,14 @@ import { GUARD_ALERT_INTERVAL_MS, installProcessGuards } from '../src/process-gu
 
 test('handshake: mismo mercado, nocional (optimize.NOTIONAL_USDT) y velas (config.KLINE_INTERVAL) de Python', () => {
     assert.deepEqual(parseBrainHandshake({ market: 'testnet', notional_usdt: 15, kline_interval: '1h' }, 'testnet'),
-        { market: 'testnet', notionalUsdt: 15, klineInterval: '1h', payFeesWithBnb: false, feePerSide: null });
+        { market: 'testnet', notionalUsdt: 15, klineInterval: '1h', payFeesWithBnb: false, feePerSide: null, v3Testnet: false });
     // comisiones con BNB (config.PAY_FEES_WITH_BNB): el backtest cobra 0.075 % por lado y Node vigila el BNB
     assert.deepEqual(parseBrainHandshake({ market: 'testnet', notional_usdt: 15, kline_interval: '1h', pay_fees_with_bnb: true,
         fee_per_side: 0.00075 }, 'testnet'),
-        { market: 'testnet', notionalUsdt: 15, klineInterval: '1h', payFeesWithBnb: true, feePerSide: 0.00075 });
+        { market: 'testnet', notionalUsdt: 15, klineInterval: '1h', payFeesWithBnb: true, feePerSide: 0.00075, v3Testnet: false });
+    // modo V3_TESTNET: solo vale en la testnet
+    assert.equal(parseBrainHandshake({ market: 'testnet', notional_usdt: 15, kline_interval: '1h', v3_testnet: true }, 'testnet').v3Testnet, true);
+    assert.equal(parseBrainHandshake({ market: 'mainnet', notional_usdt: 15, kline_interval: '1h', v3_testnet: true }, 'mainnet').v3Testnet, false);
     assert.equal(parseBrainHandshake({ market: 'mainnet', notional_usdt: 25.5, kline_interval: '15m' }, 'mainnet').notionalUsdt, 25.5);
 });
 

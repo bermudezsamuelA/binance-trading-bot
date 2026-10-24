@@ -82,6 +82,7 @@ export class FakeBrain {
     ledgerCloseResult: any = { status: 'updated' };
     ledgerPendingResult: any = { status: 'logged' };
     ledgerCancelResult: any = { status: 'updated' };
+    v3Replies: any[] = [];
     async ask(type: string, payload: any = {}): Promise<any> {
         this.asks.push({ type, payload });
         switch (type) {
@@ -95,6 +96,7 @@ export class FakeBrain {
                     this.openTrades = [...this.openTrades, { ...payload, status: 'OPEN', timestamp: Date.now() }];
                 }
                 return this.ledgerOpenResult;
+            case 'v3_poll': return this.v3Replies.shift() ?? { signals: [], exits: [] };
             case 'ledger_close': return this.ledgerCloseResult;
             case 'ledger_pending': return this.ledgerPendingResult;
             case 'ledger_cancel': return this.ledgerCancelResult;

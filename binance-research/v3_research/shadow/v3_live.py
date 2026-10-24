@@ -99,7 +99,7 @@ def signals_for(ev: dict, open_time: int) -> list:
             if d["p"][i] >= RD.P_HIGH:
                 arms.append("S1H")
         for arm in arms:
-            out.append({"open_time_utc": RD.iso(open_time), "symbol": sym, "brazo": arm, "p": round(float(d["p"][i]), 4),
+            out.append({"open_time_utc": RD.iso(open_time), "open_time_ms": int(open_time), "symbol": sym, "brazo": arm, "p": round(float(d["p"][i]), 4),
                         "A4": int(d["A"][i]), "A18": int(d["A18"][i]), "precio": c, "tp": round(c * (1 + a * sd), 8),
                         "sl": round(c * (1 - m * sd), 8),
                         "cierre_por_tiempo_utc": RD.iso(open_time + (hold + 1) * C.MS15)})
@@ -119,7 +119,7 @@ def append_signals(rows: list, source: str, path: str = OUT_FILE) -> int:
     write_header = not os.path.exists(path)
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     with open(path, "a", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=COLUMNS, lineterminator="\n")
+        w = csv.DictWriter(f, fieldnames=COLUMNS, lineterminator="\n", extrasaction="ignore")
         if write_header:
             w.writeheader()
         for r in new:
