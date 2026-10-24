@@ -642,13 +642,14 @@ def main(argv=None):
     ap.add_argument("--reason", default=None, help="solo si el periodo toca el holdout (queda registrado)")
     ap.add_argument("--dvol", default=DVOL_FILE, help="archivo del DVOL de BTC (por defecto cache/deribit)")
     ap.add_argument("--end", default=None, help="fin exclusivo (AAAA-MM-DD); por defecto, hasta donde haya datos")
+    ap.add_argument("--monedas", default=None, help="lista de monedas separadas por comas (incluir las 4 anclas para P1)")
     ap.add_argument("--solo-anclas", action="store_true", help="solo las 4 anclas (sin S1 ni las otras 14 monedas)")
     ap.add_argument("--solo-definitivo", action="store_true",
                     help="no reconstruye el funding del mes en curso: evalua solo hasta el ultimo funding real")
     a = ap.parse_args(argv)
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8")
-    symbols = list(ANCHORS) if a.solo_anclas else UNIVERSE
+    symbols = list(ANCHORS) if a.solo_anclas else (a.monedas.split(",") if a.monedas else UNIVERSE)
     if a.download:
         import feeds
         today = dt.datetime.now(dt.timezone.utc).date()
