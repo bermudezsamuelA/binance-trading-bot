@@ -388,6 +388,7 @@ def evaluate(data_dir: str, start: str, end_ms: int, reason: str = None, dvol_fi
             "S3": (lambda d: d["sig"] & (d["A"] >= 1) & ~d["veto"], anchors)}
     if len(symbols) > len(anchors):
         arms["S1"] = (lambda d: d["sig"] & (d["A18"] >= S1_MIN), list(symbols))
+        arms["C0T"] = (lambda d: d["sig"], list(symbols))        # v2 sin compuerta en todas las monedas
     if "BTCUSDT" in D:
         arms["P1+R"] = (lambda d: d["sig"] & (d["A"] >= 1) & d["btc_up"], anchors)
         if "S1" in arms:
@@ -517,7 +518,7 @@ def write_outputs(ev: dict, sim: dict, crit: dict, veto: dict, end_ms: int, limi
                             "" if np.isnan(z) else round(float(z), 3), int(anchor and d["A"][i] >= 1), int(anchor),
                             int(anchor and d["A"][i] >= 1 and not d["veto"][i]),
                             int("S1" in ev["arms"] and d["A18"][i] >= S1_MIN)])
-    for arm in [a for a in ("P1", "C0", "S3", "S1") if a in ev["arms"]]:
+    for arm in [a for a in ("P1", "C0", "S3", "S1", "C0T") if a in ev["arms"]]:
         with open(os.path.join(out_dir, f"operaciones_{arm}.csv"), "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f, lineterminator="\n")
             w.writerow(["symbol", "entrada_utc", "salida_utc", "precio_entrada", "precio_salida", "tp", "sl", "motivo",
