@@ -23,7 +23,7 @@ T0 = RD.to_ms("2026-08-10")
 T1 = RD.to_ms("2026-10-20")
 
 
-def write_synthetic(data_dir, seed=0, t0=T0, t1=T1, funding_until=None):
+def write_synthetic(data_dir, seed=0, t0=T0, t1=T1, funding_until=None, symbols=None):
     """Velas spot y series de futuros de las 4 anclas con una caida comun (un 'panico') a mitad de octubre. El funding
     sale de la prima con la formula de Binance mas ruido (como el real); funding_until lo corta antes (mes sin archivo)."""
     rng = np.random.default_rng(seed)
@@ -34,7 +34,7 @@ def write_synthetic(data_dir, seed=0, t0=T0, t1=T1, funding_until=None):
     common[crash] -= 0.02
     os.makedirs(os.path.join(data_dir, "klines"), exist_ok=True)
     os.makedirs(os.path.join(data_dir, "futures"), exist_ok=True)
-    for k, sym in enumerate(RD.ANCHORS):
+    for k, sym in enumerate(symbols or RD.ANCHORS):
         lr = common + rng.normal(0, 0.003, n)
         c = 100.0 * (k + 1) * np.exp(np.cumsum(lr))
         o = np.r_[c[0], c[:-1]]
@@ -198,7 +198,7 @@ class PipelineTest(unittest.TestCase):
 
     def run_main(self, *extra):
         with redirect_stdout(io.StringIO()) as buf:
-            res = RD.main(["--data-dir", self.tmp.name, "--out", self.out, *extra])
+            res = RD.main(["--data-dir", self.tmp.name, "--out", self.out, "--solo-anclas", *extra])
         return res, buf.getvalue()
 
     def test_modelos_reales_y_salidas(self):
@@ -240,6 +240,12 @@ class PipelineTest(unittest.TestCase):
         e = {c: sum(float(t.net_ret.sum()) for _, t in sim["trades"][("C0", c)]) for c in RD.COSTS}
         self.assertGreater(e["0.19 % (BNB)"], e["0.24 %"])
         self.assertGreater(e["0.24 %"], e["0.30 %"])
+        # con el TP como orden limite, las salidas por TP no pagan deslizamiento (y el resto queda igual)
+        self.assertGreater(e["0.17 % (BNB + TP límite)"], e["0.19 % (BNB)"])
+        for (_, a), (_, b) in zip(sim["trades"][("C0", "0.19 % (BNB)")], sim["trades"][("C0", "0.17 % (BNB + TP límite)")]):
+            tp = a.reason == RD.H.TP
+            np.testing.assert_allclose(b.net_ret[~tp], a.net_ret[~tp])
+            np.testing.assert_allclose(b.net_ret[tp] - a.net_ret[tp], RD.H.SLIP * a.exit_px[tp] / a.entry_px[tp])
 
 
 if __name__ == "__main__":
@@ -259,8 +265,8 @@ class ProvisionalPipelineTest(unittest.TestCase):
                 write_synthetic(tmp, t0=RD.to_ms("2026-07-20"), funding_until=RD.to_ms("2026-10-01"))
                 out = os.path.join(tmp, "out")
                 with redirect_stdout(io.StringIO()):
-                    self.assertIsNone(RD.main(["--data-dir", tmp, "--out", out, "--solo-definitivo"]))
-                    res = RD.main(["--data-dir", tmp, "--out", out])
+                    self.assertIsNone(RD.main(["--data-dir", tmp, "--out", out, "--solo-anclas", "--solo-definitivo"]))
+                    res = RD.main(["--data-dir", tmp, "--out", out, "--solo-anclas"])
                 prov = res["provisional"]
                 self.assertIsNotNone(prov)
                 self.assertTrue(prov["funding_reconstruido_desde"].startswith("2026-10-01"))
@@ -275,7 +281,59 @@ class ProvisionalPipelineTest(unittest.TestCase):
                 n_logs = len(logged)
                 self.assertGreater(n_logs, 0)
                 with redirect_stdout(io.StringIO()):
-                    RD.main(["--data-dir", tmp, "--out", out])            # la equivalencia ya esta guardada
+                    RD.main(["--data-dir", tmp, "--out", out, "--solo-anclas"])   # la equivalencia ya esta guardada
                 self.assertEqual(len(logged), n_logs)
         finally:
             RD.H.log_holdout = original_log
+
+
+class UniverseTest(unittest.TestCase):
+    """Con 18 monedas: S1 (A18 >= 3) en todas, P1/C0/S3 solo en las anclas y PnL por moneda con la fila combinada."""
+
+    def test_s1_en_las_18_monedas(self):
+        original = RD.V3.predict
+
+        def fake_predict(members, X, ridx, Q):
+            p = np.zeros(len(X))
+            p[ridx] = (np.arange(len(ridx)) % 41 < 3) * 0.99
+            return p
+        RD.V3.predict = fake_predict
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                write_synthetic(tmp, symbols=RD.UNIVERSE)
+                out = os.path.join(tmp, "out")
+                with redirect_stdout(io.StringIO()):
+                    res = RD.main(["--data-dir", tmp, "--out", out])
+                self.assertEqual(res["monedas"], RD.UNIVERSE)
+                self.assertIn("S1 c=0.24 %", res["brazos"])
+                rows = res["por_moneda"]["S1"]
+                self.assertEqual(rows[-1]["symbol"], "COMBINADO")
+                self.assertEqual(rows[-1]["n"], sum(r["n"] for r in rows[:-1]))
+                self.assertEqual({r["symbol"] for r in res["por_moneda"]["P1"][:-1]} - set(RD.ANCHORS), set())
+                self.assertTrue(os.path.exists(os.path.join(out, "operaciones_S1.csv")))
+                with open(os.path.join(out, "resumen.md"), encoding="utf-8") as f:
+                    self.assertIn("PnL por moneda: S1", f.read())
+        finally:
+            RD.V3.predict = original
+
+    def test_a18_cuenta_las_otras_monedas(self):
+        original = RD.V3.predict
+
+        def fake_predict(members, X, ridx, Q):
+            p = np.zeros(len(X))
+            p[ridx[:1]] = 0.99           # una sola vela con senal por moneda (la primera de la prueba)
+            return p
+        RD.V3.predict = fake_predict
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                syms = RD.UNIVERSE[:6]
+                write_synthetic(tmp, symbols=syms)
+                end, _ = RD.data_end_ms(tmp, syms)
+                ev = RD.evaluate(tmp, "2026-10-01", end, symbols=syms)
+        finally:
+            RD.V3.predict = original
+        for s in syms:
+            d = ev["D"][s]
+            i = d["ridx"][0]
+            self.assertEqual(d["A18"][i], 5)                     # las otras 5 dieron senal en la misma vela
+            self.assertEqual(d["A"][i], 3 if s in RD.ANCHORS else 4)

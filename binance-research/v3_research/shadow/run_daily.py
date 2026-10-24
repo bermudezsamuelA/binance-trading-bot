@@ -8,9 +8,12 @@ COMPLETOS y simula los brazos del pre-registro con el arnes del laboratorio (har
       actual) + salida X5 con barrera de 384 velas. Es lo de nn/nn_v3_desc.py, con los mismos calculos.
   C0  control: v2 sin compuerta, X5 384.
   S3  secundario (regla de episodio D1): P1 sin comprar cuando z30(DVOL de BTC) < -1.
+  S1  secundario: v2 en las 18 monedas del universo (4 anclas + 14) con A18 >= 3 (al menos 3 de las otras 17 con senal
+      en las ultimas 48 velas), X5 384. Con --solo-anclas no se calcula.
   Azar: entradas en todas las velas validas (por moneda y mes) y azar condicionado (solo en velas con A4 >= 1).
-  Costos: 0.24 % (principal), 0.30 % (estres) y 0.19 % (BNB, informativo).
-S1 (18 monedas), S2 (ENS12U, aun sin congelar) y S4 (opcional) no estan aqui.
+  Costos: 0.24 % (principal), 0.30 % (estres), 0.19 % (BNB) y 0.17 % (BNB con el TP como orden limite: la salida por TP
+  no paga deslizamiento; aproximacion: se llena al tocar el TP), estos dos informativos.
+S2 (ENS12U, aun sin congelar) y S4 (opcional) no estan aqui.
 
 Los datos llegan con retraso (data.binance.vision publica al dia siguiente y el funding solo por mes), asi que cada
 corrida evalua hasta el minimo comun de todas las series y recalcula todo desde 2026-10-01 (es determinista). Las
@@ -40,12 +43,18 @@ import nn_v3_desc as V3  # noqa: E402  (registra X5_384 y trae C, W, R, H y la c
 
 C, W, R, H = V3.C, V3.W, V3.R, V3.H
 ANCHORS = V3.ANCHORS
+OTHERS = ["ADAUSDT", "ATOMUSDT", "AVAXUSDT", "BCHUSDT", "BNBUSDT", "DOTUSDT", "ETCUSDT", "FILUSDT", "LINKUSDT",
+          "LTCUSDT", "NEARUSDT", "TRXUSDT", "UNIUSDT", "XRPUSDT"]
+UNIVERSE = list(ANCHORS) + OTHERS          # universo de 18 del pre-registro (seccion 8.2)
+S1_MIN = 3
 DAY_MS = 86_400_000
 OUT_DIR = os.path.join(RESEARCH, "output", "prospectivo")
 DVOL_FILE = os.path.join(RESEARCH, "cache", "deribit", "dvol_BTC_1h.json")
 WARMUP_DAYS = 75            # > 35 dias que pide la spec (W.WARM = 800 velas, z de 672 y funding_z de 2016) y el mes de
                             # la prueba de equivalencia del funding provisional (EQUIVALENCE_DAYS) con su calentamiento
-COSTS = {"0.24 %": (H.FEE, H.SLIP), "0.30 %": (0.0013, H.SLIP), "0.19 % (BNB)": (0.00075, H.SLIP)}
+# costo: (comision por lado, deslizamiento por lado, TP con orden limite)
+COSTS = {"0.24 %": (H.FEE, H.SLIP, False), "0.30 %": (0.0013, H.SLIP, False), "0.19 % (BNB)": (0.00075, H.SLIP, False),
+         "0.17 % (BNB + TP límite)": (0.00075, H.SLIP, True)}
 MAIN_COST = "0.24 %"
 
 # Pre-registro (seccion 8.2 y 8.3, redactado el 2026-10-15 y actualizado el 2026-10-16). No se cambia durante la prueba.
@@ -53,7 +62,8 @@ PREREGISTRO = {
     "inicio": "2026-10-01", "fin": "2027-12-31 o 400 operaciones de P1, lo que llegue primero",
     "brazos": {"P1": "v2 + A4 >= 1 (W = 48 velas de 15 min) + X5 con 384 velas",
                "C0": "v2 sin compuerta, X5 con 384 velas",
-               "S3": "P1 + D1 (no comprar si z30 del DVOL de BTC < -1)"},
+               "S3": "P1 + D1 (no comprar si z30 del DVOL de BTC < -1)",
+               "S1": "v2 + A18 >= 3 en las 18 monedas, X5 con 384 velas"},
     "criterios_P1": ["1. E > 0 con t por dia >= 1.645, y E > 0 con c = 0.30 %",
                      "2. Wilson inferior >= 0.70 (aprueba 70), >= 0.75 (aprueba 75); 80 solo con inferior >= 0.80",
                      "3. dE frente al azar > 0 con t >= 1.645, y dWR > 0",
@@ -319,7 +329,8 @@ def arm_stats(trades: list, base: dict, label: str) -> dict:
 
 
 # ------------------------------------------------------------------ evaluacion
-def evaluate(data_dir: str, start: str, end_ms: int, reason: str = None, dvol_file: str = DVOL_FILE) -> dict:
+def evaluate(data_dir: str, start: str, end_ms: int, reason: str = None, dvol_file: str = DVOL_FILE,
+             symbols=ANCHORS) -> dict:
     with open(V3.SPEC, encoding="utf-8") as f:
         spec = json.load(f)
     V3.check_hashes(spec)
@@ -328,7 +339,7 @@ def evaluate(data_dir: str, start: str, end_ms: int, reason: str = None, dvol_fi
     members = V3.load_members(spec, len(names))
     zser = dvol_z30(dvol_file)
     D = {}
-    for sym in ANCHORS:
+    for sym in symbols:
         S, B, F, FU = C.build_symbol(data_dir, sym, use_fut=spec["usa_futuros"], t_end_ms=end_ms)
         arr = C.load_spot(data_dir, sym)
         bars = H.Bars(arr[arr[:, 0] < end_ms], sym)
@@ -345,34 +356,51 @@ def evaluate(data_dir: str, start: str, end_ms: int, reason: str = None, dvol_fi
         D[sym] = dict(S=S, bars=bars, i0=i0, i1=i1, valid=valid, sig=sig, p=p, ridx=ridx,
                       missing=float(np.mean(F["metrics_missing"][ridx])) if len(ridx) else float("nan"),
                       z30=z_at_open(zser, S["t"]))
-    # Compuerta A4, igual que nn_v3_desc.py: otras anclas con senal en las ultimas GATE_W velas (incluida la actual)
-    tg = np.unique(np.concatenate([D[s]["S"]["t"].astype(np.int64) for s in ANCHORS]))
+    # Compuerta A4, igual que nn_v3_desc.py: otras anclas con senal en las ultimas GATE_W velas (incluida la actual);
+    # A18: lo mismo con las otras monedas del universo evaluado (S1)
+    tg = np.unique(np.concatenate([D[s]["S"]["t"].astype(np.int64) for s in symbols]))
     roll = {}
-    for s in ANCHORS:
+    for s in symbols:
         g = np.zeros(len(tg))
         g[np.searchsorted(tg, D[s]["S"]["t"].astype(np.int64))] = D[s]["sig"]
         roll[s] = H.rolling_max(g, V3.GATE_W) > 0
-    for s in ANCHORS:
+    for s in symbols:
         rows = np.searchsorted(tg, D[s]["S"]["t"].astype(np.int64))
-        D[s]["A"] = sum(roll[o][rows].astype(int) for o in ANCHORS if o != s)
+        D[s]["A"] = sum(roll[o][rows].astype(int) for o in ANCHORS if o != s and o in roll)
+        D[s]["A18"] = sum(roll[o][rows].astype(int) for o in symbols if o != s)
         D[s]["veto"] = D[s]["z30"] < -1        # NaN no veta
-    arms = {"P1": lambda d: d["sig"] & (d["A"] >= 1),
-            "C0": lambda d: d["sig"],
-            "C0_A0": lambda d: d["sig"] & (d["A"] == 0),
-            "S3": lambda d: d["sig"] & (d["A"] >= 1) & ~d["veto"]}
-    return {"spec": spec, "D": D, "arms": arms, "thr": thr}
+    anchors = [s for s in symbols if s in ANCHORS]
+    arms = {"P1": (lambda d: d["sig"] & (d["A"] >= 1), anchors),
+            "C0": (lambda d: d["sig"], anchors),
+            "C0_A0": (lambda d: d["sig"] & (d["A"] == 0), anchors),
+            "S3": (lambda d: d["sig"] & (d["A"] >= 1) & ~d["veto"], anchors)}
+    if len(symbols) > len(anchors):
+        arms["S1"] = (lambda d: d["sig"] & (d["A18"] >= S1_MIN), list(symbols))
+    return {"spec": spec, "D": D, "arms": arms, "thr": thr, "symbols": list(symbols)}
+
+
+def tp_limit_net(net, why, exit_px, entry_px, slip):
+    """Con el TP como orden limite, la salida por TP no paga deslizamiento: se le devuelve slip * salida/entrada."""
+    net = np.array(net, float, copy=True)
+    tp = np.asarray(why) == H.TP
+    net[tp] += slip * np.asarray(exit_px, float)[tp] / np.asarray(entry_px, float)[tp]
+    return net
 
 
 def simulate_arms(ev: dict) -> dict:
     """Operaciones de cada brazo y costo, y el azar (todas las velas validas, y solo las de A4 >= 1) por moneda y mes."""
     D, arms = ev["D"], ev["arms"]
     ga, gm, gH = C.GEOMS["X5_384"]
+    a_, m_, _ = C.GEOMS["X5_384"]
     out = {"trades": {}, "base": {}, "base_A": {}}
-    for cost, (fee, slip) in COSTS.items():
+    for cost, (fee, slip, tp_limit) in COSTS.items():
         base, base_a = {}, {}
-        for sym in ANCHORS:
+        for sym in D:
             d, S = D[sym], D[sym]["S"]
-            netr, _, _ = C.label_all(S, "X5_384", d["i1"], fee=fee, slip=slip)
+            netr, why, jx = C.label_all(S, "X5_384", d["i1"], fee=fee, slip=slip)
+            if tp_limit:
+                sd = S["s15"] * np.sqrt(96)
+                netr = np.where(why == H.TP, netr + slip * (1 + a_ * sd), netr)
             mon = np.array([int(iso(x)[:7].replace("-", "")) for x in S["t"]])
             rr = np.zeros(len(S["t"]), bool)
             rr[d["i0"]:d["i1"]] = True
@@ -384,13 +412,15 @@ def simulate_arms(ev: dict) -> dict:
                 base_a[(sym, int(mo))] = ((float(np.mean(netr[sa] > 0)), float(np.mean(netr[sa]))) if sa.any()
                                           else base[(sym, int(mo))])
         out["base"][cost], out["base_A"][cost] = base, base_a
-        for arm, rule in arms.items():
+        for arm, (rule, coins) in arms.items():
             trs = []
-            for sym in ANCHORS:
+            for sym in coins:
                 d, S = D[sym], D[sym]["S"]
                 sd = S["s15"] * np.sqrt(96)
                 tp, sl = S["c"] * (1 + ga * sd), S["c"] * (1 - gm * sd)
                 tr = H.simulate(d["bars"], rule(d), tp, sl, period=(d["i0"], d["i1"]), max_hold=gH, fee=fee, slip=slip)
+                if tp_limit and len(tr):
+                    tr.net_ret = tp_limit_net(tr.net_ret, tr.reason, tr.exit_px, tr.entry_px, slip)
                 if len(tr):
                     trs.append((sym, tr))
             out["trades"][(arm, cost)] = trs
@@ -437,7 +467,7 @@ def s3_veto(ev: dict) -> dict:
     trs = []
     D = ev["D"]
     ga, gm, gH = C.GEOMS["X5_384"]
-    for sym in ANCHORS:
+    for sym in [s for s in ANCHORS if s in D]:
         d, S = D[sym], D[sym]["S"]
         sd = S["s15"] * np.sqrt(96)
         tr = H.simulate(d["bars"], d["sig"] & (d["A"] >= 1) & d["veto"], S["c"] * (1 + ga * sd), S["c"] * (1 - gm * sd),
@@ -447,8 +477,9 @@ def s3_veto(ev: dict) -> dict:
             trs.append(tr)
     net = np.concatenate([t.net_ret for t in trs]) if trs else np.zeros(0)
     et = np.concatenate([t.entry_t for t in trs]) if trs else np.zeros(0, np.int64)
-    sig_p1 = sum(int((d["sig"] & (d["A"] >= 1))[d["i0"]:d["i1"]].sum()) for d in D.values())
-    z_missing = sum(int(np.isnan(d["z30"][d["i0"]:d["i1"]]).sum()) for d in D.values())
+    anchors = [D[s] for s in ANCHORS if s in D]
+    sig_p1 = sum(int((d["sig"] & (d["A"] >= 1))[d["i0"]:d["i1"]].sum()) for d in anchors)
+    z_missing = sum(int(np.isnan(d["z30"][d["i0"]:d["i1"]]).sum()) for d in anchors)
     return {"senales_P1": sig_p1, "vetadas_cerradas": int(len(net)),
             "wr_vetadas": float(np.mean(net > 0)) if len(net) else None, "episodios_vetados": len(episodes(et, net)),
             "velas_sin_dvol": z_missing}
@@ -461,15 +492,16 @@ def write_outputs(ev: dict, sim: dict, crit: dict, veto: dict, end_ms: int, limi
     D = ev["D"]
     with open(os.path.join(out_dir, "senales.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f, lineterminator="\n")
-        w.writerow(["open_time_utc", "symbol", "p", "A4", "z30_dvol_btc", "P1", "C0", "S3"])
-        for sym in ANCHORS:
-            d = D[sym]
+        w.writerow(["open_time_utc", "symbol", "p", "A4", "A18", "z30_dvol_btc", "P1", "C0", "S3", "S1"])
+        for sym in D:
+            d, anchor = D[sym], sym in ANCHORS
             for i in np.flatnonzero(d["sig"][d["i0"]:d["i1"]]) + d["i0"]:
                 z = d["z30"][i]
-                w.writerow([iso(d["S"]["t"][i]), sym, round(float(d["p"][i]), 5), int(d["A"][i]),
-                            "" if np.isnan(z) else round(float(z), 3), int(d["A"][i] >= 1), 1,
-                            int(d["A"][i] >= 1 and not d["veto"][i])])
-    for arm in ("P1", "C0", "S3"):
+                w.writerow([iso(d["S"]["t"][i]), sym, round(float(d["p"][i]), 5), int(d["A"][i]), int(d["A18"][i]),
+                            "" if np.isnan(z) else round(float(z), 3), int(anchor and d["A"][i] >= 1), int(anchor),
+                            int(anchor and d["A"][i] >= 1 and not d["veto"][i]),
+                            int("S1" in ev["arms"] and d["A18"][i] >= S1_MIN)])
+    for arm in [a for a in ("P1", "C0", "S3", "S1") if a in ev["arms"]]:
         with open(os.path.join(out_dir, f"operaciones_{arm}.csv"), "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f, lineterminator="\n")
             w.writerow(["symbol", "entrada_utc", "salida_utc", "precio_entrada", "precio_salida", "tp", "sl", "motivo",
@@ -485,17 +517,37 @@ def write_outputs(ev: dict, sim: dict, crit: dict, veto: dict, end_ms: int, limi
     for (arm, cost), trs in sim["trades"].items():
         if arm != "C0_A0":
             arms[f"{arm} c={cost}"] = arm_stats(trs, sim["base"][cost], arm)
+    per_coin = {arm: coin_table(sim["trades"][(arm, MAIN_COST)]) for arm in ("P1", "S1") if (arm, MAIN_COST) in sim["trades"]}
     res = {"generado": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
            "periodo": [start, iso(end_ms)], "umbral": ev["thr"], "spec": ev["spec"]["nombre"],
            "sha256": {"spec_nn_v2.json": sha(V3.SPEC), "run_daily.py": sha(os.path.abspath(__file__))},
            "preregistro": PREREGISTRO, "datos_hasta_por_serie": {k: iso(v) for k, v in limits.items()},
-           "metrics_faltantes_pct": {s: round(100 * D[s]["missing"], 2) for s in ANCHORS},
-           "criterios_P1": crit, "S3_vetadas": veto, "brazos": arms, "provisional": provisional}
+           "monedas": ev["symbols"], "metrics_faltantes_pct": {s: round(100 * D[s]["missing"], 2) for s in D},
+           "criterios_P1": crit, "S3_vetadas": veto, "brazos": arms, "por_moneda": per_coin, "provisional": provisional}
     with open(os.path.join(out_dir, "resumen.json"), "w", encoding="utf-8", newline="\n") as f:
         json.dump(res, f, ensure_ascii=False, indent=1, default=float)
     with open(os.path.join(out_dir, "resumen.md"), "w", encoding="utf-8", newline="\n") as f:
         f.write(render_md(res))
     return res
+
+
+def coin_table(trades: list) -> list:
+    """PnL individual por moneda (operaciones cerradas, 15 USDT por operacion) y la fila combinada."""
+    rows, allnet = [], []
+    for sym, tr in trades:
+        net = tr.net_ret[closed(tr)]
+        if not len(net):
+            continue
+        allnet.append(net)
+        rows.append({"symbol": sym, "n": int(len(net)), "wr": float(np.mean(net > 0)), "E_pct": float(100 * net.mean()),
+                     "pnl_usdt": float(15 * net.sum())})
+    rows.sort(key=lambda r: -r["pnl_usdt"])
+    if allnet:
+        net = np.concatenate(allnet)
+        rows.append({"symbol": "COMBINADO", "n": int(len(net)), "wr": float(np.mean(net > 0)),
+                     "E_pct": float(100 * net.mean()), "pnl_usdt": float(15 * net.sum()),
+                     "monedas_ganadoras": sum(1 for r in rows if r["pnl_usdt"] > 0), "monedas": len(rows)})
+    return rows
 
 
 def _f(x, fmt="{:.2f}"):
@@ -550,6 +602,16 @@ def render_md(res: dict) -> str:
     L.append(f"\n**S3 (D1):** {v['senales_P1']} señales de P1, {v['vetadas_cerradas']} vetadas y cerradas "
              f"(WR {_f(None if v['wr_vetadas'] is None else 100 * v['wr_vetadas'], '{:.1f} %')}, "
              f"{v['episodios_vetados']} episodios); {v['velas_sin_dvol']} velas sin DVOL.")
+    for arm, rows in (res.get("por_moneda") or {}).items():
+        if not rows:
+            continue
+        L.append(f"\n## PnL por moneda: {arm} (0.24 %, 15 USDT por operación)\n")
+        L.append("| Moneda | n | WR | E % | PnL USDT |")
+        L.append("|---|---|---|---|---|")
+        for r in rows:
+            name = (f"**COMBINADO** ({r['monedas_ganadoras']}/{r['monedas']} ganan)" if r["symbol"] == "COMBINADO"
+                    else r["symbol"])
+            L.append(f"| {name} | {r['n']} | {100 * r['wr']:.1f} % | {r['E_pct']:+.3f} | {r['pnl_usdt']:+.2f} |")
     L.append("\n**Datos:** metrics faltantes por moneda (fase 1 pide ≤ 5 %): "
              + ", ".join(f"{s} {p} %" for s, p in res["metrics_faltantes_pct"].items()) + ".")
     return "\n".join(L) + "\n"
@@ -562,32 +624,39 @@ def main(argv=None):
     ap.add_argument("--download", action="store_true", help="descarga antes los datos nuevos (VPN apagada)")
     ap.add_argument("--out", default=OUT_DIR)
     ap.add_argument("--reason", default=None, help="solo si el periodo toca el holdout (queda registrado)")
+    ap.add_argument("--end", default=None, help="fin exclusivo (AAAA-MM-DD); por defecto, hasta donde haya datos")
+    ap.add_argument("--solo-anclas", action="store_true", help="solo las 4 anclas (sin S1 ni las otras 14 monedas)")
     ap.add_argument("--solo-definitivo", action="store_true",
                     help="no reconstruye el funding del mes en curso: evalua solo hasta el ultimo funding real")
     a = ap.parse_args(argv)
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8")
+    symbols = list(ANCHORS) if a.solo_anclas else UNIVERSE
     if a.download:
         import feeds
         today = dt.datetime.now(dt.timezone.utc).date()
         since = dt.date.fromisoformat(a.start) - dt.timedelta(days=WARMUP_DAYS)
-        print("[V3] Descargando velas spot:", feeds.update_spot(a.data_dir, list(ANCHORS), since, today - dt.timedelta(days=1)))
-        print("[V3] Descargando futuros:", feeds.update_futures(a.data_dir, list(ANCHORS), since, today - dt.timedelta(days=1)))
+        print("[V3] Descargando velas spot:", feeds.update_spot(a.data_dir, symbols, since, today - dt.timedelta(days=1)))
+        print("[V3] Descargando futuros:", feeds.update_futures(a.data_dir, symbols, since, today - dt.timedelta(days=1)))
         try:
             print("[V3] DVOL nuevo (horas):", feeds.update_dvol())
         except Exception as e:  # el DVOL solo afecta a S3; sin el, D1 no veta y se anota
             print(f"[V3] ⚠️ No se pudo actualizar el DVOL ({e}); S3 no vetara las velas sin dato.")
-    end_ms, limits = data_end_ms(a.data_dir)
+    cap = to_ms(a.end) if a.end else None
+    end_ms, limits = data_end_ms(a.data_dir, symbols)
     provisional = None
-    if not a.solo_definitivo and min(limits, key=limits.get).endswith("funding"):
+    if cap is not None and cap <= end_ms:
+        end_ms = cap                                # el corte pedido ya tiene datos completos: no hace falta reconstruir
+    elif not a.solo_definitivo and min(limits, key=limits.get).endswith("funding"):
         # El funding (solo mensual) es lo que frena: se reconstruye con la prima, se mide su equivalencia y se avisa
         eq = equivalence(a.data_dir, a.out)
         print(f"[V3] Funding provisional: equivalencia en {eq['ventana'][0]} a {eq['ventana'][1]}: senales Jaccard "
               f"{eq['senales']['jaccard']}, P1 Jaccard {eq['P1']['jaccard']} "
               f"({'equivalente' if eq['equivalente'] else 'NO equivalente'}).")
-        real_end = min(int(C.load_fut(a.data_dir, s)["funding"][:, 0].max()) for s in ANCHORS)
+        real_end = min(int(C.load_fut(a.data_dir, s)["funding"][:, 0].max()) for s in symbols)
         with ProxyFunding():
-            end_ms, limits = data_end_ms(a.data_dir)
+            end_ms, limits = data_end_ms(a.data_dir, symbols)
+        end_ms = min(end_ms, cap) if cap else end_ms
         provisional = {"funding_reconstruido_desde": iso(real_end + FUNDING_MS), "equivalencia": eq}
     if end_ms <= to_ms(a.start):
         print(f"[V3] Aun no hay datos completos despues de {a.start} (corte {iso(end_ms)}): "
@@ -595,9 +664,9 @@ def main(argv=None):
         return None
     if provisional:
         with ProxyFunding():
-            ev = evaluate(a.data_dir, a.start, end_ms, a.reason)
+            ev = evaluate(a.data_dir, a.start, end_ms, a.reason, symbols=symbols)
     else:
-        ev = evaluate(a.data_dir, a.start, end_ms, a.reason)
+        ev = evaluate(a.data_dir, a.start, end_ms, a.reason, symbols=symbols)
     sim = simulate_arms(ev)
     res = write_outputs(ev, sim, criteria(sim), s3_veto(ev), end_ms, limits, a.out, a.start, provisional)
     print(render_md(res))

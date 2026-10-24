@@ -857,6 +857,27 @@ test('comisiones con BNB: cada compra y venta ejecutada pasa por el monitor de B
     assert.equal(seen[1]!.symbol, 'DOGEUSDT');
 });
 
+test('Simple Earn: rescata antes de cada compra y vuelve a suscribir tras cada venta', async () => {
+    const calls: string[] = [];
+    const earn = {
+        ensureFunds: async (quote: number) => { calls.push(`ensure ${quote}`); return true; },
+        sweep: async () => { calls.push('sweep'); return 0; }
+    };
+    const h = await makeClient(undefined, undefined, { earn });
+    await openDoge(h);
+    assert.deepEqual(calls, ['ensure 15']);
+    assert.equal(h.rest.buys.length, 1);
+    await h.send('DOGEUSDT', T0 + CANDLE, 0.0826, false);
+    assert.deepEqual(calls, ['ensure 15', 'sweep']);
+});
+
+test('Simple Earn que falla no frena la compra', async () => {
+    const earn = { ensureFunds: async () => { throw new Error('sin red'); }, sweep: async () => { throw new Error('sin red'); } };
+    const h = await makeClient(undefined, undefined, { earn });
+    await openDoge(h);
+    assert.ok(h.client.getPosition('DOGEUSDT'));
+});
+
 test('monitor de BNB que falla no frena la operación', async () => {
     const bnb = { afterTrade: async () => { throw new Error('sin red'); } };
     const h = await makeClient(undefined, undefined, { bnb });

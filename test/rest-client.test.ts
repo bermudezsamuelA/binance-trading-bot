@@ -377,3 +377,34 @@ test('bnbBurn: firmada en /sapi/v1/bnbBurn (raíz del host, no /api)', async () 
     assert.ok(signatureOk(call));
     assert.equal(call.headers['X-MBX-APIKEY'], process.env.BINANCE_API_KEY);
 });
+
+test('Simple Earn: rutas /sapi firmadas, producto, posición, suscripción desde SPOT y rescate a SPOT', async () => {
+    const { http, rest } = makeRest((_m, path, params) => {
+        if (path === '/sapi/v1/simple-earn/flexible/list') {
+            assert.equal(params.get('asset'), 'USDT');
+            return { rows: [{ asset: 'USDT', productId: 'USDT001', latestAnnualPercentageRate: '0.0412', minPurchaseAmount: '0.1',
+                              canPurchase: true, canRedeem: true }], total: 1 };
+        }
+        if (path === '/sapi/v1/simple-earn/flexible/position') return { rows: [{ asset: 'USDT', totalAmount: '120.5' }], total: 1 };
+        if (path === '/sapi/v1/simple-earn/flexible/subscribe' || path === '/sapi/v1/simple-earn/flexible/redeem') {
+            return { success: true };
+        }
+        throw new Error(`ruta inesperada ${path}`);
+    });
+    assert.deepEqual(await rest.getFlexibleProduct('USDT'),
+        { productId: 'USDT001', apr: 0.0412, minPurchase: 0.1, canPurchase: true, canRedeem: true });
+    assert.equal(await rest.getFlexiblePosition('USDT'), 120.5);
+    await rest.subscribeFlexible('USDT001', '10.00');
+    await rest.redeemFlexible('USDT001', '5.00');
+    const sub = http.of('/sapi/v1/simple-earn/flexible/subscribe')[0]!;
+    assert.equal(sub.method, 'post');
+    assert.equal(sub.params.get('sourceAccount'), 'SPOT');
+    assert.equal(http.of('/sapi/v1/simple-earn/flexible/redeem')[0]!.params.get('destAccount'), 'SPOT');
+    assert.ok(http.calls.filter(c => c.path.startsWith('/sapi/')).every(signatureOk));
+});
+
+test('Simple Earn: success=false se trata como error', async () => {
+    const { rest } = makeRest(() => ({ success: false }));
+    await assert.rejects(rest.subscribeFlexible('USDT001', '1.00'), /rechazó la suscripción/);
+    await assert.rejects(rest.redeemFlexible('USDT001', '1.00'), /rechazó el rescate/);
+});

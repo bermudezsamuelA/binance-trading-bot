@@ -28,13 +28,17 @@ Es la prueba **prospectiva** pre-registrada de la sección 8 de [estrategia-v3-h
 |---|---|
 | `shadow/feeds.py` | Descargas incrementales: velas spot de 15 min y futuros (metrics, prima, velas y *funding*) de data.binance.vision para las 4 anclas, y el DVOL de Deribit (BTC y ETH) en `cache/deribit/`. Usa los parsers de `nn/nn_download_futures.py`. |
 | `shadow/run_daily.py` | Verifica los *hashes* de `spec_nn_v2.json`, sus 13 modelos y los scripts, y evalúa con el ensamble congelado (mismo cálculo que `nn/nn_v3_desc.py`). Simula los brazos P1 (v2 + $A_4 \ge 1$ + X5 con 384 velas), C0 (sin compuerta) y S3 (P1 + veto D1 por DVOL), con costos de 0.24 %, 0.30 % y 0.19 %, y el azar por moneda y mes (también condicionado a $A_4 \ge 1$). |
-| `shadow/test_run_daily.py` | Pruebas sin red con datos sintéticos, incluida una corrida completa con los modelos reales. |
+| `shadow/coinalyze.py` | Cliente de Coinalyze (clave gratuita en `COINALYZE_API_KEY`): *open interest*, ratio long/short global, flujo *taker*, velas del perpetuo y *funding* de Binance con el formato de `nn_download_futures.py`. Sirve para cubrir el día en curso, que data.binance.vision publica al día siguiente. |
+| `shadow/equivalence_coinalyze.py` | Mide si el modelo da las mismas señales con Coinalyze que con los datos reales (hueco de 1 y 2 días y estrés de 6 días; criterio fijado antes: Jaccard ≥ 0.8 en las señales y en S1 con hueco de 1 día). Escribe `output/prospectivo/equivalencia_coinalyze.json`. |
+| `shadow/test_run_daily.py`, `shadow/test_coinalyze.py` | Pruebas sin red con datos sintéticos, incluida una corrida completa con los modelos reales. |
 
 Uso, desde `binance-research` y **con la VPN apagada** para las descargas:
 
 ```text
 .venv\Scripts\python v3_research\shadow\run_daily.py --download
 ```
+
+Por defecto evalúa el **universo de 18 monedas** del pre-registro (las 4 anclas y ADA, ATOM, AVAX, BCH, BNB, DOT, ETC, FIL, LINK, LTC, NEAR, TRX, UNI y XRP): P1, C0 y S3 en las anclas y **S1** ($v2 + A_{18} \ge 3$) en las 18. `--solo-anclas` vuelve a las 4. `--end AAAA-MM-DD` corta el periodo, y con `--start` anterior al 2026-10-01 y `--reason` sirve para mediciones descriptivas en la reserva gastada (quedan en `holdout_log.csv`). Además del 0.24 %, 0.30 % y 0.19 % (BNB), informa un costo de **0.17 % (BNB + TP límite)**: la salida por TP no paga deslizamiento. La salida lleva el **PnL por moneda** de P1 y S1 con su fila combinada.
 
 Sin `--download` solo recalcula con los datos que ya hay. La salida queda en `output/prospectivo/`: `resumen.md` (tabla de brazos y los 6 criterios de la sección 8.3 con lo que hay hasta hoy, más el e-proceso del WR y la futilidad), `resumen.json`, `senales.csv` (cada vela con $\hat p \ge \theta$, su $A_4$ y su $z_{30}$) y `operaciones_{P1,C0,S3}.csv`.
 

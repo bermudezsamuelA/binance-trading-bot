@@ -1,0 +1,48 @@
+{
+ "funding_real_hasta": "2026-09-30 16:00",
+ "ventana": [
+  "2026-09-01",
+  "2026-10-01 00:00"
+ ],
+ "funding": {
+  "BTCUSDT": {
+   "n": 270,
+   "corr": 0.8889,
+   "iguales_pct": 37.4,
+   "error_medio_pb": 0.111,
+   "error_max_pb": 0.663
+  },
+  "ETHUSDT": {
+   "n": 270,
+   "corr": 0.8339,
+   "iguales_pct": 25.2,
+   "error_medio_pb": 0.161,
+   "error_max_pb": 0.67
+  },
+  "SOLUSDT": {
+   "n": 270,
+   "corr": 0.9124,
+   "iguales_pct": 37.8,
+   "error_medio_pb": 0.141,
+   "error_max_pb": 2.586
+  },
+  "DOGEUSDT": {
+   "n": 270,
+   "corr": 0.8504,
+   "iguales_pct": 44.8,
+   "error_medio_pb": 0.136,
+   "error_max_pb": 2.856
+  }
+ },
+ "senales": {
+  "real": 24,
+  "provisional": 24,
+  "jaccard": 0.92
+ },
+ "P1": {
+  "real": 1,
+  "provisional": 1,
+  "jaccard": 1.0
+ },
+ "equivalente": true
+}

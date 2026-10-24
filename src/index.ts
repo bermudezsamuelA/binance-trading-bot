@@ -3,6 +3,7 @@ import { BinanceWSClient } from './api/ws-client';
 import { brain } from './api/zmq-client'; 
 import { TelegramClient, escapeHtml } from './api/telegram-client';
 import { BnbFeeMonitor } from './api/bnb-fees';
+import { EarnManager } from './api/earn';
 import { config } from './config/env';
 import { parseBrainHandshake } from './brain-handshake';
 import { installProcessGuards } from './process-guards';
@@ -88,8 +89,15 @@ async function main() {
     console.log(`\nConnecting to live order book for all rostered coins...`);
     // El cliente WebSocket usa el mismo cliente REST (y el mismo desfase horario); start() recupera las
     // posiciones del ledger antes de conectarse a los precios.
+    // USDT ocioso en Simple Earn (EARN_IDLE_USDT=1, solo mainnet): interés del producto flexible sin depender de señales
+    const earn = new EarnManager(restClient, message => { telegram.sendMessage(message).catch(() => {}); },
+        { enabled: config.EARN_IDLE_USDT, market: config.MARKET, tradeQuoteUsdt });
+    const earnText = await earn.start();
+    if (earnText) console.log(`🏦 ${earnText}`);
+    earn.schedule();
+
     const wsClient = new BinanceWSClient(roster, tradeQuoteUsdt,
-        { rest: restClient, telegram, klineInterval, ...(bnb.enabled ? { bnb } : {}) });
+        { rest: restClient, telegram, klineInterval, ...(bnb.enabled ? { bnb } : {}), ...(earn.active ? { earn } : {}) });
     await wsClient.start();
 
     // Notificación de encendido exitoso
@@ -99,6 +107,7 @@ async function main() {
         console.log("\nShutting down bot...");
         await telegram.sendMessage("🔴 <b>BOT APAGADO</b>\nDesconexión manual o caída del servidor.");
         wsClient.close();
+        earn.stop();
         process.exit(0);
     });
 }

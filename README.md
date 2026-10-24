@@ -65,6 +65,8 @@ Variables de Entorno
     # TESTNET_IGNORE_MOMENTUM=1
     # Opcional: 0 si NO pagas las comisiones con BNB (por defecto 1: 0.075 % por lado en vez de 0.10 %)
     # PAY_FEES_WITH_BNB=0
+    # Opcional, solo mainnet: pone el USDT que no se usa en Simple Earn flexible y lo rescata antes de comprar
+    # EARN_IDLE_USDT=1
 
     BINANCE_MARKET elige el mercado de todo el bot: "testnet" (por defecto) o "mainnet". Con esa sola
     variable Node.js arma las URL del REST y del WebSocket, y Python precarga las velas del mismo mercado.
@@ -75,6 +77,10 @@ Variables de Entorno
     como Binance cuando la comisión se paga con BNB. Para que sea cierto hace falta BNB en la cuenta spot y la opción
     "Usar BNB para pagar comisiones" activa; Node.js avisa por Telegram si el BNB baja de 2 USDT, si una orden se
     cobró en otra moneda o (en mainnet) si la opción está apagada. Al cambiarlo, vuelve a correr ml_evaluator.py.
+    EARN_IDLE_USDT=1 (solo mainnet; la testnet no tiene Simple Earn) suscribe a Simple Earn flexible el USDT libre
+    que pasa de una reserva de 2 compras (2 × tamaño por operación + 2 %), al arrancar, tras cada venta y cada hora, y
+    antes de cada compra rescata lo que falte. Es un interés que no depende de ninguna señal (la tasa la fija Binance y
+    cambia); el riesgo es el de Binance como contraparte. Está apagado por defecto porque mueve saldo de la cuenta.
     BRAIN_ZMQ_BIND (Python) y BRAIN_ZMQ_URL (Node.js) son opcionales: dirección del canal ZMQ entre ambos motores
     (por defecto tcp://127.0.0.1:5555). Solo hacen falta si Node.js corre en Docker (ver más abajo).
 

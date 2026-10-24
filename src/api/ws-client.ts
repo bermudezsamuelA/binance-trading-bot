@@ -130,6 +130,8 @@ export interface WSClientDeps {
     klineInterval: string;   // velas del WebSocket; index.ts pasa la del handshake con Python ('15m' solo en pruebas)
     // Vigila que las comisiones se cobren en BNB (bnb-fees.ts); sin él no se revisa nada
     bnb?: { afterTrade(symbol: string, exec: Execution): Promise<void> };
+    // USDT ocioso en Simple Earn (earn.ts): rescata antes de comprar y vuelve a suscribir tras vender
+    earn?: { ensureFunds(quote: number): Promise<boolean>; sweep(): Promise<number> };
 }
 
 /** Posición a partir de una fila OPEN del ledger (las filas antiguas no tienen datos de ejecución). */
@@ -161,6 +163,7 @@ export class BinanceWSClient {
     private brain: WSClientDeps['brain'];
     private telegram: WSClientDeps['telegram'];
     private bnb: WSClientDeps['bnb'];
+    private earn: WSClientDeps['earn'];
     private createSocket: WSClientDeps['createSocket'];
     private sleep: WSClientDeps['sleep'];
 
@@ -205,6 +208,7 @@ export class BinanceWSClient {
         this.telegram = deps.telegram ?? new TelegramClient();
         this.createSocket = deps.createSocket ?? ((url: string) => new WebSocket(url));
         this.bnb = deps.bnb;
+        this.earn = deps.earn;
         this.sleep = deps.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
         // Velas de la temporalidad que evalua la estrategia: la da Python en el handshake (config.KLINE_INTERVAL)
         const streams = roster.map(symbol => `${symbol.toLowerCase()}@kline_${deps.klineInterval ?? '15m'}`).join('/');
@@ -440,6 +444,9 @@ export class BinanceWSClient {
             this.handleOrderError(symbol, new Error('no se pudo registrar la compra pendiente en el ledger; no se envía'));
             return;
         }
+
+        // USDT en Simple Earn: se rescata lo que falte antes de comprar (si falla, la compra sigue y Binance decide)
+        if (this.earn) await this.earn.ensureFunds(this.tradeQuoteUsdt).catch(() => false);
 
         let exec: Execution;
         let adopted = false;
@@ -783,6 +790,7 @@ export class BinanceWSClient {
         });
 
         this.checkBnbFees(symbol, exec);
+        if (this.earn) this.earn.sweep().catch(() => 0);   // lo cobrado vuelve a Simple Earn (deja libre la reserva)
         const fees = position.entryFeeQuote + exec.fees.totalQuote;
         this.notify(
             `<b>${escapeHtml(reason)}</b>\n` +

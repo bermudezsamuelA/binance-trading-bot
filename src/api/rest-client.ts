@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as crypto from 'crypto';
 import { config } from '../config/env';
+import type { FlexibleProduct } from './earn';
 import {
     Execution, SymbolFilters, floorToStep, foreignFeeAssets, isTradable, parseExecution, tradesToResponse
 } from './execution';
@@ -239,6 +240,39 @@ export class BinanceRestClient {
         const balances = new Map<string, number>();
         for (const b of account.balances ?? []) balances.set(b.asset, parseFloat(b.free) || 0);
         return balances;
+    }
+
+    /** GET /sapi/v1/simple-earn/flexible/list: el producto flexible del activo (null si no hay). Solo mainnet. */
+    public async getFlexibleProduct(asset: string): Promise<FlexibleProduct | null> {
+        const data = await this.signedRequest('get', '/sapi/v1/simple-earn/flexible/list', { asset, current: 1, size: 10 });
+        const row = (data?.rows ?? []).find((r: any) => r.asset === asset);
+        if (!row) return null;
+        return {
+            productId: String(row.productId),
+            apr: parseFloat(row.latestAnnualPercentageRate) || 0,
+            minPurchase: parseFloat(row.minPurchaseAmount) || 0,
+            canPurchase: row.canPurchase !== false,
+            canRedeem: row.canRedeem !== false,
+        };
+    }
+
+    /** GET /sapi/v1/simple-earn/flexible/position: cuánto del activo hay en Simple Earn flexible. */
+    public async getFlexiblePosition(asset: string): Promise<number> {
+        const data = await this.signedRequest('get', '/sapi/v1/simple-earn/flexible/position', { asset, current: 1, size: 10 });
+        return (data?.rows ?? []).filter((r: any) => r.asset === asset)
+            .reduce((sum: number, r: any) => sum + (parseFloat(r.totalAmount) || 0), 0);
+    }
+
+    /** POST /sapi/v1/simple-earn/flexible/subscribe desde la cuenta spot. */
+    public async subscribeFlexible(productId: string, amount: string): Promise<void> {
+        const data = await this.signedRequest('post', '/sapi/v1/simple-earn/flexible/subscribe', { productId, amount, sourceAccount: 'SPOT' });
+        if (data?.success === false) throw new Error(`Simple Earn rechazó la suscripción de ${amount}`);
+    }
+
+    /** POST /sapi/v1/simple-earn/flexible/redeem hacia la cuenta spot. */
+    public async redeemFlexible(productId: string, amount: string): Promise<void> {
+        const data = await this.signedRequest('post', '/sapi/v1/simple-earn/flexible/redeem', { productId, amount, destAccount: 'SPOT' });
+        if (data?.success === false) throw new Error(`Simple Earn rechazó el rescate de ${amount}`);
     }
 
     /** GET /sapi/v1/bnbBurn: si la cuenta paga las comisiones de spot con BNB (solo mainnet; la testnet no tiene /sapi). */

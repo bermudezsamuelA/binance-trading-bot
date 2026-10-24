@@ -1,0 +1,193 @@
+{
+ "criterio": "hueco de 1 dia: Jaccard de senales y de S1 >= 0.8",
+ "desfases_ms": {
+  "oi": 0,
+  "ls": -300000,
+  "k5": 0,
+  "k15": 0,
+  "fr": 0
+ },
+ "dias": [
+  "2026-10-19",
+  "2026-10-23"
+ ],
+ "generado": "2026-10-24T08:28:47+00:00",
+ "hueco_1d_prima_base": {
+  "velas": 8640,
+  "corr_p": 0.9407,
+  "dif_media_p": 0.00684,
+  "cerca_del_umbral": {
+   "velas": 2879,
+   "max_p_real": 0.6936,
+   "dif_media_p": 0.00904,
+   "corr_p": 0.7273
+  },
+  "senales": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  },
+  "S1": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  },
+  "P1": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  }
+ },
+ "hueco_2d_prima_base": {
+  "velas": 8640,
+  "corr_p": 0.9174,
+  "dif_media_p": 0.00858,
+  "cerca_del_umbral": {
+   "velas": 3004,
+   "max_p_real": 0.6936,
+   "dif_media_p": 0.01237,
+   "corr_p": 0.584
+  },
+  "senales": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  },
+  "S1": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  },
+  "P1": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  }
+ },
+ "estres_5d_prima_base": {
+  "velas": 8640,
+  "corr_p": 0.9048,
+  "dif_media_p": 0.00996,
+  "cerca_del_umbral": {
+   "velas": 3050,
+   "max_p_real": 0.6936,
+   "dif_media_p": 0.01045,
+   "corr_p": 0.7841
+  },
+  "senales": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  },
+  "S1": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  },
+  "P1": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  }
+ },
+ "hueco_1d_prima_arrastre": {
+  "velas": 8640,
+  "corr_p": 0.94,
+  "dif_media_p": 0.00706,
+  "cerca_del_umbral": {
+   "velas": 2853,
+   "max_p_real": 0.6936,
+   "dif_media_p": 0.00893,
+   "corr_p": 0.7342
+  },
+  "senales": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  },
+  "S1": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  },
+  "P1": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  }
+ },
+ "hueco_2d_prima_arrastre": {
+  "velas": 8640,
+  "corr_p": 0.9191,
+  "dif_media_p": 0.00846,
+  "cerca_del_umbral": {
+   "velas": 2926,
+   "max_p_real": 0.6936,
+   "dif_media_p": 0.01178,
+   "corr_p": 0.5977
+  },
+  "senales": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  },
+  "S1": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  },
+  "P1": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  }
+ },
+ "estres_5d_prima_arrastre": {
+  "velas": 8640,
+  "corr_p": 0.9045,
+  "dif_media_p": 0.01016,
+  "cerca_del_umbral": {
+   "velas": 3060,
+   "max_p_real": 0.6936,
+   "dif_media_p": 0.01037,
+   "corr_p": 0.7864
+  },
+  "senales": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  },
+  "S1": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  },
+  "P1": {
+   "real": 0,
+   "coinalyze": 0,
+   "comunes": 0,
+   "jaccard": 1.0
+  }
+ },
+ "veredicto": {
+  "base": "no concluyente (0 velas con senal reales < 5)",
+  "arrastre": "no concluyente (0 velas con senal reales < 5)"
+ }
+}
