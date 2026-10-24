@@ -18,3 +18,4 @@ utc,script,who,reason,detail
 2026-10-24 08:11:42,run_daily.py,v3_shadow,Descriptivo v3/S1 en 18 monedas 2025-07..2026-09 (ya gastado); pedido del usuario 2026-10-24; no decide nada,BTCUSDT 2025-07-01 00:00..2026-10-01 00:00
 2026-10-24 08:13:49,run_daily.py,v3_shadow,"Descriptivo v3/S1 en 18 monedas 2025-07..2026-09 (ya gastado), repetido con el DVOL actualizado para S3; pedido del usuario 2026-10-24; no decide nada",BTCUSDT 2025-07-01 00:00..2026-10-01 00:00
 2026-10-24 08:15:43,run_daily.py,v3_shadow,equivalencia del funding provisional (infraestructura; no decide nada),BTCUSDT 2026-09-01 00:00..2026-10-01 00:00
+2026-10-24 09:06:20,run_daily.py,v3_shadow,Descriptivo_regimen_BTC_SMA30_hipotesis_4.4_en_18_monedas_(ya_gastado);_no_decide_nada,BTCUSDT 2025-07-01 00:00..2026-10-01 00:00

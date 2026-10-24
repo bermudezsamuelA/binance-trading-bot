@@ -13,6 +13,9 @@ COMPLETOS y simula los brazos del pre-registro con el arnes del laboratorio (har
   Azar: entradas en todas las velas validas (por moneda y mes) y azar condicionado (solo en velas con A4 >= 1).
   Costos: 0.24 % (principal), 0.30 % (estres), 0.19 % (BNB) y 0.17 % (BNB con el TP como orden limite: la salida por TP
   no paga deslizamiento; aproximacion: se llena al tocar el TP), estos dos informativos.
+  R (exploratorio, hipotesis 4.4 "BTC > SMA30" grabada en el documento): P1+R y S1+R solo compran si el cierre de BTC
+      esta por encima de su media de 30 dias (2880 velas de 15 min). Fijada el 2026-10-24 antes de mirarla en 2022
+      (estres) y en 2025-07..2026-09; una sola regla, sin variantes.
 S2 (ENS12U, aun sin congelar) y S4 (opcional) no estan aqui.
 
 Los datos llegan con retraso (data.binance.vision publica al dia siguiente y el funding solo por mes), asi que cada
@@ -47,6 +50,7 @@ OTHERS = ["ADAUSDT", "ATOMUSDT", "AVAXUSDT", "BCHUSDT", "BNBUSDT", "DOTUSDT", "E
           "LTCUSDT", "NEARUSDT", "TRXUSDT", "UNIUSDT", "XRPUSDT"]
 UNIVERSE = list(ANCHORS) + OTHERS          # universo de 18 del pre-registro (seccion 8.2)
 S1_MIN = 3
+REGIME_CANDLES = 30 * 96      # media de 30 dias del cierre de BTC (hipotesis 4.4)
 DAY_MS = 86_400_000
 OUT_DIR = os.path.join(RESEARCH, "output", "prospectivo")
 DVOL_FILE = os.path.join(RESEARCH, "cache", "deribit", "dvol_BTC_1h.json")
@@ -369,6 +373,14 @@ def evaluate(data_dir: str, start: str, end_ms: int, reason: str = None, dvol_fi
         D[s]["A"] = sum(roll[o][rows].astype(int) for o in ANCHORS if o != s and o in roll)
         D[s]["A18"] = sum(roll[o][rows].astype(int) for o in symbols if o != s)
         D[s]["veto"] = D[s]["z30"] < -1        # NaN no veta
+    # Regimen (hipotesis 4.4): cierre de BTC > su media de 30 dias, alineado por open_time (sin BTC: no se calcula)
+    if "BTCUSDT" in D:
+        bt, bc = D["BTCUSDT"]["S"]["t"].astype(np.int64), D["BTCUSDT"]["S"]["c"]
+        up = bc > H.rolling_mean(bc, REGIME_CANDLES)
+        for s in symbols:
+            j = np.searchsorted(bt, D[s]["S"]["t"].astype(np.int64))
+            ok = (j < len(bt)) & (bt[np.minimum(j, len(bt) - 1)] == D[s]["S"]["t"].astype(np.int64))
+            D[s]["btc_up"] = ok & up[np.minimum(j, len(bt) - 1)]
     anchors = [s for s in symbols if s in ANCHORS]
     arms = {"P1": (lambda d: d["sig"] & (d["A"] >= 1), anchors),
             "C0": (lambda d: d["sig"], anchors),
@@ -376,6 +388,10 @@ def evaluate(data_dir: str, start: str, end_ms: int, reason: str = None, dvol_fi
             "S3": (lambda d: d["sig"] & (d["A"] >= 1) & ~d["veto"], anchors)}
     if len(symbols) > len(anchors):
         arms["S1"] = (lambda d: d["sig"] & (d["A18"] >= S1_MIN), list(symbols))
+    if "BTCUSDT" in D:
+        arms["P1+R"] = (lambda d: d["sig"] & (d["A"] >= 1) & d["btc_up"], anchors)
+        if "S1" in arms:
+            arms["S1+R"] = (lambda d: d["sig"] & (d["A18"] >= S1_MIN) & d["btc_up"], list(symbols))
     return {"spec": spec, "D": D, "arms": arms, "thr": thr, "symbols": list(symbols)}
 
 
@@ -517,7 +533,7 @@ def write_outputs(ev: dict, sim: dict, crit: dict, veto: dict, end_ms: int, limi
     for (arm, cost), trs in sim["trades"].items():
         if arm != "C0_A0":
             arms[f"{arm} c={cost}"] = arm_stats(trs, sim["base"][cost], arm)
-    per_coin = {arm: coin_table(sim["trades"][(arm, MAIN_COST)]) for arm in ("P1", "S1") if (arm, MAIN_COST) in sim["trades"]}
+    per_coin = {arm: coin_table(sim["trades"][(arm, MAIN_COST)]) for arm in ("P1", "S1", "S1+R") if (arm, MAIN_COST) in sim["trades"]}
     res = {"generado": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
            "periodo": [start, iso(end_ms)], "umbral": ev["thr"], "spec": ev["spec"]["nombre"],
            "sha256": {"spec_nn_v2.json": sha(V3.SPEC), "run_daily.py": sha(os.path.abspath(__file__))},
@@ -624,6 +640,7 @@ def main(argv=None):
     ap.add_argument("--download", action="store_true", help="descarga antes los datos nuevos (VPN apagada)")
     ap.add_argument("--out", default=OUT_DIR)
     ap.add_argument("--reason", default=None, help="solo si el periodo toca el holdout (queda registrado)")
+    ap.add_argument("--dvol", default=DVOL_FILE, help="archivo del DVOL de BTC (por defecto cache/deribit)")
     ap.add_argument("--end", default=None, help="fin exclusivo (AAAA-MM-DD); por defecto, hasta donde haya datos")
     ap.add_argument("--solo-anclas", action="store_true", help="solo las 4 anclas (sin S1 ni las otras 14 monedas)")
     ap.add_argument("--solo-definitivo", action="store_true",
@@ -664,9 +681,9 @@ def main(argv=None):
         return None
     if provisional:
         with ProxyFunding():
-            ev = evaluate(a.data_dir, a.start, end_ms, a.reason, symbols=symbols)
+            ev = evaluate(a.data_dir, a.start, end_ms, a.reason, dvol_file=a.dvol, symbols=symbols)
     else:
-        ev = evaluate(a.data_dir, a.start, end_ms, a.reason, symbols=symbols)
+        ev = evaluate(a.data_dir, a.start, end_ms, a.reason, dvol_file=a.dvol, symbols=symbols)
     sim = simulate_arms(ev)
     res = write_outputs(ev, sim, criteria(sim), s3_veto(ev), end_ms, limits, a.out, a.start, provisional)
     print(render_md(res))
