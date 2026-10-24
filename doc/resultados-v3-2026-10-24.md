@@ -41,7 +41,7 @@ La primera fila está inflada: el modelo aprendió el comportamiento del mercado
 
 Coincide casi perfecto con Binance en *open interest*, ratio long/short global, flujo *taker*, velas del perpetuo y *funding* (correlaciones ≥ 0.999). No tiene los ratios de top traders ni la prima. La prueba de equivalencia del modelo **no es concluyente**: no hubo señales en los 5 días que cubre Coinalyze. La p del modelo correlaciona 0.94 en general y 0.73 cerca del umbral. La caché crece con cada corrida, así que la prueba se vuelve concluyente con el tiempo. `v3_live.py` genera las señales en vivo sin enviar órdenes.
 
-## Qué falta
+## Qué falta (las tareas programadas se registran con `scripts/programar_tareas_v3.ps1`: una diaria para el canal sombra y otra cada 15 minutos para las señales en vivo)
 
 1. Acumular operaciones prospectivas (tarea semanal: `scripts/programar_tareas_v3.ps1`).
 2. Que la equivalencia de Coinalyze dé "equivalente" con al menos 5 señales.
