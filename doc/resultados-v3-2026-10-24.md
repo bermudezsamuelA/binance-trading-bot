@@ -74,3 +74,30 @@ Se probaron en monedas nuevas, eligiendo con el periodo de diseño (2023-03 a 20
 - Con 15 USDT por operación: ≈ +3 a +7 USDT al mes, con hasta 13-19 posiciones abiertas.
 
 **Registro:** S1H (S1 con p ≥ 0.745) queda como brazo exploratorio en `run_daily.py` y en `v3_live.py`, fijado desde hoy para la prueba prospectiva.
+
+## Qué tan reciente es la evidencia (2026-10-24)
+
+**Por qué los periodos terminan en 2026-09:** los datos de futuros completos llegan hasta ahí (Binance publica el *funding* por mes). Para octubre se reconstruyó el *funding* con la prima del perpetuo (equivalente, Jaccard 0.92). "Nuevo" significa posterior al entrenamiento del modelo (2025-06-30), pero el umbral 0.745 se eligió mirando esos meses, así que solo la confirmación en 13 monedas y octubre son independientes.
+
+**Por trimestre (S1 con θ = 0.7143 frente a S1H con θ = 0.745, 19 monedas nuevas):**
+
+| Trimestre | S1: WR / E / PnL | S1H: WR / E / PnL |
+|---|---|---|
+| 2025-T3 | 83 % / +1.40 % / +41 | 91 % / +2.15 % / +17 |
+| 2025-T4 | 71 % / +1.37 % / +69 | 76 % / +3.38 % / +82 |
+| **2026-T1** | 66 % / −0.39 % / −19 | 68 % / −0.23 % / −5 |
+| **2026-T2** | 60 % / −0.86 % / −31 | 57 % / −0.78 % / −12 |
+| 2026-T3 | 82 % / +0.73 % / +35 | 82 % / +0.91 % / +19 |
+
+El modelo **se desgastó en la primera mitad de 2026** (dos trimestres negativos, WR de 57-68 %) y se recuperó en el tercero. S1H pierde menos en los malos trimestres, pero también pierde. Eso apoya reentrenar con datos recientes como brazo aparte (S2).
+
+**1 a 23 de octubre de 2026** (posterior a todo lo mirado; el umbral ya estaba fijado):
+
+| Monedas | θ | Operaciones | WR | E | PnL |
+|---|---|---|---|---|---|
+| 19 nuevas | 0.7143 | 45 | 68.9 % | −0.14 % | −0.9 |
+| 19 nuevas | **0.745** | 20 | 80.0 % | **+0.95 %** | **+2.8** |
+| 13 nuevas | 0.7143 | 31 | 77.4 % | +0.80 % | +3.7 |
+| 13 nuevas | **0.745** | 11 | 81.8 % | **+0.77 %** | **+1.3** |
+
+Son muy pocas operaciones para concluir, pero S1H es positivo en los dos conjuntos.

@@ -31,10 +31,15 @@ def main(argv=None):
     ap.add_argument("--end", required=True)
     ap.add_argument("--dvol", default=RD.DVOL_FILE)
     ap.add_argument("--reason", default=None)
+    ap.add_argument("--proxy", action="store_true", help="funding del mes en curso reconstruido con la prima")
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
     symbols = a.monedas.split(",")
-    ev = RD.evaluate(a.data_dir, a.start, RD.to_ms(a.end), a.reason, dvol_file=a.dvol, symbols=symbols)
+    if a.proxy:
+        with RD.ProxyFunding():
+            ev = RD.evaluate(a.data_dir, a.start, RD.to_ms(a.end), a.reason, dvol_file=a.dvol, symbols=symbols)
+    else:
+        ev = RD.evaluate(a.data_dir, a.start, RD.to_ms(a.end), a.reason, dvol_file=a.dvol, symbols=symbols)
     D = ev["D"]
     ga, gm, gH = C.GEOMS["X5_384"]
     os.makedirs(a.out, exist_ok=True)
