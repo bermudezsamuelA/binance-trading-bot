@@ -67,6 +67,8 @@ Variables de Entorno
     # PAY_FEES_WITH_BNB=0
     # Opcional, solo mainnet: pone el USDT que no se usa en Simple Earn flexible y lo rescata antes de comprar
     # EARN_IDLE_USDT=1
+    # Opcional: clave gratuita de coinalyze.net para la v3 (binance-research/v3_research/shadow/coinalyze.py)
+    # COINALYZE_API_KEY="tu_clave_de_coinalyze"
 
     BINANCE_MARKET elige el mercado de todo el bot: "testnet" (por defecto) o "mainnet". Con esa sola
     variable Node.js arma las URL del REST y del WebSocket, y Python precarga las velas del mismo mercado.

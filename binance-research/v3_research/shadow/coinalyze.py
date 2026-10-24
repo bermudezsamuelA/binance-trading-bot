@@ -32,9 +32,26 @@ MIN_GAP_S = 1.6           # 40 llamadas por minuto como maximo
 MAX_SYMBOLS = 20
 
 
+ENV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".env")
+
+
+def env_file_value(name: str, path: str = None) -> str:
+    """Valor de una variable del .env de la raiz del repo (donde estan las demas claves del bot), sin comillas."""
+    path = path or ENV_FILE
+    if not os.path.exists(path):
+        return ""
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if "=" in line and not line.lstrip().startswith("#"):
+                key, value = line.strip().split("=", 1)
+                if key.strip() == name:
+                    return value.strip().strip('"\'')
+    return ""
+
+
 class Coinalyze:
     def __init__(self, api_key: str = None, opener=urllib.request.urlopen, sleep=time.sleep):
-        self.api_key = api_key or os.environ.get("COINALYZE_API_KEY", "")
+        self.api_key = api_key or os.environ.get("COINALYZE_API_KEY", "") or env_file_value("COINALYZE_API_KEY")
         if not self.api_key:
             raise RuntimeError("Falta COINALYZE_API_KEY (clave gratuita de coinalyze.net) en el entorno.")
         self.opener, self.sleep, self.last = opener, sleep, 0.0

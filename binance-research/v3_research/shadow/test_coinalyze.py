@@ -95,12 +95,20 @@ class ClientTest(unittest.TestCase):
         self.assertEqual(calls[-1].get_header("Api_key"), "clave-de-prueba")
         self.assertIn("symbols=BTCUSDT_PERP.A", calls[-1].full_url)
 
-    def test_sin_clave_no_arranca(self):
-        saved = os.environ.pop("COINALYZE_API_KEY", None)
+    def test_sin_clave_no_arranca_y_la_lee_del_env(self):
+        import tempfile
+        saved, saved_file = os.environ.pop("COINALYZE_API_KEY", None), CZ.ENV_FILE
         try:
-            with self.assertRaises(RuntimeError):
-                CZ.Coinalyze()
+            with tempfile.TemporaryDirectory() as tmp:
+                CZ.ENV_FILE = os.path.join(tmp, ".env")
+                with self.assertRaises(RuntimeError):
+                    CZ.Coinalyze()
+                with open(CZ.ENV_FILE, "w", encoding="utf-8") as f:
+                    f.write('BINANCE_MARKET="testnet"\nCOINALYZE_API_KEY="abc-123"\n')
+                self.assertEqual(CZ.env_file_value("COINALYZE_API_KEY", CZ.ENV_FILE), "abc-123")
+                self.assertEqual(CZ.Coinalyze().api_key, "abc-123")
         finally:
+            CZ.ENV_FILE = saved_file
             if saved is not None:
                 os.environ["COINALYZE_API_KEY"] = saved
 
