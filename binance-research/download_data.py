@@ -5,11 +5,13 @@ from config import ACTIVE_ROSTER
 
 SYNC_FLAG_FILE = "./data/.last_sync"
 
-def sync_historical_data(roster: list):
+def sync_historical_data(roster: list, force: bool = False):
+    """Descarga las velas de 15 min de 2023-01-01 hasta ayer. force: aunque ya se haya sincronizado hoy (la marca del
+    dia no dice de que monedas; replication.py descarga monedas que el bot no usa)."""
     today_str = datetime.date.today().isoformat()
     
     # 1. EVALUACIÓN RÁPIDA: ¿Ya sincronizamos hoy?
-    if os.path.exists(SYNC_FLAG_FILE):
+    if not force and os.path.exists(SYNC_FLAG_FILE):
         with open(SYNC_FLAG_FILE, "r") as f:
             last_sync = f.read().strip()
             if last_sync == today_str:

@@ -1,0 +1,4884 @@
+{
+ "_protocolo": {
+  "preregistro": "2026-10-22, antes de ver resultados (ver docstring de experiments.py)",
+  "generado": "2026-10-22T19:26:05Z",
+  "brazos": {
+   "P0": {
+    "sim": "P0",
+    "desc": "base (ml_evaluator, agrupado)",
+    "reglas": {}
+   },
+   "P3": {
+    "sim": "P3",
+    "desc": "riesgo minimo 1.5 %",
+    "reglas": {
+     "min_risk": 0.015
+    }
+   },
+   "P4": {
+    "sim": "P4",
+    "desc": "costos con BNB (0.19 %)",
+    "reglas": {
+     "cost": 0.00095
+    }
+   },
+   "P34": {
+    "sim": "P34",
+    "desc": "riesgo 1.5 % + BNB",
+    "reglas": {
+     "min_risk": 0.015,
+     "cost": 0.00095
+    }
+   },
+   "P5": {
+    "sim": "P0",
+    "momentum": 12,
+    "desc": "momentum 12 meses",
+    "reglas": {}
+   },
+   "P6": {
+    "sim": "P6",
+    "desc": "co-senal 12 h",
+    "reglas": {
+     "cosignal": 48
+    }
+   },
+   "P7": {
+    "sim": "P7",
+    "only": [
+     "Capitulation"
+    ],
+    "desc": "flujo taker (Capitulation)",
+    "reglas": {
+     "taker_z": -1.0
+    }
+   },
+   "P8": {
+    "sim": "P8",
+    "desc": "sin lunes ni martes",
+    "reglas": {
+     "weekdays_off": [
+      0,
+      1
+     ]
+    }
+   },
+   "TODO": {
+    "sim": "TODO",
+    "momentum": 12,
+    "desc": "todo junto",
+    "reglas": {
+     "min_risk": 0.015,
+     "cost": 0.00095,
+     "cosignal": 48,
+     "weekdays_off": [
+      0,
+      1
+     ],
+     "taker_z": -1.0
+    }
+   }
+  },
+  "pruebas": 41,
+  "alfa_global": 0.0012195121951219512,
+  "criterios": "agrupado 4 monedas: >= 30 ops, PnL > 0, >= 50 % meses +, p < alfa, validacion final >= 0",
+  "costos_base": "0.12 % por lado; P4/P34/TODO 0.095 % por lado (BNB)",
+  "nocional_usdt": 15.0
+ },
+ "P0": {
+  "MeanReversion": {
+   "brazo": "P0",
+   "estrategia": "MeanReversion",
+   "oos": {
+    "ops": 702,
+    "win_rate": 49.9,
+    "pnl": -4.46,
+    "pnl_op_pct": -0.042,
+    "meses_pos_pct": 48.4,
+    "t_dia": -0.26,
+    "p_valor": 0.602
+   },
+   "validacion_final": {
+    "ops": 29,
+    "win_rate": 27.6,
+    "pnl": -4.84,
+    "pnl_op_pct": -1.113,
+    "meses_pos_pct": 0.0,
+    "t_dia": -1.49,
+    "p_valor": 0.918
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 48.4 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 99,
+      "win_rate": 53.5,
+      "pnl": -1.49,
+      "pnl_op_pct": -0.1,
+      "meses_pos_pct": 41.7,
+      "t_dia": -0.57,
+      "p_valor": 0.713
+     },
+     "validacion_final": {
+      "ops": 4,
+      "win_rate": 50.0,
+      "pnl": -0.19,
+      "pnl_op_pct": -0.318,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.62,
+      "p_valor": 0.71
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 243,
+      "win_rate": 49.4,
+      "pnl": -6.74,
+      "pnl_op_pct": -0.185,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.84,
+      "p_valor": 0.8
+     },
+     "validacion_final": {
+      "ops": 8,
+      "win_rate": 25.0,
+      "pnl": -0.87,
+      "pnl_op_pct": -0.724,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.61,
+      "p_valor": 0.719
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 200,
+      "win_rate": 49.5,
+      "pnl": 4.09,
+      "pnl_op_pct": 0.136,
+      "meses_pos_pct": 52.2,
+      "t_dia": 0.53,
+      "p_valor": 0.3
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 16.7,
+      "pnl": -1.64,
+      "pnl_op_pct": -1.827,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.68,
+      "p_valor": 0.916
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 160,
+      "win_rate": 48.8,
+      "pnl": -0.32,
+      "pnl_op_pct": -0.013,
+      "meses_pos_pct": 52.2,
+      "t_dia": -0.04,
+      "p_valor": 0.514
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 27.3,
+      "pnl": -2.14,
+      "pnl_op_pct": -1.294,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.22,
+      "p_valor": 0.87
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "TrendFollowing": {
+   "brazo": "P0",
+   "estrategia": "TrendFollowing",
+   "oos": {
+    "ops": 1100,
+    "win_rate": 33.2,
+    "pnl": -20.5,
+    "pnl_op_pct": -0.124,
+    "meses_pos_pct": 40.0,
+    "t_dia": -0.83,
+    "p_valor": 0.796
+   },
+   "validacion_final": {
+    "ops": 43,
+    "win_rate": 37.2,
+    "pnl": -2.77,
+    "pnl_op_pct": -0.429,
+    "meses_pos_pct": 0.0,
+    "t_dia": -0.96,
+    "p_valor": 0.825
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 40.0 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "ETHUSDT",
+    "SOLUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 303,
+      "win_rate": 33.0,
+      "pnl": -8.56,
+      "pnl_op_pct": -0.188,
+      "meses_pos_pct": 21.4,
+      "t_dia": -1.22,
+      "p_valor": 0.889
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 54.5,
+      "pnl": 0.77,
+      "pnl_op_pct": 0.465,
+      "meses_pos_pct": 100.0,
+      "t_dia": 0.53,
+      "p_valor": 0.304
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 222,
+      "win_rate": 29.3,
+      "pnl": -15.32,
+      "pnl_op_pct": -0.46,
+      "meses_pos_pct": 28.6,
+      "t_dia": -2.34,
+      "p_valor": 0.99
+     },
+     "validacion_final": {
+      "ops": 15,
+      "win_rate": 26.7,
+      "pnl": -3.32,
+      "pnl_op_pct": -1.478,
+      "meses_pos_pct": 0.0,
+      "t_dia": -3.51,
+      "p_valor": 0.998
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 367,
+      "win_rate": 35.4,
+      "pnl": 0.92,
+      "pnl_op_pct": 0.017,
+      "meses_pos_pct": 53.1,
+      "t_dia": 0.07,
+      "p_valor": 0.473
+     },
+     "validacion_final": {
+      "ops": 15,
+      "win_rate": 33.3,
+      "pnl": -0.2,
+      "pnl_op_pct": -0.091,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.1,
+      "p_valor": 0.539
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 208,
+      "win_rate": 33.7,
+      "pnl": 2.47,
+      "pnl_op_pct": 0.079,
+      "meses_pos_pct": 34.8,
+      "t_dia": 0.19,
+      "p_valor": 0.424
+     },
+     "validacion_final": {
+      "ops": 2,
+      "win_rate": 50.0,
+      "pnl": -0.01,
+      "pnl_op_pct": -0.017,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.02,
+      "p_valor": 0.508
+     },
+     "vivo_opera": false
+    }
+   }
+  },
+  "VWAP": {
+   "brazo": "P0",
+   "estrategia": "VWAP",
+   "oos": {
+    "ops": 670,
+    "win_rate": 45.4,
+    "pnl": -28.15,
+    "pnl_op_pct": -0.28,
+    "meses_pos_pct": 29.4,
+    "t_dia": -1.91,
+    "p_valor": 0.972
+   },
+   "validacion_final": {
+    "ops": 32,
+    "win_rate": 53.1,
+    "pnl": 1.18,
+    "pnl_op_pct": 0.245,
+    "meses_pos_pct": 50.0,
+    "t_dia": 0.51,
+    "p_valor": 0.308
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 29.4 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 96,
+      "win_rate": 49.0,
+      "pnl": -4.59,
+      "pnl_op_pct": -0.319,
+      "meses_pos_pct": 31.2,
+      "t_dia": -1.76,
+      "p_valor": 0.959
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 145,
+      "win_rate": 44.8,
+      "pnl": -5.76,
+      "pnl_op_pct": -0.265,
+      "meses_pos_pct": 39.1,
+      "t_dia": -1.19,
+      "p_valor": 0.881
+     },
+     "validacion_final": {
+      "ops": 12,
+      "win_rate": 33.3,
+      "pnl": -0.84,
+      "pnl_op_pct": -0.467,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.64,
+      "p_valor": 0.729
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 223,
+      "win_rate": 42.6,
+      "pnl": -10.78,
+      "pnl_op_pct": -0.322,
+      "meses_pos_pct": 36.0,
+      "t_dia": -1.39,
+      "p_valor": 0.917
+     },
+     "validacion_final": {
+      "ops": 10,
+      "win_rate": 50.0,
+      "pnl": -0.32,
+      "pnl_op_pct": -0.212,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.37,
+      "p_valor": 0.639
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 206,
+      "win_rate": 47.1,
+      "pnl": -7.02,
+      "pnl_op_pct": -0.227,
+      "meses_pos_pct": 37.9,
+      "t_dia": -1.0,
+      "p_valor": 0.84
+     },
+     "validacion_final": {
+      "ops": 10,
+      "win_rate": 80.0,
+      "pnl": 2.34,
+      "pnl_op_pct": 1.558,
+      "meses_pos_pct": 100.0,
+      "t_dia": 2.57,
+      "p_valor": 0.0151
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "VolatilitySqueeze": {
+   "brazo": "P0",
+   "estrategia": "VolatilitySqueeze",
+   "oos": {
+    "ops": 1358,
+    "win_rate": 29.9,
+    "pnl": -23.63,
+    "pnl_op_pct": -0.116,
+    "meses_pos_pct": 55.3,
+    "t_dia": -1.03,
+    "p_valor": 0.849
+   },
+   "validacion_final": {
+    "ops": 52,
+    "win_rate": 34.6,
+    "pnl": -2.78,
+    "pnl_op_pct": -0.356,
+    "meses_pos_pct": 0.0,
+    "t_dia": -0.65,
+    "p_valor": 0.74
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 339,
+      "win_rate": 31.0,
+      "pnl": -7.76,
+      "pnl_op_pct": -0.153,
+      "meses_pos_pct": 41.4,
+      "t_dia": -1.11,
+      "p_valor": 0.867
+     },
+     "validacion_final": {
+      "ops": 19,
+      "win_rate": 31.6,
+      "pnl": -1.72,
+      "pnl_op_pct": -0.602,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.68,
+      "p_valor": 0.943
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 298,
+      "win_rate": 27.9,
+      "pnl": -12.19,
+      "pnl_op_pct": -0.273,
+      "meses_pos_pct": 33.3,
+      "t_dia": -1.44,
+      "p_valor": 0.924
+     },
+     "validacion_final": {
+      "ops": 13,
+      "win_rate": 23.1,
+      "pnl": -1.36,
+      "pnl_op_pct": -0.696,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.04,
+      "p_valor": 0.841
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 378,
+      "win_rate": 30.7,
+      "pnl": 2.06,
+      "pnl_op_pct": 0.036,
+      "meses_pos_pct": 48.6,
+      "t_dia": 0.17,
+      "p_valor": 0.431
+     },
+     "validacion_final": {
+      "ops": 9,
+      "win_rate": 44.4,
+      "pnl": 0.06,
+      "pnl_op_pct": 0.043,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.04,
+      "p_valor": 0.485
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 343,
+      "win_rate": 29.7,
+      "pnl": -5.74,
+      "pnl_op_pct": -0.112,
+      "meses_pos_pct": 35.7,
+      "t_dia": -0.54,
+      "p_valor": 0.707
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 45.5,
+      "pnl": 0.23,
+      "pnl_op_pct": 0.142,
+      "meses_pos_pct": 100.0,
+      "t_dia": 0.09,
+      "p_valor": 0.466
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "Capitulation": {
+   "brazo": "P0",
+   "estrategia": "Capitulation",
+   "oos": {
+    "ops": 1116,
+    "win_rate": 69.6,
+    "pnl": -44.76,
+    "pnl_op_pct": -0.267,
+    "meses_pos_pct": 48.6,
+    "t_dia": -1.37,
+    "p_valor": 0.915
+   },
+   "validacion_final": {
+    "ops": 32,
+    "win_rate": 75.0,
+    "pnl": 0.69,
+    "pnl_op_pct": 0.144,
+    "meses_pos_pct": 50.0,
+    "t_dia": 0.22,
+    "p_valor": 0.414
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 48.6 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 265,
+      "win_rate": 72.1,
+      "pnl": -5.73,
+      "pnl_op_pct": -0.144,
+      "meses_pos_pct": 48.3,
+      "t_dia": -0.77,
+      "p_valor": 0.779
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 83.3,
+      "pnl": 0.69,
+      "pnl_op_pct": 0.768,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.88,
+      "p_valor": 0.21
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 276,
+      "win_rate": 70.7,
+      "pnl": -3.6,
+      "pnl_op_pct": -0.087,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.35,
+      "p_valor": 0.636
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 307,
+      "win_rate": 70.0,
+      "pnl": -10.55,
+      "pnl_op_pct": -0.229,
+      "meses_pos_pct": 56.7,
+      "t_dia": -0.71,
+      "p_valor": 0.761
+     },
+     "validacion_final": {
+      "ops": 8,
+      "win_rate": 87.5,
+      "pnl": 1.21,
+      "pnl_op_pct": 1.006,
+      "meses_pos_pct": 100.0,
+      "t_dia": 1.2,
+      "p_valor": 0.134
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 268,
+      "win_rate": 65.7,
+      "pnl": -24.88,
+      "pnl_op_pct": -0.619,
+      "meses_pos_pct": 50.0,
+      "t_dia": -1.73,
+      "p_valor": 0.957
+     },
+     "validacion_final": {
+      "ops": 18,
+      "win_rate": 66.7,
+      "pnl": -1.21,
+      "pnl_op_pct": -0.448,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.53,
+      "p_valor": 0.699
+     },
+     "vivo_opera": true
+    }
+   }
+  }
+ },
+ "P3": {
+  "MeanReversion": {
+   "brazo": "P3",
+   "estrategia": "MeanReversion",
+   "oos": {
+    "ops": 807,
+    "win_rate": 48.3,
+    "pnl": -24.79,
+    "pnl_op_pct": -0.205,
+    "meses_pos_pct": 39.3,
+    "t_dia": -1.14,
+    "p_valor": 0.873
+   },
+   "validacion_final": {
+    "ops": 22,
+    "win_rate": 54.5,
+    "pnl": -1.59,
+    "pnl_op_pct": -0.483,
+    "meses_pos_pct": 0.0,
+    "t_dia": -0.65,
+    "p_valor": 0.736
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 39.3 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 159,
+      "win_rate": 49.7,
+      "pnl": -4.62,
+      "pnl_op_pct": -0.194,
+      "meses_pos_pct": 42.9,
+      "t_dia": -0.91,
+      "p_valor": 0.816
+     },
+     "validacion_final": {
+      "ops": 5,
+      "win_rate": 60.0,
+      "pnl": 0.06,
+      "pnl_op_pct": 0.08,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.1,
+      "p_valor": 0.463
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 268,
+      "win_rate": 49.3,
+      "pnl": -3.1,
+      "pnl_op_pct": -0.077,
+      "meses_pos_pct": 53.8,
+      "t_dia": -0.34,
+      "p_valor": 0.635
+     },
+     "validacion_final": {
+      "ops": 9,
+      "win_rate": 66.7,
+      "pnl": 0.67,
+      "pnl_op_pct": 0.496,
+      "meses_pos_pct": 100.0,
+      "t_dia": 0.8,
+      "p_valor": 0.224
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 196,
+      "win_rate": 48.5,
+      "pnl": -7.05,
+      "pnl_op_pct": -0.24,
+      "meses_pos_pct": 42.9,
+      "t_dia": -0.91,
+      "p_valor": 0.818
+     },
+     "validacion_final": {
+      "ops": 4,
+      "win_rate": 25.0,
+      "pnl": -1.18,
+      "pnl_op_pct": -1.966,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.25,
+      "p_valor": 0.85
+     },
+     "vivo_opera": false
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 184,
+      "win_rate": 45.7,
+      "pnl": -10.02,
+      "pnl_op_pct": -0.363,
+      "meses_pos_pct": 42.1,
+      "t_dia": -0.96,
+      "p_valor": 0.83
+     },
+     "validacion_final": {
+      "ops": 4,
+      "win_rate": 50.0,
+      "pnl": -1.14,
+      "pnl_op_pct": -1.905,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.84,
+      "p_valor": 0.77
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "TrendFollowing": {
+   "brazo": "P3",
+   "estrategia": "TrendFollowing",
+   "oos": {
+    "ops": 1043,
+    "win_rate": 32.2,
+    "pnl": -35.45,
+    "pnl_op_pct": -0.227,
+    "meses_pos_pct": 37.8,
+    "t_dia": -1.33,
+    "p_valor": 0.908
+   },
+   "validacion_final": {
+    "ops": 36,
+    "win_rate": 33.3,
+    "pnl": -0.82,
+    "pnl_op_pct": -0.152,
+    "meses_pos_pct": 50.0,
+    "t_dia": -0.16,
+    "p_valor": 0.561
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 37.8 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 195,
+      "win_rate": 32.3,
+      "pnl": -12.6,
+      "pnl_op_pct": -0.431,
+      "meses_pos_pct": 33.3,
+      "t_dia": -2.08,
+      "p_valor": 0.981
+     },
+     "validacion_final": {
+      "ops": 7,
+      "win_rate": 42.9,
+      "pnl": 0.68,
+      "pnl_op_pct": 0.65,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.42,
+      "p_valor": 0.345
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 245,
+      "win_rate": 29.0,
+      "pnl": -16.53,
+      "pnl_op_pct": -0.45,
+      "meses_pos_pct": 28.6,
+      "t_dia": -1.95,
+      "p_valor": 0.974
+     },
+     "validacion_final": {
+      "ops": 9,
+      "win_rate": 11.1,
+      "pnl": -2.49,
+      "pnl_op_pct": -1.842,
+      "meses_pos_pct": 0.0,
+      "t_dia": -2.23,
+      "p_valor": 0.972
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 390,
+      "win_rate": 35.4,
+      "pnl": 0.15,
+      "pnl_op_pct": 0.003,
+      "meses_pos_pct": 45.7,
+      "t_dia": 0.01,
+      "p_valor": 0.496
+     },
+     "validacion_final": {
+      "ops": 7,
+      "win_rate": 42.9,
+      "pnl": 1.38,
+      "pnl_op_pct": 1.315,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.61,
+      "p_valor": 0.285
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 213,
+      "win_rate": 30.0,
+      "pnl": -6.47,
+      "pnl_op_pct": -0.202,
+      "meses_pos_pct": 28.6,
+      "t_dia": -0.51,
+      "p_valor": 0.693
+     },
+     "validacion_final": {
+      "ops": 13,
+      "win_rate": 38.5,
+      "pnl": -0.39,
+      "pnl_op_pct": -0.202,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.17,
+      "p_valor": 0.566
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "VWAP": {
+   "brazo": "P3",
+   "estrategia": "VWAP",
+   "oos": {
+    "ops": 947,
+    "win_rate": 49.2,
+    "pnl": -19.96,
+    "pnl_op_pct": -0.141,
+    "meses_pos_pct": 30.6,
+    "t_dia": -1.05,
+    "p_valor": 0.853
+   },
+   "validacion_final": {
+    "ops": 29,
+    "win_rate": 58.6,
+    "pnl": 2.27,
+    "pnl_op_pct": 0.523,
+    "meses_pos_pct": 100.0,
+    "t_dia": 0.96,
+    "p_valor": 0.175
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 30.6 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 251,
+      "win_rate": 50.6,
+      "pnl": -5.67,
+      "pnl_op_pct": -0.151,
+      "meses_pos_pct": 35.7,
+      "t_dia": -1.03,
+      "p_valor": 0.847
+     },
+     "validacion_final": {
+      "ops": 1,
+      "win_rate": 100.0,
+      "pnl": 0.2,
+      "pnl_op_pct": 1.342,
+      "meses_pos_pct": 100.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 206,
+      "win_rate": 48.1,
+      "pnl": -5.37,
+      "pnl_op_pct": -0.174,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.88,
+      "p_valor": 0.809
+     },
+     "validacion_final": {
+      "ops": 9,
+      "win_rate": 33.3,
+      "pnl": -0.64,
+      "pnl_op_pct": -0.475,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.54,
+      "p_valor": 0.695
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 270,
+      "win_rate": 50.0,
+      "pnl": -1.71,
+      "pnl_op_pct": -0.042,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.22,
+      "p_valor": 0.586
+     },
+     "validacion_final": {
+      "ops": 7,
+      "win_rate": 71.4,
+      "pnl": 0.56,
+      "pnl_op_pct": 0.534,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.74,
+      "p_valor": 0.242
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 220,
+      "win_rate": 47.7,
+      "pnl": -7.21,
+      "pnl_op_pct": -0.218,
+      "meses_pos_pct": 37.0,
+      "t_dia": -0.8,
+      "p_valor": 0.786
+     },
+     "validacion_final": {
+      "ops": 12,
+      "win_rate": 66.7,
+      "pnl": 2.15,
+      "pnl_op_pct": 1.196,
+      "meses_pos_pct": 100.0,
+      "t_dia": 1.43,
+      "p_valor": 0.0897
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "VolatilitySqueeze": {
+   "brazo": "P3",
+   "estrategia": "VolatilitySqueeze",
+   "oos": {
+    "ops": 1106,
+    "win_rate": 29.4,
+    "pnl": -20.23,
+    "pnl_op_pct": -0.122,
+    "meses_pos_pct": 50.0,
+    "t_dia": -0.83,
+    "p_valor": 0.795
+   },
+   "validacion_final": {
+    "ops": 35,
+    "win_rate": 25.7,
+    "pnl": -4.32,
+    "pnl_op_pct": -0.822,
+    "meses_pos_pct": 0.0,
+    "t_dia": -1.24,
+    "p_valor": 0.886
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; p >= 0.00122",
+   "monedas_vivo": [
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 193,
+      "win_rate": 30.1,
+      "pnl": -0.17,
+      "pnl_op_pct": -0.006,
+      "meses_pos_pct": 48.4,
+      "t_dia": -0.02,
+      "p_valor": 0.509
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 33.3,
+      "pnl": -0.42,
+      "pnl_op_pct": -0.467,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.31,
+      "p_valor": 0.616
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 252,
+      "win_rate": 26.6,
+      "pnl": -13.73,
+      "pnl_op_pct": -0.363,
+      "meses_pos_pct": 26.7,
+      "t_dia": -1.54,
+      "p_valor": 0.937
+     },
+     "validacion_final": {
+      "ops": 12,
+      "win_rate": 25.0,
+      "pnl": -1.65,
+      "pnl_op_pct": -0.919,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.98,
+      "p_valor": 0.827
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 334,
+      "win_rate": 31.1,
+      "pnl": 5.55,
+      "pnl_op_pct": 0.111,
+      "meses_pos_pct": 55.9,
+      "t_dia": 0.46,
+      "p_valor": 0.321
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 16.7,
+      "pnl": -1.05,
+      "pnl_op_pct": -1.17,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.84,
+      "p_valor": 0.78
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 327,
+      "win_rate": 29.4,
+      "pnl": -11.89,
+      "pnl_op_pct": -0.242,
+      "meses_pos_pct": 40.0,
+      "t_dia": -1.06,
+      "p_valor": 0.854
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 27.3,
+      "pnl": -1.19,
+      "pnl_op_pct": -0.721,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.83,
+      "p_valor": 0.786
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "Capitulation": {
+   "brazo": "P3",
+   "estrategia": "Capitulation",
+   "oos": {
+    "ops": 1089,
+    "win_rate": 69.6,
+    "pnl": -45.61,
+    "pnl_op_pct": -0.279,
+    "meses_pos_pct": 51.4,
+    "t_dia": -1.41,
+    "p_valor": 0.92
+   },
+   "validacion_final": {
+    "ops": 34,
+    "win_rate": 73.5,
+    "pnl": -0.36,
+    "pnl_op_pct": -0.071,
+    "meses_pos_pct": 50.0,
+    "t_dia": -0.09,
+    "p_valor": 0.536
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 242,
+      "win_rate": 71.1,
+      "pnl": -8.55,
+      "pnl_op_pct": -0.235,
+      "meses_pos_pct": 42.9,
+      "t_dia": -1.17,
+      "p_valor": 0.878
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 83.3,
+      "pnl": 0.69,
+      "pnl_op_pct": 0.768,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.88,
+      "p_valor": 0.21
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 285,
+      "win_rate": 71.2,
+      "pnl": -3.31,
+      "pnl_op_pct": -0.077,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.32,
+      "p_valor": 0.624
+     },
+     "validacion_final": {
+      "ops": 2,
+      "win_rate": 50.0,
+      "pnl": -1.05,
+      "pnl_op_pct": -3.499,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.77,
+      "p_valor": 0.709
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 294,
+      "win_rate": 70.4,
+      "pnl": -9.11,
+      "pnl_op_pct": -0.207,
+      "meses_pos_pct": 62.1,
+      "t_dia": -0.62,
+      "p_valor": 0.731
+     },
+     "validacion_final": {
+      "ops": 8,
+      "win_rate": 87.5,
+      "pnl": 1.21,
+      "pnl_op_pct": 1.006,
+      "meses_pos_pct": 100.0,
+      "t_dia": 1.2,
+      "p_valor": 0.134
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 268,
+      "win_rate": 65.7,
+      "pnl": -24.64,
+      "pnl_op_pct": -0.613,
+      "meses_pos_pct": 50.0,
+      "t_dia": -1.71,
+      "p_valor": 0.955
+     },
+     "validacion_final": {
+      "ops": 18,
+      "win_rate": 66.7,
+      "pnl": -1.21,
+      "pnl_op_pct": -0.448,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.53,
+      "p_valor": 0.699
+     },
+     "vivo_opera": true
+    }
+   }
+  }
+ },
+ "P4": {
+  "MeanReversion": {
+   "brazo": "P4",
+   "estrategia": "MeanReversion",
+   "oos": {
+    "ops": 915,
+    "win_rate": 49.1,
+    "pnl": -16.13,
+    "pnl_op_pct": -0.118,
+    "meses_pos_pct": 45.5,
+    "t_dia": -0.86,
+    "p_valor": 0.805
+   },
+   "validacion_final": {
+    "ops": 42,
+    "win_rate": 35.7,
+    "pnl": -3.96,
+    "pnl_op_pct": -0.628,
+    "meses_pos_pct": 0.0,
+    "t_dia": -1.13,
+    "p_valor": 0.864
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 45.5 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 173,
+      "win_rate": 52.0,
+      "pnl": -4.48,
+      "pnl_op_pct": -0.173,
+      "meses_pos_pct": 35.3,
+      "t_dia": -1.26,
+      "p_valor": 0.895
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 45.5,
+      "pnl": -0.5,
+      "pnl_op_pct": -0.306,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.92,
+      "p_valor": 0.809
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 300,
+      "win_rate": 48.3,
+      "pnl": -6.59,
+      "pnl_op_pct": -0.146,
+      "meses_pos_pct": 53.8,
+      "t_dia": -0.76,
+      "p_valor": 0.777
+     },
+     "validacion_final": {
+      "ops": 8,
+      "win_rate": 25.0,
+      "pnl": -0.81,
+      "pnl_op_pct": -0.674,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.57,
+      "p_valor": 0.706
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 262,
+      "win_rate": 49.6,
+      "pnl": 3.87,
+      "pnl_op_pct": 0.099,
+      "meses_pos_pct": 54.2,
+      "t_dia": 0.47,
+      "p_valor": 0.319
+     },
+     "validacion_final": {
+      "ops": 12,
+      "win_rate": 41.7,
+      "pnl": -0.59,
+      "pnl_op_pct": -0.328,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.42,
+      "p_valor": 0.658
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 180,
+      "win_rate": 46.7,
+      "pnl": -8.94,
+      "pnl_op_pct": -0.331,
+      "meses_pos_pct": 48.0,
+      "t_dia": -0.91,
+      "p_valor": 0.818
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 27.3,
+      "pnl": -2.05,
+      "pnl_op_pct": -1.244,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.18,
+      "p_valor": 0.862
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "TrendFollowing": {
+   "brazo": "P4",
+   "estrategia": "TrendFollowing",
+   "oos": {
+    "ops": 1181,
+    "win_rate": 34.0,
+    "pnl": -9.65,
+    "pnl_op_pct": -0.054,
+    "meses_pos_pct": 41.7,
+    "t_dia": -0.38,
+    "p_valor": 0.648
+   },
+   "validacion_final": {
+    "ops": 44,
+    "win_rate": 38.6,
+    "pnl": -2.2,
+    "pnl_op_pct": -0.333,
+    "meses_pos_pct": 0.0,
+    "t_dia": -0.76,
+    "p_valor": 0.771
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 41.7 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 315,
+      "win_rate": 34.0,
+      "pnl": -7.0,
+      "pnl_op_pct": -0.148,
+      "meses_pos_pct": 28.6,
+      "t_dia": -0.98,
+      "p_valor": 0.837
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 54.5,
+      "pnl": 0.85,
+      "pnl_op_pct": 0.515,
+      "meses_pos_pct": 100.0,
+      "t_dia": 0.59,
+      "p_valor": 0.285
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 241,
+      "win_rate": 29.9,
+      "pnl": -15.59,
+      "pnl_op_pct": -0.431,
+      "meses_pos_pct": 26.1,
+      "t_dia": -2.36,
+      "p_valor": 0.991
+     },
+     "validacion_final": {
+      "ops": 15,
+      "win_rate": 26.7,
+      "pnl": -3.21,
+      "pnl_op_pct": -1.428,
+      "meses_pos_pct": 0.0,
+      "t_dia": -3.37,
+      "p_valor": 0.997
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 403,
+      "win_rate": 35.7,
+      "pnl": 5.89,
+      "pnl_op_pct": 0.097,
+      "meses_pos_pct": 55.9,
+      "t_dia": 0.41,
+      "p_valor": 0.339
+     },
+     "validacion_final": {
+      "ops": 16,
+      "win_rate": 37.5,
+      "pnl": 0.15,
+      "pnl_op_pct": 0.064,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.08,
+      "p_valor": 0.47
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 222,
+      "win_rate": 35.1,
+      "pnl": 7.06,
+      "pnl_op_pct": 0.212,
+      "meses_pos_pct": 40.0,
+      "t_dia": 0.54,
+      "p_valor": 0.293
+     },
+     "validacion_final": {
+      "ops": 2,
+      "win_rate": 50.0,
+      "pnl": 0.01,
+      "pnl_op_pct": 0.033,
+      "meses_pos_pct": 100.0,
+      "t_dia": 0.05,
+      "p_valor": 0.485
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "VWAP": {
+   "brazo": "P4",
+   "estrategia": "VWAP",
+   "oos": {
+    "ops": 799,
+    "win_rate": 45.9,
+    "pnl": -23.76,
+    "pnl_op_pct": -0.198,
+    "meses_pos_pct": 31.4,
+    "t_dia": -1.53,
+    "p_valor": 0.937
+   },
+   "validacion_final": {
+    "ops": 32,
+    "win_rate": 53.1,
+    "pnl": 1.42,
+    "pnl_op_pct": 0.296,
+    "meses_pos_pct": 50.0,
+    "t_dia": 0.62,
+    "p_valor": 0.273
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 31.4 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 127,
+      "win_rate": 48.0,
+      "pnl": -4.14,
+      "pnl_op_pct": -0.217,
+      "meses_pos_pct": 44.4,
+      "t_dia": -1.35,
+      "p_valor": 0.91
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 187,
+      "win_rate": 43.3,
+      "pnl": -8.7,
+      "pnl_op_pct": -0.31,
+      "meses_pos_pct": 30.8,
+      "t_dia": -1.72,
+      "p_valor": 0.956
+     },
+     "validacion_final": {
+      "ops": 12,
+      "win_rate": 33.3,
+      "pnl": -0.75,
+      "pnl_op_pct": -0.417,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.57,
+      "p_valor": 0.708
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 266,
+      "win_rate": 44.7,
+      "pnl": -7.31,
+      "pnl_op_pct": -0.183,
+      "meses_pos_pct": 38.5,
+      "t_dia": -0.91,
+      "p_valor": 0.818
+     },
+     "validacion_final": {
+      "ops": 10,
+      "win_rate": 50.0,
+      "pnl": -0.24,
+      "pnl_op_pct": -0.162,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.28,
+      "p_valor": 0.607
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 219,
+      "win_rate": 48.4,
+      "pnl": -3.61,
+      "pnl_op_pct": -0.11,
+      "meses_pos_pct": 43.3,
+      "t_dia": -0.5,
+      "p_valor": 0.691
+     },
+     "validacion_final": {
+      "ops": 10,
+      "win_rate": 80.0,
+      "pnl": 2.41,
+      "pnl_op_pct": 1.609,
+      "meses_pos_pct": 100.0,
+      "t_dia": 2.65,
+      "p_valor": 0.0132
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "VolatilitySqueeze": {
+   "brazo": "P4",
+   "estrategia": "VolatilitySqueeze",
+   "oos": {
+    "ops": 1412,
+    "win_rate": 29.5,
+    "pnl": -22.48,
+    "pnl_op_pct": -0.106,
+    "meses_pos_pct": 47.4,
+    "t_dia": -0.96,
+    "p_valor": 0.831
+   },
+   "validacion_final": {
+    "ops": 57,
+    "win_rate": 33.3,
+    "pnl": -3.49,
+    "pnl_op_pct": -0.408,
+    "meses_pos_pct": 0.0,
+    "t_dia": -0.79,
+    "p_valor": 0.783
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 47.4 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 343,
+      "win_rate": 30.6,
+      "pnl": -6.5,
+      "pnl_op_pct": -0.126,
+      "meses_pos_pct": 43.3,
+      "t_dia": -0.93,
+      "p_valor": 0.824
+     },
+     "validacion_final": {
+      "ops": 19,
+      "win_rate": 31.6,
+      "pnl": -1.57,
+      "pnl_op_pct": -0.552,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.53,
+      "p_valor": 0.927
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 301,
+      "win_rate": 27.6,
+      "pnl": -12.46,
+      "pnl_op_pct": -0.276,
+      "meses_pos_pct": 32.1,
+      "t_dia": -1.44,
+      "p_valor": 0.925
+     },
+     "validacion_final": {
+      "ops": 13,
+      "win_rate": 23.1,
+      "pnl": -1.26,
+      "pnl_op_pct": -0.646,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.97,
+      "p_valor": 0.824
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 408,
+      "win_rate": 30.4,
+      "pnl": 2.15,
+      "pnl_op_pct": 0.035,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.18,
+      "p_valor": 0.43
+     },
+     "validacion_final": {
+      "ops": 9,
+      "win_rate": 44.4,
+      "pnl": 0.13,
+      "pnl_op_pct": 0.093,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.08,
+      "p_valor": 0.468
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 360,
+      "win_rate": 29.2,
+      "pnl": -5.67,
+      "pnl_op_pct": -0.105,
+      "meses_pos_pct": 39.3,
+      "t_dia": -0.53,
+      "p_valor": 0.702
+     },
+     "validacion_final": {
+      "ops": 16,
+      "win_rate": 37.5,
+      "pnl": -0.78,
+      "pnl_op_pct": -0.325,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.29,
+      "p_valor": 0.61
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "Capitulation": {
+   "brazo": "P4",
+   "estrategia": "Capitulation",
+   "oos": {
+    "ops": 1183,
+    "win_rate": 70.1,
+    "pnl": -33.82,
+    "pnl_op_pct": -0.191,
+    "meses_pos_pct": 48.6,
+    "t_dia": -1.03,
+    "p_valor": 0.849
+   },
+   "validacion_final": {
+    "ops": 46,
+    "win_rate": 73.9,
+    "pnl": 1.3,
+    "pnl_op_pct": 0.188,
+    "meses_pos_pct": 50.0,
+    "t_dia": 0.34,
+    "p_valor": 0.369
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 48.6 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 295,
+      "win_rate": 73.9,
+      "pnl": 0.35,
+      "pnl_op_pct": 0.008,
+      "meses_pos_pct": 54.8,
+      "t_dia": 0.05,
+      "p_valor": 0.481
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 83.3,
+      "pnl": 0.74,
+      "pnl_op_pct": 0.818,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.94,
+      "p_valor": 0.196
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 302,
+      "win_rate": 70.9,
+      "pnl": -1.41,
+      "pnl_op_pct": -0.031,
+      "meses_pos_pct": 51.6,
+      "t_dia": -0.13,
+      "p_valor": 0.553
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 311,
+      "win_rate": 70.1,
+      "pnl": -7.06,
+      "pnl_op_pct": -0.151,
+      "meses_pos_pct": 63.3,
+      "t_dia": -0.47,
+      "p_valor": 0.681
+     },
+     "validacion_final": {
+      "ops": 20,
+      "win_rate": 75.0,
+      "pnl": 0.8,
+      "pnl_op_pct": 0.268,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.44,
+      "p_valor": 0.334
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 275,
+      "win_rate": 65.1,
+      "pnl": -25.7,
+      "pnl_op_pct": -0.623,
+      "meses_pos_pct": 46.7,
+      "t_dia": -1.76,
+      "p_valor": 0.96
+     },
+     "validacion_final": {
+      "ops": 20,
+      "win_rate": 70.0,
+      "pnl": -0.24,
+      "pnl_op_pct": -0.081,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.1,
+      "p_valor": 0.541
+     },
+     "vivo_opera": true
+    }
+   }
+  }
+ },
+ "P34": {
+  "MeanReversion": {
+   "brazo": "P34",
+   "estrategia": "MeanReversion",
+   "oos": {
+    "ops": 1003,
+    "win_rate": 47.4,
+    "pnl": -32.07,
+    "pnl_op_pct": -0.213,
+    "meses_pos_pct": 37.5,
+    "t_dia": -1.41,
+    "p_valor": 0.921
+   },
+   "validacion_final": {
+    "ops": 34,
+    "win_rate": 52.9,
+    "pnl": -1.1,
+    "pnl_op_pct": -0.215,
+    "meses_pos_pct": 50.0,
+    "t_dia": -0.34,
+    "p_valor": 0.63
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 37.5 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 159,
+      "win_rate": 49.7,
+      "pnl": -3.43,
+      "pnl_op_pct": -0.144,
+      "meses_pos_pct": 42.9,
+      "t_dia": -0.68,
+      "p_valor": 0.75
+     },
+     "validacion_final": {
+      "ops": 5,
+      "win_rate": 60.0,
+      "pnl": 0.1,
+      "pnl_op_pct": 0.13,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.16,
+      "p_valor": 0.441
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 278,
+      "win_rate": 49.3,
+      "pnl": -1.33,
+      "pnl_op_pct": -0.032,
+      "meses_pos_pct": 55.6,
+      "t_dia": -0.15,
+      "p_valor": 0.559
+     },
+     "validacion_final": {
+      "ops": 16,
+      "win_rate": 43.8,
+      "pnl": -0.58,
+      "pnl_op_pct": -0.241,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.35,
+      "p_valor": 0.636
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 295,
+      "win_rate": 45.1,
+      "pnl": -13.25,
+      "pnl_op_pct": -0.3,
+      "meses_pos_pct": 41.7,
+      "t_dia": -1.54,
+      "p_valor": 0.938
+     },
+     "validacion_final": {
+      "ops": 9,
+      "win_rate": 66.7,
+      "pnl": 0.5,
+      "pnl_op_pct": 0.369,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.38,
+      "p_valor": 0.357
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 271,
+      "win_rate": 46.5,
+      "pnl": -14.05,
+      "pnl_op_pct": -0.346,
+      "meses_pos_pct": 47.8,
+      "t_dia": -1.23,
+      "p_valor": 0.891
+     },
+     "validacion_final": {
+      "ops": 4,
+      "win_rate": 50.0,
+      "pnl": -1.11,
+      "pnl_op_pct": -1.856,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.82,
+      "p_valor": 0.764
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "TrendFollowing": {
+   "brazo": "P34",
+   "estrategia": "TrendFollowing",
+   "oos": {
+    "ops": 1105,
+    "win_rate": 32.8,
+    "pnl": -25.0,
+    "pnl_op_pct": -0.151,
+    "meses_pos_pct": 37.8,
+    "t_dia": -0.92,
+    "p_valor": 0.821
+   },
+   "validacion_final": {
+    "ops": 37,
+    "win_rate": 35.1,
+    "pnl": -0.14,
+    "pnl_op_pct": -0.025,
+    "meses_pos_pct": 50.0,
+    "t_dia": -0.03,
+    "p_valor": 0.51
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 37.8 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 202,
+      "win_rate": 32.7,
+      "pnl": -9.76,
+      "pnl_op_pct": -0.322,
+      "meses_pos_pct": 38.7,
+      "t_dia": -1.52,
+      "p_valor": 0.935
+     },
+     "validacion_final": {
+      "ops": 7,
+      "win_rate": 42.9,
+      "pnl": 0.74,
+      "pnl_op_pct": 0.7,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.45,
+      "p_valor": 0.334
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 255,
+      "win_rate": 28.6,
+      "pnl": -16.97,
+      "pnl_op_pct": -0.444,
+      "meses_pos_pct": 25.0,
+      "t_dia": -1.99,
+      "p_valor": 0.976
+     },
+     "validacion_final": {
+      "ops": 10,
+      "win_rate": 20.0,
+      "pnl": -2.01,
+      "pnl_op_pct": -1.34,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.52,
+      "p_valor": 0.919
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 424,
+      "win_rate": 36.3,
+      "pnl": 5.66,
+      "pnl_op_pct": 0.089,
+      "meses_pos_pct": 48.6,
+      "t_dia": 0.4,
+      "p_valor": 0.345
+     },
+     "validacion_final": {
+      "ops": 7,
+      "win_rate": 42.9,
+      "pnl": 1.43,
+      "pnl_op_pct": 1.365,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.63,
+      "p_valor": 0.279
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 224,
+      "win_rate": 30.8,
+      "pnl": -3.94,
+      "pnl_op_pct": -0.117,
+      "meses_pos_pct": 28.6,
+      "t_dia": -0.31,
+      "p_valor": 0.62
+     },
+     "validacion_final": {
+      "ops": 13,
+      "win_rate": 38.5,
+      "pnl": -0.3,
+      "pnl_op_pct": -0.152,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.13,
+      "p_valor": 0.55
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "VWAP": {
+   "brazo": "P34",
+   "estrategia": "VWAP",
+   "oos": {
+    "ops": 1098,
+    "win_rate": 49.2,
+    "pnl": -16.62,
+    "pnl_op_pct": -0.101,
+    "meses_pos_pct": 32.4,
+    "t_dia": -0.85,
+    "p_valor": 0.803
+   },
+   "validacion_final": {
+    "ops": 36,
+    "win_rate": 55.6,
+    "pnl": 1.99,
+    "pnl_op_pct": 0.369,
+    "meses_pos_pct": 100.0,
+    "t_dia": 0.81,
+    "p_valor": 0.214
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 32.4 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 251,
+      "win_rate": 49.4,
+      "pnl": -5.74,
+      "pnl_op_pct": -0.152,
+      "meses_pos_pct": 33.3,
+      "t_dia": -1.02,
+      "p_valor": 0.846
+     },
+     "validacion_final": {
+      "ops": 2,
+      "win_rate": 50.0,
+      "pnl": -0.06,
+      "pnl_op_pct": -0.188,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.12,
+      "p_valor": 0.538
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 224,
+      "win_rate": 47.8,
+      "pnl": -4.98,
+      "pnl_op_pct": -0.148,
+      "meses_pos_pct": 52.0,
+      "t_dia": -0.82,
+      "p_valor": 0.795
+     },
+     "validacion_final": {
+      "ops": 16,
+      "win_rate": 43.8,
+      "pnl": -0.54,
+      "pnl_op_pct": -0.224,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.37,
+      "p_valor": 0.643
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 330,
+      "win_rate": 51.8,
+      "pnl": 2.67,
+      "pnl_op_pct": 0.054,
+      "meses_pos_pct": 53.3,
+      "t_dia": 0.33,
+      "p_valor": 0.372
+     },
+     "validacion_final": {
+      "ops": 7,
+      "win_rate": 71.4,
+      "pnl": 0.61,
+      "pnl_op_pct": 0.585,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.81,
+      "p_valor": 0.223
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 293,
+      "win_rate": 47.1,
+      "pnl": -8.57,
+      "pnl_op_pct": -0.195,
+      "meses_pos_pct": 39.3,
+      "t_dia": -0.88,
+      "p_valor": 0.811
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 63.6,
+      "pnl": 1.97,
+      "pnl_op_pct": 1.196,
+      "meses_pos_pct": 100.0,
+      "t_dia": 1.31,
+      "p_valor": 0.11
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "VolatilitySqueeze": {
+   "brazo": "P34",
+   "estrategia": "VolatilitySqueeze",
+   "oos": {
+    "ops": 1132,
+    "win_rate": 29.8,
+    "pnl": -10.69,
+    "pnl_op_pct": -0.063,
+    "meses_pos_pct": 52.6,
+    "t_dia": -0.44,
+    "p_valor": 0.669
+   },
+   "validacion_final": {
+    "ops": 35,
+    "win_rate": 25.7,
+    "pnl": -4.06,
+    "pnl_op_pct": -0.772,
+    "meses_pos_pct": 0.0,
+    "t_dia": -1.16,
+    "p_valor": 0.871
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; p >= 0.00122",
+   "monedas_vivo": [
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 210,
+      "win_rate": 29.5,
+      "pnl": -0.34,
+      "pnl_op_pct": -0.011,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.04,
+      "p_valor": 0.517
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 33.3,
+      "pnl": -0.38,
+      "pnl_op_pct": -0.417,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.28,
+      "p_valor": 0.604
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 252,
+      "win_rate": 28.2,
+      "pnl": -7.47,
+      "pnl_op_pct": -0.198,
+      "meses_pos_pct": 36.7,
+      "t_dia": -0.83,
+      "p_valor": 0.796
+     },
+     "validacion_final": {
+      "ops": 12,
+      "win_rate": 25.0,
+      "pnl": -1.56,
+      "pnl_op_pct": -0.869,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.93,
+      "p_valor": 0.814
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 343,
+      "win_rate": 31.5,
+      "pnl": 6.56,
+      "pnl_op_pct": 0.127,
+      "meses_pos_pct": 57.1,
+      "t_dia": 0.56,
+      "p_valor": 0.29
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 16.7,
+      "pnl": -1.01,
+      "pnl_op_pct": -1.12,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.8,
+      "p_valor": 0.771
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 327,
+      "win_rate": 29.4,
+      "pnl": -9.44,
+      "pnl_op_pct": -0.192,
+      "meses_pos_pct": 40.0,
+      "t_dia": -0.84,
+      "p_valor": 0.799
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 27.3,
+      "pnl": -1.11,
+      "pnl_op_pct": -0.671,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.77,
+      "p_valor": 0.77
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "Capitulation": {
+   "brazo": "P34",
+   "estrategia": "Capitulation",
+   "oos": {
+    "ops": 1164,
+    "win_rate": 70.0,
+    "pnl": -34.96,
+    "pnl_op_pct": -0.2,
+    "meses_pos_pct": 48.6,
+    "t_dia": -1.07,
+    "p_valor": 0.857
+   },
+   "validacion_final": {
+    "ops": 48,
+    "win_rate": 72.9,
+    "pnl": 0.26,
+    "pnl_op_pct": 0.036,
+    "meses_pos_pct": 50.0,
+    "t_dia": 0.06,
+    "p_valor": 0.476
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 48.6 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 273,
+      "win_rate": 72.5,
+      "pnl": -2.66,
+      "pnl_op_pct": -0.065,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.35,
+      "p_valor": 0.638
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 83.3,
+      "pnl": 0.74,
+      "pnl_op_pct": 0.818,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.94,
+      "p_valor": 0.196
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 316,
+      "win_rate": 71.5,
+      "pnl": -2.2,
+      "pnl_op_pct": -0.046,
+      "meses_pos_pct": 48.4,
+      "t_dia": -0.21,
+      "p_valor": 0.581
+     },
+     "validacion_final": {
+      "ops": 2,
+      "win_rate": 50.0,
+      "pnl": -1.03,
+      "pnl_op_pct": -3.45,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.76,
+      "p_valor": 0.706
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 307,
+      "win_rate": 70.4,
+      "pnl": -7.1,
+      "pnl_op_pct": -0.154,
+      "meses_pos_pct": 63.3,
+      "t_dia": -0.47,
+      "p_valor": 0.682
+     },
+     "validacion_final": {
+      "ops": 20,
+      "win_rate": 75.0,
+      "pnl": 0.8,
+      "pnl_op_pct": 0.268,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.44,
+      "p_valor": 0.334
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 268,
+      "win_rate": 65.3,
+      "pnl": -22.99,
+      "pnl_op_pct": -0.572,
+      "meses_pos_pct": 50.0,
+      "t_dia": -1.59,
+      "p_valor": 0.944
+     },
+     "validacion_final": {
+      "ops": 20,
+      "win_rate": 70.0,
+      "pnl": -0.24,
+      "pnl_op_pct": -0.081,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.1,
+      "p_valor": 0.541
+     },
+     "vivo_opera": true
+    }
+   }
+  }
+ },
+ "P5": {
+  "MeanReversion": {
+   "brazo": "P5",
+   "estrategia": "MeanReversion",
+   "oos": {
+    "ops": 355,
+    "win_rate": 48.2,
+    "pnl": -4.61,
+    "pnl_op_pct": -0.086,
+    "meses_pos_pct": 47.6,
+    "t_dia": -0.31,
+    "p_valor": 0.621
+   },
+   "validacion_final": {
+    "ops": 5,
+    "win_rate": 20.0,
+    "pnl": -1.78,
+    "pnl_op_pct": -2.373,
+    "meses_pos_pct": 0.0,
+    "t_dia": -1.52,
+    "p_valor": 0.887
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 47.6 % meses +; p >= 0.00122",
+   "monedas_vivo": [],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 14,
+      "win_rate": 50.0,
+      "pnl": -0.41,
+      "pnl_op_pct": -0.195,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.47,
+      "p_valor": 0.677
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 104,
+      "win_rate": 51.9,
+      "pnl": -0.5,
+      "pnl_op_pct": -0.032,
+      "meses_pos_pct": 66.7,
+      "t_dia": -0.08,
+      "p_valor": 0.531
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 127,
+      "win_rate": 48.8,
+      "pnl": 2.27,
+      "pnl_op_pct": 0.119,
+      "meses_pos_pct": 61.5,
+      "t_dia": 0.33,
+      "p_valor": 0.37
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 110,
+      "win_rate": 43.6,
+      "pnl": -5.97,
+      "pnl_op_pct": -0.362,
+      "meses_pos_pct": 37.5,
+      "t_dia": -0.73,
+      "p_valor": 0.767
+     },
+     "validacion_final": {
+      "ops": 5,
+      "win_rate": 20.0,
+      "pnl": -1.78,
+      "pnl_op_pct": -2.373,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.52,
+      "p_valor": 0.887
+     },
+     "vivo_opera": false
+    }
+   }
+  },
+  "TrendFollowing": {
+   "brazo": "P5",
+   "estrategia": "TrendFollowing",
+   "oos": {
+    "ops": 506,
+    "win_rate": 31.6,
+    "pnl": -23.04,
+    "pnl_op_pct": -0.304,
+    "meses_pos_pct": 36.0,
+    "t_dia": -1.52,
+    "p_valor": 0.935
+   },
+   "validacion_final": {
+    "ops": 0,
+    "win_rate": 0.0,
+    "pnl": 0.0,
+    "pnl_op_pct": 0.0,
+    "meses_pos_pct": 0.0,
+    "t_dia": 0.0,
+    "p_valor": 1.0
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 36.0 % meses +; p >= 0.00122",
+   "monedas_vivo": [],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 86,
+      "win_rate": 27.9,
+      "pnl": -7.9,
+      "pnl_op_pct": -0.612,
+      "meses_pos_pct": 0.0,
+      "t_dia": -2.46,
+      "p_valor": 0.992
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 43,
+      "win_rate": 32.6,
+      "pnl": -2.25,
+      "pnl_op_pct": -0.349,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.05,
+      "p_valor": 0.849
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 233,
+      "win_rate": 32.6,
+      "pnl": -0.22,
+      "pnl_op_pct": -0.006,
+      "meses_pos_pct": 47.6,
+      "t_dia": -0.02,
+      "p_valor": 0.508
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 144,
+      "win_rate": 31.9,
+      "pnl": -12.67,
+      "pnl_op_pct": -0.587,
+      "meses_pos_pct": 30.8,
+      "t_dia": -1.58,
+      "p_valor": 0.941
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    }
+   }
+  },
+  "VWAP": {
+   "brazo": "P5",
+   "estrategia": "VWAP",
+   "oos": {
+    "ops": 273,
+    "win_rate": 45.4,
+    "pnl": -8.12,
+    "pnl_op_pct": -0.198,
+    "meses_pos_pct": 47.1,
+    "t_dia": -0.76,
+    "p_valor": 0.775
+   },
+   "validacion_final": {
+    "ops": 5,
+    "win_rate": 80.0,
+    "pnl": 1.58,
+    "pnl_op_pct": 2.107,
+    "meses_pos_pct": 100.0,
+    "t_dia": 1.88,
+    "p_valor": 0.0665
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 47.1 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 22,
+      "win_rate": 50.0,
+      "pnl": -0.85,
+      "pnl_op_pct": -0.257,
+      "meses_pos_pct": 33.3,
+      "t_dia": -1.13,
+      "p_valor": 0.863
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 101,
+      "win_rate": 49.5,
+      "pnl": -0.21,
+      "pnl_op_pct": -0.014,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.05,
+      "p_valor": 0.518
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 38,
+      "win_rate": 31.6,
+      "pnl": -6.65,
+      "pnl_op_pct": -1.166,
+      "meses_pos_pct": 25.0,
+      "t_dia": -1.59,
+      "p_valor": 0.939
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 112,
+      "win_rate": 45.5,
+      "pnl": -0.43,
+      "pnl_op_pct": -0.025,
+      "meses_pos_pct": 46.2,
+      "t_dia": -0.07,
+      "p_valor": 0.529
+     },
+     "validacion_final": {
+      "ops": 5,
+      "win_rate": 80.0,
+      "pnl": 1.58,
+      "pnl_op_pct": 2.107,
+      "meses_pos_pct": 100.0,
+      "t_dia": 1.88,
+      "p_valor": 0.0665
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "VolatilitySqueeze": {
+   "brazo": "P5",
+   "estrategia": "VolatilitySqueeze",
+   "oos": {
+    "ops": 442,
+    "win_rate": 30.3,
+    "pnl": -12.0,
+    "pnl_op_pct": -0.181,
+    "meses_pos_pct": 33.3,
+    "t_dia": -1.04,
+    "p_valor": 0.851
+   },
+   "validacion_final": {
+    "ops": 9,
+    "win_rate": 44.4,
+    "pnl": 0.06,
+    "pnl_op_pct": 0.043,
+    "meses_pos_pct": 50.0,
+    "t_dia": 0.04,
+    "p_valor": 0.485
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 33.3 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "SOLUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 50,
+      "win_rate": 30.0,
+      "pnl": -2.54,
+      "pnl_op_pct": -0.338,
+      "meses_pos_pct": 42.9,
+      "t_dia": -1.07,
+      "p_valor": 0.854
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 29,
+      "win_rate": 37.9,
+      "pnl": -0.15,
+      "pnl_op_pct": -0.034,
+      "meses_pos_pct": 25.0,
+      "t_dia": -0.05,
+      "p_valor": 0.52
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 235,
+      "win_rate": 28.9,
+      "pnl": -6.0,
+      "pnl_op_pct": -0.17,
+      "meses_pos_pct": 35.3,
+      "t_dia": -0.68,
+      "p_valor": 0.753
+     },
+     "validacion_final": {
+      "ops": 9,
+      "win_rate": 44.4,
+      "pnl": 0.06,
+      "pnl_op_pct": 0.043,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.04,
+      "p_valor": 0.485
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 128,
+      "win_rate": 31.2,
+      "pnl": -3.32,
+      "pnl_op_pct": -0.173,
+      "meses_pos_pct": 40.0,
+      "t_dia": -0.58,
+      "p_valor": 0.719
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    }
+   }
+  },
+  "Capitulation": {
+   "brazo": "P5",
+   "estrategia": "Capitulation",
+   "oos": {
+    "ops": 586,
+    "win_rate": 70.8,
+    "pnl": 2.04,
+    "pnl_op_pct": 0.023,
+    "meses_pos_pct": 50.0,
+    "t_dia": 0.09,
+    "p_valor": 0.465
+   },
+   "validacion_final": {
+    "ops": 0,
+    "win_rate": 0.0,
+    "pnl": 0.0,
+    "pnl_op_pct": 0.0,
+    "meses_pos_pct": 0.0,
+    "t_dia": 0.0,
+    "p_valor": 1.0
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "p >= 0.00122",
+   "monedas_vivo": [],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 104,
+      "win_rate": 70.2,
+      "pnl": -0.76,
+      "pnl_op_pct": -0.048,
+      "meses_pos_pct": 44.4,
+      "t_dia": -0.15,
+      "p_valor": 0.558
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 186,
+      "win_rate": 69.9,
+      "pnl": -3.98,
+      "pnl_op_pct": -0.143,
+      "meses_pos_pct": 40.0,
+      "t_dia": -0.48,
+      "p_valor": 0.683
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 198,
+      "win_rate": 73.2,
+      "pnl": 9.32,
+      "pnl_op_pct": 0.314,
+      "meses_pos_pct": 72.2,
+      "t_dia": 0.81,
+      "p_valor": 0.208
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 98,
+      "win_rate": 68.4,
+      "pnl": -2.54,
+      "pnl_op_pct": -0.173,
+      "meses_pos_pct": 58.3,
+      "t_dia": -0.28,
+      "p_valor": 0.609
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    }
+   }
+  }
+ },
+ "P6": {
+  "MeanReversion": {
+   "brazo": "P6",
+   "estrategia": "MeanReversion",
+   "oos": {
+    "ops": 799,
+    "win_rate": 46.7,
+    "pnl": -30.79,
+    "pnl_op_pct": -0.257,
+    "meses_pos_pct": 31.2,
+    "t_dia": -1.61,
+    "p_valor": 0.946
+   },
+   "validacion_final": {
+    "ops": 23,
+    "win_rate": 39.1,
+    "pnl": -2.23,
+    "pnl_op_pct": -0.646,
+    "meses_pos_pct": 50.0,
+    "t_dia": -1.29,
+    "p_valor": 0.89
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 31.2 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 139,
+      "win_rate": 43.2,
+      "pnl": -11.9,
+      "pnl_op_pct": -0.571,
+      "meses_pos_pct": 25.0,
+      "t_dia": -2.66,
+      "p_valor": 0.996
+     },
+     "validacion_final": {
+      "ops": 10,
+      "win_rate": 60.0,
+      "pnl": 0.03,
+      "pnl_op_pct": 0.02,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.04,
+      "p_valor": 0.485
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 218,
+      "win_rate": 48.6,
+      "pnl": -3.28,
+      "pnl_op_pct": -0.1,
+      "meses_pos_pct": 47.8,
+      "t_dia": -0.41,
+      "p_valor": 0.659
+     },
+     "validacion_final": {
+      "ops": 7,
+      "win_rate": 28.6,
+      "pnl": -0.61,
+      "pnl_op_pct": -0.585,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.51,
+      "p_valor": 0.686
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 257,
+      "win_rate": 47.1,
+      "pnl": -8.55,
+      "pnl_op_pct": -0.222,
+      "meses_pos_pct": 48.3,
+      "t_dia": -0.98,
+      "p_valor": 0.836
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 16.7,
+      "pnl": -1.64,
+      "pnl_op_pct": -1.827,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.68,
+      "p_valor": 0.916
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 185,
+      "win_rate": 46.5,
+      "pnl": -7.05,
+      "pnl_op_pct": -0.254,
+      "meses_pos_pct": 54.5,
+      "t_dia": -0.73,
+      "p_valor": 0.768
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "TrendFollowing": {
+   "brazo": "P6",
+   "estrategia": "TrendFollowing",
+   "oos": {
+    "ops": 963,
+    "win_rate": 32.6,
+    "pnl": -30.44,
+    "pnl_op_pct": -0.211,
+    "meses_pos_pct": 35.1,
+    "t_dia": -1.23,
+    "p_valor": 0.89
+   },
+   "validacion_final": {
+    "ops": 35,
+    "win_rate": 28.6,
+    "pnl": -5.0,
+    "pnl_op_pct": -0.952,
+    "meses_pos_pct": 0.0,
+    "t_dia": -2.15,
+    "p_valor": 0.977
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 35.1 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 246,
+      "win_rate": 35.0,
+      "pnl": -9.2,
+      "pnl_op_pct": -0.249,
+      "meses_pos_pct": 25.9,
+      "t_dia": -1.41,
+      "p_valor": 0.92
+     },
+     "validacion_final": {
+      "ops": 14,
+      "win_rate": 35.7,
+      "pnl": -0.65,
+      "pnl_op_pct": -0.307,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.45,
+      "p_valor": 0.67
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 215,
+      "win_rate": 28.8,
+      "pnl": -18.22,
+      "pnl_op_pct": -0.565,
+      "meses_pos_pct": 20.8,
+      "t_dia": -2.73,
+      "p_valor": 0.996
+     },
+     "validacion_final": {
+      "ops": 9,
+      "win_rate": 22.2,
+      "pnl": -2.14,
+      "pnl_op_pct": -1.587,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.7,
+      "p_valor": 0.936
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 286,
+      "win_rate": 35.0,
+      "pnl": -1.25,
+      "pnl_op_pct": -0.029,
+      "meses_pos_pct": 41.2,
+      "t_dia": -0.1,
+      "p_valor": 0.538
+     },
+     "validacion_final": {
+      "ops": 9,
+      "win_rate": 33.3,
+      "pnl": -1.17,
+      "pnl_op_pct": -0.867,
+      "meses_pos_pct": 0.0,
+      "t_dia": -2.38,
+      "p_valor": 0.973
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 216,
+      "win_rate": 30.6,
+      "pnl": -1.77,
+      "pnl_op_pct": -0.055,
+      "meses_pos_pct": 34.8,
+      "t_dia": -0.13,
+      "p_valor": 0.552
+     },
+     "validacion_final": {
+      "ops": 3,
+      "win_rate": 0.0,
+      "pnl": -1.04,
+      "pnl_op_pct": -2.31,
+      "meses_pos_pct": 0.0,
+      "t_dia": -5.24,
+      "p_valor": 0.983
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "VWAP": {
+   "brazo": "P6",
+   "estrategia": "VWAP",
+   "oos": {
+    "ops": 638,
+    "win_rate": 47.3,
+    "pnl": -19.58,
+    "pnl_op_pct": -0.205,
+    "meses_pos_pct": 43.3,
+    "t_dia": -1.29,
+    "p_valor": 0.902
+   },
+   "validacion_final": {
+    "ops": 35,
+    "win_rate": 48.6,
+    "pnl": 0.17,
+    "pnl_op_pct": 0.033,
+    "meses_pos_pct": 50.0,
+    "t_dia": 0.06,
+    "p_valor": 0.477
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 43.3 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 120,
+      "win_rate": 51.7,
+      "pnl": -4.31,
+      "pnl_op_pct": -0.239,
+      "meses_pos_pct": 36.8,
+      "t_dia": -1.36,
+      "p_valor": 0.912
+     },
+     "validacion_final": {
+      "ops": 5,
+      "win_rate": 60.0,
+      "pnl": -0.09,
+      "pnl_op_pct": -0.119,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.19,
+      "p_valor": 0.569
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 211,
+      "win_rate": 46.4,
+      "pnl": -8.39,
+      "pnl_op_pct": -0.265,
+      "meses_pos_pct": 41.7,
+      "t_dia": -1.37,
+      "p_valor": 0.913
+     },
+     "validacion_final": {
+      "ops": 12,
+      "win_rate": 33.3,
+      "pnl": -0.84,
+      "pnl_op_pct": -0.467,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.64,
+      "p_valor": 0.729
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 170,
+      "win_rate": 48.2,
+      "pnl": -2.1,
+      "pnl_op_pct": -0.082,
+      "meses_pos_pct": 51.9,
+      "t_dia": -0.32,
+      "p_valor": 0.624
+     },
+     "validacion_final": {
+      "ops": 7,
+      "win_rate": 28.6,
+      "pnl": -0.85,
+      "pnl_op_pct": -0.808,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.96,
+      "p_valor": 0.809
+     },
+     "vivo_opera": false
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 137,
+      "win_rate": 43.8,
+      "pnl": -4.79,
+      "pnl_op_pct": -0.233,
+      "meses_pos_pct": 43.5,
+      "t_dia": -0.63,
+      "p_valor": 0.734
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 72.7,
+      "pnl": 1.95,
+      "pnl_op_pct": 1.182,
+      "meses_pos_pct": 100.0,
+      "t_dia": 1.93,
+      "p_valor": 0.043
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "VolatilitySqueeze": {
+   "brazo": "P6",
+   "estrategia": "VolatilitySqueeze",
+   "oos": {
+    "ops": 1183,
+    "win_rate": 31.0,
+    "pnl": -19.26,
+    "pnl_op_pct": -0.109,
+    "meses_pos_pct": 50.0,
+    "t_dia": -0.89,
+    "p_valor": 0.814
+   },
+   "validacion_final": {
+    "ops": 44,
+    "win_rate": 29.5,
+    "pnl": -4.38,
+    "pnl_op_pct": -0.664,
+    "meses_pos_pct": 0.0,
+    "t_dia": -1.37,
+    "p_valor": 0.908
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 334,
+      "win_rate": 31.4,
+      "pnl": -7.04,
+      "pnl_op_pct": -0.141,
+      "meses_pos_pct": 48.1,
+      "t_dia": -0.96,
+      "p_valor": 0.831
+     },
+     "validacion_final": {
+      "ops": 17,
+      "win_rate": 35.3,
+      "pnl": -1.32,
+      "pnl_op_pct": -0.52,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.28,
+      "p_valor": 0.889
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 217,
+      "win_rate": 33.6,
+      "pnl": 0.09,
+      "pnl_op_pct": 0.003,
+      "meses_pos_pct": 45.2,
+      "t_dia": 0.01,
+      "p_valor": 0.495
+     },
+     "validacion_final": {
+      "ops": 12,
+      "win_rate": 25.0,
+      "pnl": -1.08,
+      "pnl_op_pct": -0.602,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.8,
+      "p_valor": 0.78
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 332,
+      "win_rate": 30.7,
+      "pnl": -3.88,
+      "pnl_op_pct": -0.078,
+      "meses_pos_pct": 58.8,
+      "t_dia": -0.34,
+      "p_valor": 0.634
+     },
+     "validacion_final": {
+      "ops": 12,
+      "win_rate": 33.3,
+      "pnl": -0.94,
+      "pnl_op_pct": -0.523,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.6,
+      "p_valor": 0.719
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 300,
+      "win_rate": 29.0,
+      "pnl": -8.43,
+      "pnl_op_pct": -0.187,
+      "meses_pos_pct": 43.8,
+      "t_dia": -0.89,
+      "p_valor": 0.812
+     },
+     "validacion_final": {
+      "ops": 3,
+      "win_rate": 0.0,
+      "pnl": -1.03,
+      "pnl_op_pct": -2.295,
+      "meses_pos_pct": 0.0,
+      "t_dia": -5.71,
+      "p_valor": 0.985
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "Capitulation": {
+   "brazo": "P6",
+   "estrategia": "Capitulation",
+   "oos": {
+    "ops": 1032,
+    "win_rate": 70.5,
+    "pnl": -40.73,
+    "pnl_op_pct": -0.263,
+    "meses_pos_pct": 41.7,
+    "t_dia": -1.15,
+    "p_valor": 0.875
+   },
+   "validacion_final": {
+    "ops": 48,
+    "win_rate": 81.2,
+    "pnl": 3.93,
+    "pnl_op_pct": 0.546,
+    "meses_pos_pct": 50.0,
+    "t_dia": 0.98,
+    "p_valor": 0.167
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 41.7 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 287,
+      "win_rate": 71.4,
+      "pnl": -10.95,
+      "pnl_op_pct": -0.254,
+      "meses_pos_pct": 41.9,
+      "t_dia": -1.35,
+      "p_valor": 0.911
+     },
+     "validacion_final": {
+      "ops": 8,
+      "win_rate": 75.0,
+      "pnl": -0.17,
+      "pnl_op_pct": -0.143,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.15,
+      "p_valor": 0.556
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 271,
+      "win_rate": 71.2,
+      "pnl": -4.43,
+      "pnl_op_pct": -0.109,
+      "meses_pos_pct": 48.1,
+      "t_dia": -0.42,
+      "p_valor": 0.662
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 90.9,
+      "pnl": 1.92,
+      "pnl_op_pct": 1.164,
+      "meses_pos_pct": 50.0,
+      "t_dia": 1.81,
+      "p_valor": 0.0499
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 258,
+      "win_rate": 69.4,
+      "pnl": -8.78,
+      "pnl_op_pct": -0.227,
+      "meses_pos_pct": 53.6,
+      "t_dia": -0.59,
+      "p_valor": 0.721
+     },
+     "validacion_final": {
+      "ops": 14,
+      "win_rate": 92.9,
+      "pnl": 2.57,
+      "pnl_op_pct": 1.224,
+      "meses_pos_pct": 100.0,
+      "t_dia": 2.55,
+      "p_valor": 0.0121
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 216,
+      "win_rate": 69.9,
+      "pnl": -16.57,
+      "pnl_op_pct": -0.511,
+      "meses_pos_pct": 46.4,
+      "t_dia": -0.96,
+      "p_valor": 0.83
+     },
+     "validacion_final": {
+      "ops": 15,
+      "win_rate": 66.7,
+      "pnl": -0.39,
+      "pnl_op_pct": -0.171,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.19,
+      "p_valor": 0.572
+     },
+     "vivo_opera": true
+    }
+   }
+  }
+ },
+ "P7": {
+  "Capitulation": {
+   "brazo": "P7",
+   "estrategia": "Capitulation",
+   "oos": {
+    "ops": 986,
+    "win_rate": 69.9,
+    "pnl": -25.3,
+    "pnl_op_pct": -0.171,
+    "meses_pos_pct": 51.4,
+    "t_dia": -0.91,
+    "p_valor": 0.819
+   },
+   "validacion_final": {
+    "ops": 51,
+    "win_rate": 78.4,
+    "pnl": 2.45,
+    "pnl_op_pct": 0.32,
+    "meses_pos_pct": 100.0,
+    "t_dia": 0.73,
+    "p_valor": 0.234
+   },
+   "alfa_brazo": 0.05,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 232,
+      "win_rate": 69.4,
+      "pnl": -7.04,
+      "pnl_op_pct": -0.202,
+      "meses_pos_pct": 50.0,
+      "t_dia": -1.06,
+      "p_valor": 0.854
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 81.8,
+      "pnl": 0.17,
+      "pnl_op_pct": 0.106,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.15,
+      "p_valor": 0.442
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 249,
+      "win_rate": 70.3,
+      "pnl": -7.57,
+      "pnl_op_pct": -0.203,
+      "meses_pos_pct": 37.9,
+      "t_dia": -0.86,
+      "p_valor": 0.804
+     },
+     "validacion_final": {
+      "ops": 16,
+      "win_rate": 75.0,
+      "pnl": 0.43,
+      "pnl_op_pct": 0.18,
+      "meses_pos_pct": 100.0,
+      "t_dia": 0.28,
+      "p_valor": 0.393
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 229,
+      "win_rate": 70.3,
+      "pnl": 4.92,
+      "pnl_op_pct": 0.143,
+      "meses_pos_pct": 53.3,
+      "t_dia": 0.39,
+      "p_valor": 0.348
+     },
+     "validacion_final": {
+      "ops": 18,
+      "win_rate": 77.8,
+      "pnl": 0.66,
+      "pnl_op_pct": 0.245,
+      "meses_pos_pct": 100.0,
+      "t_dia": 0.33,
+      "p_valor": 0.372
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 276,
+      "win_rate": 69.6,
+      "pnl": -15.62,
+      "pnl_op_pct": -0.377,
+      "meses_pos_pct": 47.1,
+      "t_dia": -1.04,
+      "p_valor": 0.851
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 83.3,
+      "pnl": 1.18,
+      "pnl_op_pct": 1.315,
+      "meses_pos_pct": 50.0,
+      "t_dia": 1.85,
+      "p_valor": 0.0616
+     },
+     "vivo_opera": true
+    }
+   }
+  }
+ },
+ "P8": {
+  "MeanReversion": {
+   "brazo": "P8",
+   "estrategia": "MeanReversion",
+   "oos": {
+    "ops": 811,
+    "win_rate": 46.7,
+    "pnl": -50.92,
+    "pnl_op_pct": -0.419,
+    "meses_pos_pct": 31.2,
+    "t_dia": -2.78,
+    "p_valor": 0.997
+   },
+   "validacion_final": {
+    "ops": 22,
+    "win_rate": 50.0,
+    "pnl": -0.43,
+    "pnl_op_pct": -0.13,
+    "meses_pos_pct": 0.0,
+    "t_dia": -0.22,
+    "p_valor": 0.586
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 31.2 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 123,
+      "win_rate": 43.1,
+      "pnl": -10.72,
+      "pnl_op_pct": -0.581,
+      "meses_pos_pct": 12.5,
+      "t_dia": -2.81,
+      "p_valor": 0.997
+     },
+     "validacion_final": {
+      "ops": 8,
+      "win_rate": 50.0,
+      "pnl": -0.38,
+      "pnl_op_pct": -0.315,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.7,
+      "p_valor": 0.746
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 210,
+      "win_rate": 53.8,
+      "pnl": -3.78,
+      "pnl_op_pct": -0.12,
+      "meses_pos_pct": 42.9,
+      "t_dia": -0.71,
+      "p_valor": 0.759
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 228,
+      "win_rate": 42.1,
+      "pnl": -25.49,
+      "pnl_op_pct": -0.745,
+      "meses_pos_pct": 23.8,
+      "t_dia": -3.12,
+      "p_valor": 0.999
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 16.7,
+      "pnl": -1.64,
+      "pnl_op_pct": -1.827,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.68,
+      "p_valor": 0.916
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 250,
+      "win_rate": 46.8,
+      "pnl": -10.92,
+      "pnl_op_pct": -0.291,
+      "meses_pos_pct": 43.5,
+      "t_dia": -1.14,
+      "p_valor": 0.872
+     },
+     "validacion_final": {
+      "ops": 8,
+      "win_rate": 75.0,
+      "pnl": 1.59,
+      "pnl_op_pct": 1.329,
+      "meses_pos_pct": 100.0,
+      "t_dia": 1.83,
+      "p_valor": 0.0585
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "TrendFollowing": {
+   "brazo": "P8",
+   "estrategia": "TrendFollowing",
+   "oos": {
+    "ops": 969,
+    "win_rate": 34.8,
+    "pnl": -19.79,
+    "pnl_op_pct": -0.136,
+    "meses_pos_pct": 42.1,
+    "t_dia": -0.95,
+    "p_valor": 0.83
+   },
+   "validacion_final": {
+    "ops": 71,
+    "win_rate": 43.7,
+    "pnl": -0.75,
+    "pnl_op_pct": -0.071,
+    "meses_pos_pct": 50.0,
+    "t_dia": -0.15,
+    "p_valor": 0.558
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 42.1 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 253,
+      "win_rate": 32.8,
+      "pnl": -9.11,
+      "pnl_op_pct": -0.24,
+      "meses_pos_pct": 34.5,
+      "t_dia": -1.85,
+      "p_valor": 0.967
+     },
+     "validacion_final": {
+      "ops": 17,
+      "win_rate": 47.1,
+      "pnl": 0.83,
+      "pnl_op_pct": 0.325,
+      "meses_pos_pct": 100.0,
+      "t_dia": 0.48,
+      "p_valor": 0.318
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 200,
+      "win_rate": 31.5,
+      "pnl": -12.84,
+      "pnl_op_pct": -0.428,
+      "meses_pos_pct": 34.8,
+      "t_dia": -2.23,
+      "p_valor": 0.986
+     },
+     "validacion_final": {
+      "ops": 21,
+      "win_rate": 42.9,
+      "pnl": -1.4,
+      "pnl_op_pct": -0.444,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.03,
+      "p_valor": 0.842
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 304,
+      "win_rate": 38.8,
+      "pnl": 5.27,
+      "pnl_op_pct": 0.116,
+      "meses_pos_pct": 48.6,
+      "t_dia": 0.41,
+      "p_valor": 0.342
+     },
+     "validacion_final": {
+      "ops": 16,
+      "win_rate": 43.8,
+      "pnl": 0.99,
+      "pnl_op_pct": 0.413,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.4,
+      "p_valor": 0.348
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 212,
+      "win_rate": 34.4,
+      "pnl": -3.12,
+      "pnl_op_pct": -0.098,
+      "meses_pos_pct": 51.9,
+      "t_dia": -0.37,
+      "p_valor": 0.643
+     },
+     "validacion_final": {
+      "ops": 17,
+      "win_rate": 41.2,
+      "pnl": -1.18,
+      "pnl_op_pct": -0.461,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.64,
+      "p_valor": 0.734
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "VWAP": {
+   "brazo": "P8",
+   "estrategia": "VWAP",
+   "oos": {
+    "ops": 808,
+    "win_rate": 48.5,
+    "pnl": -28.5,
+    "pnl_op_pct": -0.235,
+    "meses_pos_pct": 42.4,
+    "t_dia": -1.87,
+    "p_valor": 0.969
+   },
+   "validacion_final": {
+    "ops": 27,
+    "win_rate": 37.0,
+    "pnl": -2.01,
+    "pnl_op_pct": -0.497,
+    "meses_pos_pct": 0.0,
+    "t_dia": -0.75,
+    "p_valor": 0.764
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 42.4 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 142,
+      "win_rate": 50.0,
+      "pnl": -3.83,
+      "pnl_op_pct": -0.18,
+      "meses_pos_pct": 38.1,
+      "t_dia": -1.27,
+      "p_valor": 0.896
+     },
+     "validacion_final": {
+      "ops": 6,
+      "win_rate": 50.0,
+      "pnl": -0.32,
+      "pnl_op_pct": -0.353,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.69,
+      "p_valor": 0.738
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 222,
+      "win_rate": 51.8,
+      "pnl": -5.02,
+      "pnl_op_pct": -0.151,
+      "meses_pos_pct": 44.4,
+      "t_dia": -1.02,
+      "p_valor": 0.846
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 36.4,
+      "pnl": -0.69,
+      "pnl_op_pct": -0.416,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.51,
+      "p_valor": 0.686
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 223,
+      "win_rate": 43.9,
+      "pnl": -13.14,
+      "pnl_op_pct": -0.393,
+      "meses_pos_pct": 32.1,
+      "t_dia": -1.92,
+      "p_valor": 0.972
+     },
+     "validacion_final": {
+      "ops": 7,
+      "win_rate": 14.3,
+      "pnl": -2.0,
+      "pnl_op_pct": -1.902,
+      "meses_pos_pct": 0.0,
+      "t_dia": -2.38,
+      "p_valor": 0.969
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 221,
+      "win_rate": 48.9,
+      "pnl": -6.5,
+      "pnl_op_pct": -0.196,
+      "meses_pos_pct": 54.2,
+      "t_dia": -0.8,
+      "p_valor": 0.786
+     },
+     "validacion_final": {
+      "ops": 3,
+      "win_rate": 66.7,
+      "pnl": 0.99,
+      "pnl_op_pct": 2.194,
+      "meses_pos_pct": 100.0,
+      "t_dia": 1.14,
+      "p_valor": 0.187
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "VolatilitySqueeze": {
+   "brazo": "P8",
+   "estrategia": "VolatilitySqueeze",
+   "oos": {
+    "ops": 1082,
+    "win_rate": 30.5,
+    "pnl": -18.05,
+    "pnl_op_pct": -0.111,
+    "meses_pos_pct": 45.9,
+    "t_dia": -0.91,
+    "p_valor": 0.817
+   },
+   "validacion_final": {
+    "ops": 53,
+    "win_rate": 32.1,
+    "pnl": -3.67,
+    "pnl_op_pct": -0.462,
+    "meses_pos_pct": 0.0,
+    "t_dia": -0.93,
+    "p_valor": 0.819
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 45.9 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 213,
+      "win_rate": 29.1,
+      "pnl": -5.24,
+      "pnl_op_pct": -0.164,
+      "meses_pos_pct": 46.2,
+      "t_dia": -0.95,
+      "p_valor": 0.83
+     },
+     "validacion_final": {
+      "ops": 16,
+      "win_rate": 37.5,
+      "pnl": -1.01,
+      "pnl_op_pct": -0.423,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.0,
+      "p_valor": 0.831
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 203,
+      "win_rate": 29.1,
+      "pnl": -8.33,
+      "pnl_op_pct": -0.274,
+      "meses_pos_pct": 37.0,
+      "t_dia": -1.2,
+      "p_valor": 0.885
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 27.3,
+      "pnl": -0.38,
+      "pnl_op_pct": -0.228,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.32,
+      "p_valor": 0.623
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 371,
+      "win_rate": 33.2,
+      "pnl": 6.46,
+      "pnl_op_pct": 0.116,
+      "meses_pos_pct": 38.9,
+      "t_dia": 0.53,
+      "p_valor": 0.298
+     },
+     "validacion_final": {
+      "ops": 13,
+      "win_rate": 38.5,
+      "pnl": -0.2,
+      "pnl_op_pct": -0.104,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.12,
+      "p_valor": 0.548
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 295,
+      "win_rate": 29.2,
+      "pnl": -10.94,
+      "pnl_op_pct": -0.247,
+      "meses_pos_pct": 35.5,
+      "t_dia": -1.25,
+      "p_valor": 0.893
+     },
+     "validacion_final": {
+      "ops": 13,
+      "win_rate": 23.1,
+      "pnl": -2.08,
+      "pnl_op_pct": -1.065,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.32,
+      "p_valor": 0.894
+     },
+     "vivo_opera": true
+    }
+   }
+  },
+  "Capitulation": {
+   "brazo": "P8",
+   "estrategia": "Capitulation",
+   "oos": {
+    "ops": 936,
+    "win_rate": 72.1,
+    "pnl": -5.9,
+    "pnl_op_pct": -0.042,
+    "meses_pos_pct": 48.6,
+    "t_dia": -0.21,
+    "p_valor": 0.582
+   },
+   "validacion_final": {
+    "ops": 43,
+    "win_rate": 79.1,
+    "pnl": 0.77,
+    "pnl_op_pct": 0.119,
+    "meses_pos_pct": 50.0,
+    "t_dia": 0.19,
+    "p_valor": 0.427
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 48.6 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 263,
+      "win_rate": 73.0,
+      "pnl": -2.44,
+      "pnl_op_pct": -0.062,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.38,
+      "p_valor": 0.647
+     },
+     "validacion_final": {
+      "ops": 8,
+      "win_rate": 75.0,
+      "pnl": -1.0,
+      "pnl_op_pct": -0.832,
+      "meses_pos_pct": 0.0,
+      "t_dia": -0.8,
+      "p_valor": 0.775
+     },
+     "vivo_opera": true
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 200,
+      "win_rate": 70.0,
+      "pnl": -6.9,
+      "pnl_op_pct": -0.23,
+      "meses_pos_pct": 42.9,
+      "t_dia": -0.76,
+      "p_valor": 0.776
+     },
+     "validacion_final": {
+      "ops": 14,
+      "win_rate": 85.7,
+      "pnl": 0.85,
+      "pnl_op_pct": 0.403,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.61,
+      "p_valor": 0.278
+     },
+     "vivo_opera": true
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 274,
+      "win_rate": 73.0,
+      "pnl": 6.2,
+      "pnl_op_pct": 0.151,
+      "meses_pos_pct": 53.3,
+      "t_dia": 0.49,
+      "p_valor": 0.313
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 90.9,
+      "pnl": 1.86,
+      "pnl_op_pct": 1.128,
+      "meses_pos_pct": 100.0,
+      "t_dia": 1.81,
+      "p_valor": 0.0505
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 199,
+      "win_rate": 71.9,
+      "pnl": -2.77,
+      "pnl_op_pct": -0.093,
+      "meses_pos_pct": 59.3,
+      "t_dia": -0.18,
+      "p_valor": 0.572
+     },
+     "validacion_final": {
+      "ops": 10,
+      "win_rate": 60.0,
+      "pnl": -0.94,
+      "pnl_op_pct": -0.629,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.43,
+      "p_valor": 0.662
+     },
+     "vivo_opera": true
+    }
+   }
+  }
+ },
+ "TODO": {
+  "MeanReversion": {
+   "brazo": "TODO",
+   "estrategia": "MeanReversion",
+   "oos": {
+    "ops": 508,
+    "win_rate": 48.2,
+    "pnl": -9.91,
+    "pnl_op_pct": -0.13,
+    "meses_pos_pct": 55.6,
+    "t_dia": -0.6,
+    "p_valor": 0.726
+   },
+   "validacion_final": {
+    "ops": 0,
+    "win_rate": 0.0,
+    "pnl": 0.0,
+    "pnl_op_pct": 0.0,
+    "meses_pos_pct": 0.0,
+    "t_dia": 0.0,
+    "p_valor": 1.0
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; p >= 0.00122",
+   "monedas_vivo": [],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 56,
+      "win_rate": 41.1,
+      "pnl": -3.89,
+      "pnl_op_pct": -0.463,
+      "meses_pos_pct": 16.7,
+      "t_dia": -1.28,
+      "p_valor": 0.896
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 106,
+      "win_rate": 47.2,
+      "pnl": -2.7,
+      "pnl_op_pct": -0.17,
+      "meses_pos_pct": 33.3,
+      "t_dia": -0.51,
+      "p_valor": 0.694
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 95,
+      "win_rate": 46.3,
+      "pnl": -1.82,
+      "pnl_op_pct": -0.127,
+      "meses_pos_pct": 60.0,
+      "t_dia": -0.34,
+      "p_valor": 0.634
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 251,
+      "win_rate": 51.0,
+      "pnl": -1.5,
+      "pnl_op_pct": -0.04,
+      "meses_pos_pct": 64.7,
+      "t_dia": -0.16,
+      "p_valor": 0.564
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    }
+   }
+  },
+  "TrendFollowing": {
+   "brazo": "TODO",
+   "estrategia": "TrendFollowing",
+   "oos": {
+    "ops": 339,
+    "win_rate": 32.2,
+    "pnl": -17.33,
+    "pnl_op_pct": -0.341,
+    "meses_pos_pct": 37.0,
+    "t_dia": -1.44,
+    "p_valor": 0.924
+   },
+   "validacion_final": {
+    "ops": 24,
+    "win_rate": 33.3,
+    "pnl": -1.41,
+    "pnl_op_pct": -0.391,
+    "meses_pos_pct": 0.0,
+    "t_dia": -0.42,
+    "p_valor": 0.66
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 37.0 % meses +; p >= 0.00122",
+   "monedas_vivo": [
+    "SOLUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 9,
+      "win_rate": 55.6,
+      "pnl": 2.62,
+      "pnl_op_pct": 1.942,
+      "meses_pos_pct": 75.0,
+      "t_dia": 1.3,
+      "p_valor": 0.115
+     },
+     "validacion_final": {
+      "ops": 1,
+      "win_rate": 0.0,
+      "pnl": -0.27,
+      "pnl_op_pct": -1.796,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 48,
+      "win_rate": 27.1,
+      "pnl": -5.69,
+      "pnl_op_pct": -0.79,
+      "meses_pos_pct": 0.0,
+      "t_dia": -2.07,
+      "p_valor": 0.977
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 180,
+      "win_rate": 34.4,
+      "pnl": -3.58,
+      "pnl_op_pct": -0.133,
+      "meses_pos_pct": 47.4,
+      "t_dia": -0.39,
+      "p_valor": 0.651
+     },
+     "validacion_final": {
+      "ops": 12,
+      "win_rate": 33.3,
+      "pnl": 0.46,
+      "pnl_op_pct": 0.253,
+      "meses_pos_pct": 50.0,
+      "t_dia": 0.18,
+      "p_valor": 0.431
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 102,
+      "win_rate": 28.4,
+      "pnl": -10.69,
+      "pnl_op_pct": -0.698,
+      "meses_pos_pct": 22.2,
+      "t_dia": -1.77,
+      "p_valor": 0.96
+     },
+     "validacion_final": {
+      "ops": 11,
+      "win_rate": 36.4,
+      "pnl": -1.6,
+      "pnl_op_pct": -0.967,
+      "meses_pos_pct": 0.0,
+      "t_dia": -1.07,
+      "p_valor": 0.844
+     },
+     "vivo_opera": false
+    }
+   }
+  },
+  "VWAP": {
+   "brazo": "TODO",
+   "estrategia": "VWAP",
+   "oos": {
+    "ops": 597,
+    "win_rate": 49.9,
+    "pnl": -8.24,
+    "pnl_op_pct": -0.092,
+    "meses_pos_pct": 52.6,
+    "t_dia": -0.57,
+    "p_valor": 0.716
+   },
+   "validacion_final": {
+    "ops": 0,
+    "win_rate": 0.0,
+    "pnl": 0.0,
+    "pnl_op_pct": 0.0,
+    "meses_pos_pct": 0.0,
+    "t_dia": 0.0,
+    "p_valor": 1.0
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; p >= 0.00122",
+   "monedas_vivo": [],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 34,
+      "win_rate": 44.1,
+      "pnl": -1.62,
+      "pnl_op_pct": -0.317,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.88,
+      "p_valor": 0.806
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 153,
+      "win_rate": 52.3,
+      "pnl": -0.34,
+      "pnl_op_pct": -0.015,
+      "meses_pos_pct": 62.5,
+      "t_dia": -0.06,
+      "p_valor": 0.525
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 155,
+      "win_rate": 50.3,
+      "pnl": -0.96,
+      "pnl_op_pct": -0.041,
+      "meses_pos_pct": 46.7,
+      "t_dia": -0.19,
+      "p_valor": 0.576
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 255,
+      "win_rate": 49.0,
+      "pnl": -5.32,
+      "pnl_op_pct": -0.139,
+      "meses_pos_pct": 42.9,
+      "t_dia": -0.65,
+      "p_valor": 0.743
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    }
+   }
+  },
+  "VolatilitySqueeze": {
+   "brazo": "TODO",
+   "estrategia": "VolatilitySqueeze",
+   "oos": {
+    "ops": 460,
+    "win_rate": 32.0,
+    "pnl": 12.69,
+    "pnl_op_pct": 0.184,
+    "meses_pos_pct": 53.1,
+    "t_dia": 0.88,
+    "p_valor": 0.19
+   },
+   "validacion_final": {
+    "ops": 8,
+    "win_rate": 37.5,
+    "pnl": -0.23,
+    "pnl_op_pct": -0.191,
+    "meses_pos_pct": 50.0,
+    "t_dia": -0.1,
+    "p_valor": 0.537
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "p >= 0.00122",
+   "monedas_vivo": [
+    "SOLUSDT"
+   ],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 19,
+      "win_rate": 42.1,
+      "pnl": 3.47,
+      "pnl_op_pct": 1.218,
+      "meses_pos_pct": 60.0,
+      "t_dia": 1.26,
+      "p_valor": 0.111
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 85,
+      "win_rate": 31.8,
+      "pnl": 2.1,
+      "pnl_op_pct": 0.165,
+      "meses_pos_pct": 46.2,
+      "t_dia": 0.38,
+      "p_valor": 0.352
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 296,
+      "win_rate": 32.4,
+      "pnl": 11.45,
+      "pnl_op_pct": 0.258,
+      "meses_pos_pct": 61.5,
+      "t_dia": 1.02,
+      "p_valor": 0.154
+     },
+     "validacion_final": {
+      "ops": 8,
+      "win_rate": 37.5,
+      "pnl": -0.23,
+      "pnl_op_pct": -0.191,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.1,
+      "p_valor": 0.537
+     },
+     "vivo_opera": true
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 60,
+      "win_rate": 26.7,
+      "pnl": -4.34,
+      "pnl_op_pct": -0.482,
+      "meses_pos_pct": 28.6,
+      "t_dia": -1.1,
+      "p_valor": 0.863
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    }
+   }
+  },
+  "Capitulation": {
+   "brazo": "TODO",
+   "estrategia": "Capitulation",
+   "oos": {
+    "ops": 460,
+    "win_rate": 70.4,
+    "pnl": -11.06,
+    "pnl_op_pct": -0.16,
+    "meses_pos_pct": 48.3,
+    "t_dia": -0.57,
+    "p_valor": 0.714
+   },
+   "validacion_final": {
+    "ops": 0,
+    "win_rate": 0.0,
+    "pnl": 0.0,
+    "pnl_op_pct": 0.0,
+    "meses_pos_pct": 0.0,
+    "t_dia": 0.0,
+    "p_valor": 1.0
+   },
+   "alfa_brazo": 0.01,
+   "pasa_hipotesis_unica": false,
+   "pasa_global": false,
+   "motivo": "PnL <= 0; 48.3 % meses +; p >= 0.00122",
+   "monedas_vivo": [],
+   "por_moneda": {
+    "BTCUSDT": {
+     "oos": {
+      "ops": 112,
+      "win_rate": 67.0,
+      "pnl": -5.0,
+      "pnl_op_pct": -0.297,
+      "meses_pos_pct": 47.4,
+      "t_dia": -0.9,
+      "p_valor": 0.815
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "ETHUSDT": {
+     "oos": {
+      "ops": 173,
+      "win_rate": 71.1,
+      "pnl": -0.7,
+      "pnl_op_pct": -0.027,
+      "meses_pos_pct": 40.0,
+      "t_dia": -0.09,
+      "p_valor": 0.536
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "SOLUSDT": {
+     "oos": {
+      "ops": 130,
+      "win_rate": 71.5,
+      "pnl": -0.73,
+      "pnl_op_pct": -0.037,
+      "meses_pos_pct": 50.0,
+      "t_dia": -0.08,
+      "p_valor": 0.531
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    },
+    "DOGEUSDT": {
+     "oos": {
+      "ops": 45,
+      "win_rate": 73.3,
+      "pnl": -4.64,
+      "pnl_op_pct": -0.688,
+      "meses_pos_pct": 44.4,
+      "t_dia": -0.54,
+      "p_valor": 0.705
+     },
+     "validacion_final": {
+      "ops": 0,
+      "win_rate": 0.0,
+      "pnl": 0.0,
+      "pnl_op_pct": 0.0,
+      "meses_pos_pct": 0.0,
+      "t_dia": 0.0,
+      "p_valor": 1.0
+     },
+     "vivo_opera": false
+    }
+   }
+  }
+ }
+}

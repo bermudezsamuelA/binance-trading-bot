@@ -1,0 +1,182 @@
+{
+ "nombre": "C1 - MeanReversion20 filtrada por score ridge (decil superior)",
+ "version": "ronda3-v2 (misma estrategia que v1; solo cambia la regla de decisión)",
+ "autor": "Agente 1 (Analista)",
+ "estado": "PRE-REGISTRADA v2. Sustituye la regla de decisión de C1_spec.json (gatekeeping) por Holm (propuesta P1 del coordinador). La estrategia, las variables, el modelo y las geometrías son idénticos a v1 (C1_eval.py sin cambios: mismo SHA-256).",
+ "datos": {
+  "velas": "15m CERRADAS (Binance spot), BTCUSDT, ETHUSDT, SOLUSDT, DOGEUSDT, timestamps alineados entre monedas",
+  "inicio_historia": "2023-01-01T00:00Z (las variables expansivas, p. ej. sigma por hora, empiezan aquí)",
+  "corte": "se trunca en --end; nada posterior entra al cálculo",
+  "columnas": "open_time_ms, open, high, low, close, volume, taker_buy_base_volume"
+ },
+ "senal_primaria": {
+  "condicion": "z_t = (C_t - SMA20_t)/STD20_t < -2  (STD de precios, ddof=1, ventana con la vela t)  Y  R_t = (SMA20_t - C_t)/C_t >= 0.005",
+  "calentamiento": "índice de vela >= 900 desde 2023-01-01"
+ },
+ "variables": {
+  "n_columnas": 45,
+  "lista": "las 39 de analista_features.FEATURES (41 menos 'hour' y 'dow'; incluyen las 5 de contexto btc_ret_4h, btc_ret_1d, btc_z, breadth_dip, rel_ret_4h) + sin(2*pi*hora/24), cos(2*pi*hora/24) + 4 indicadoras de moneda = 45 columnas",
+  "definiciones": {
+   "r": "log(C_t/C_{t-1})",
+   "z": "(C-SMA20)/STD20",
+   "R_pct": "(SMA20-C)/C",
+   "zr": "log(C/SMA20)/std(r,96)",
+   "sig96": "std(r, 96)",
+   "volratio": "std(r,16)/std(r,384)",
+   "bbw": "2*STD20/SMA20",
+   "VR4": "var_672(sum4 r)/(4*var_672(r))",
+   "VR16": "var_672(sum16 r)/(16*var_672(r))",
+   "rho1": "cov_672(r_t, r_{t-1})/var_672(r)",
+   "log_halflife": "log10(clip(-ln2/ln(1+beta),1,1e5)); beta = cov_672(dX, X_{t-1})/var_672(X_{t-1}), X = log C (1e5 si beta>=0)",
+   "ret_1h/4h/1d/3d/7d": "log(C_t/C_{t-k}), k = 4/16/96/288/672",
+   "dist_sma800": "log(C/SMA800)",
+   "slope_sma96": "log(SMA96_t/SMA96_{t-16})",
+   "slope_sma800": "log(SMA800_t/SMA800_{t-16})",
+   "rsi14": "RSI Wilder 14 sobre cierres de 15m",
+   "rsi14_1h": "RSI Wilder 14 sobre cierres horarios (vela que abre en :45), último disponible",
+   "r0_hnorm": "r_t / sigma_h, sigma_h = sqrt(media expansiva de r^2 de velas ANTERIORES de la misma hora UTC)",
+   "sig96_hnorm": "std(r,96)/sigma_h",
+   "relvol": "V_t/mean(V_{t-96..t-1})",
+   "relvol4": "sum(V_{t-3..t})/(4*mean(V_{t-96..t-1}))",
+   "tb": "TB/V (0.5 si V=0)",
+   "tb4": "sum4 TB/sum4 V",
+   "tb96": "sum96 TB/sum96 V",
+   "pos96": "(C-min L_96)/(max H_96-min L_96)",
+   "dd_7d": "log(C/max H_672)",
+   "up_7d": "log(C/min L_672)",
+   "pos672": "(C-min L_672)/(max H_672-min L_672)",
+   "lowwick": "(C-L)/(H-L) (0.5 si H=L)",
+   "r0": "r_t",
+   "down_run": "velas consecutivas con r<0",
+   "btc_ret_4h/btc_ret_1d/btc_z": "las de BTCUSDT en la MISMA vela t",
+   "breadth_dip": "nº de las 4 monedas con z<-2 en t",
+   "rel_ret_4h": "ret_4h propio - media de ret_4h de las otras 3"
+  },
+  "codigo": "analista_features.build(d, 20) + add_cross (archivos congelados por SHA-256)"
+ },
+ "modelo": {
+  "tipo": "ridge (mínimos cuadrados con penalización L2), intercepto no penalizado",
+  "lambda": "0.1 * N_train",
+  "objetivo": "clip(C_{t+96}/C_t - 1, -0.20, +0.20)  (retorno a 24 h)",
+  "entrenamiento": "al inicio de cada mes calendario UTC, con TODAS las señales de las 4 monedas desde 2023-01-01 cuyo objetivo ya se conocía: cierre de la vela t+96 <= inicio del mes (purga de 96 velas); ventana expansiva",
+  "estandarizacion": "media y desviación de cada columna SOLO con el entrenamiento; z recortado a [-5, 5]; NaN -> 0",
+  "umbral": "cuantil 0.90 de los scores del ENTRENAMIENTO del mismo ajuste",
+  "regla": "BUY si score_t >= umbral"
+ },
+ "geometria_primaria": {
+  "id": "G3H96",
+  "entrada": "al cierre C_t de la vela de señal (en vivo: orden al recibir la vela cerrada; apertura siguiente = mismo precio en Binance)",
+  "TP": "SMA20_t (fijo en la vela de señal) = C_t*(1+R_t)",
+  "SL": "C_t - 3*(SMA20_t - C_t) = C_t*(1-3R_t)",
+  "barrera_tiempo": "96 velas de 15m (24 h): salida al cierre de la vela t+96",
+  "empates": "TP y SL en la misma vela = SL; hueco bajo SL = apertura",
+  "posiciones": "una por moneda; nueva señal solo si su vela > vela de salida previa"
+ },
+ "geometria_secundaria": {
+  "id": "T48",
+  "regla": "entrada al cierre; salida solo por tiempo al cierre de t+48 (12 h); sin TP ni SL",
+  "rol": "co-hipótesis con G3H96 bajo Holm (sin orden)"
+ },
+ "criterio_eleccion_geometria": "Declarado y solo con DISEÑO, entre las 5 geometrías fijas de la ronda 1: (1) SL duro en el exchange (requisito del Gestor y del Validador: OCO y tamaño por riesgo) -> excluye T48/T96; (2) objetivo del usuario WR>=70 %: límite inferior de Wilson >= 65 % en el OOS de diseño -> excluye G1H48 (56-57 %) y G2H96 (A: 62 %); (3) queda G3H96. T48 se declara secundaria por ser la de mayor evidencia (6/6 pliegues, t=3.2) aunque no cumple (1) ni (2).",
+ "costos": "0.10 % comisión + 0.02 % deslizamiento por lado (harness.FEE, harness.SLIP); estrés: 0.30 % ida y vuelta",
+ "prueba_preregistrada": {
+  "comprobacion_previa": "python -I C1_eval_v2.py --start 2023-10-01 --end 2025-07-01 debe imprimir 'COMPROBACIÓN DE DISEÑO ... OK' (G3H96 n=467, E=+0.5408 %, WR=72.38 %; T48 n=459, E=+0.728 %)",
+  "comando": "python -I C1_eval_v2.py --start 2025-07-01 --end 2026-10-01 --reason \"C1 prueba unica preregistrada (ronda 3)\"",
+  "quien": "Validador, una sola vez",
+  "hipotesis": {
+   "H1": "E>0 en G3H96",
+   "H2": "E>0 en T48"
+  },
+  "p_valor": "unilateral, p = P(T_{G-1} >= t_dia), t con errores agrupados por día UTC (CR1), G = días con operaciones",
+  "procedimiento": "Holm, FWER 0.05: menor p frente a 0.025; si rechaza, la otra frente a 0.05; si la menor no rechaza, ninguna",
+  "APRUEBA_k": "Holm rechaza H0_k Y p iid_k < nivel Holm_k Y E_k > 0 con costos 0.30 % ida y vuelta",
+  "INDICIO_k": "no APRUEBA, E_k > 0 y t_dia_k > 0.84",
+  "RECHAZA_k": "el resto",
+  "terciaria": "solo si G3H96 APRUEBA: se afirma WR >= 70 % si el límite inferior de Wilson 95 % >= 0.70 (con n=300 exige WR observado >= 75.3 %)",
+  "implementacion": "G3H96 si APRUEBA; si no y T48 APRUEBA -> T48 declarando que el WR 70-80 % no se logró; si ninguna -> no se implementa (INDICIO: solo prueba prospectiva en testnet)",
+  "informativo": "WR e IC de Wilson, por moneda, E con costos 0.30 % y next_open, b_eff, PF, MDD, racha"
+ },
+ "referencia_diseno": {
+  "spec_OOS_2023-10_a_2025-06": {
+   "N": 467,
+   "WR": 0.724,
+   "WR_IC95": [
+    0.682,
+    0.762
+   ],
+   "b_eff": 0.53,
+   "E_pct": 0.541,
+   "t_iid": 2.67,
+   "t_dia": 2.22,
+   "t_mes": 2.77,
+   "E_R": 0.034,
+   "PF": 1.38,
+   "salidas": "TP 63 %, SL 12 %, tiempo 25 %",
+   "SL_mediano_pct": 8.69,
+   "ops_por_anio": 267
+  },
+  "WF_12_3_3_con_embargo": {
+   "N": 399,
+   "WR": 0.714,
+   "E_pct": 0.4,
+   "t": 1.77,
+   "pliegues_E_pos": "5/6",
+   "costos_0.30": 0.34,
+   "next_open": 0.4
+  },
+  "secundaria_T48_spec": {
+   "N": 459,
+   "WR": 0.617,
+   "E_pct": 0.728,
+   "t_iid": 3.27,
+   "t_dia": 2.27,
+   "WF_12_3_3": {
+    "E_pct": 0.782,
+    "t": 3.23,
+    "pliegues": "6/6"
+   }
+  },
+  "pbo_familia_20": 0.3,
+  "dsr_n1372": 0.114,
+  "dsr_familia20": 0.646,
+  "bonferroni_p_x_N": "1.0 (N=1372); 0.079 (N=20)"
+ },
+ "potencia_holdout": "≈ 330 operaciones esperadas en 15 meses. Si E real = 0.54 %: t_día esperado ≈ 1.86, potencia ≈ 59 %. Si E real = 0.40 % (WF 12/3/3): potencia ≈ 39 %.",
+ "requisitos_vivo": [
+  "velas de 15m cerradas (kline.x === true) de las 4 monedas, sincronizadas por open_time",
+  "alimentar la ventana aunque haya posición abierta",
+  "historia desde 2023-01-01 (o >= 900 velas; sigma por hora expansiva: usar la misma historia)",
+  "reajuste mensual del ridge en numpy",
+  "TP/SL redondeados al tickSize; OCO en el exchange + barrera de tiempo 96 velas",
+  "confirmar llenado (executedQty, precio medio)"
+ ],
+ "sha256": {
+  "analista_features.py": "bb162ce345c9342abd134fe521b7a2eb3f69e5f1b1b5bd0f951b2486ee12e9d7",
+  "analista_common.py": "f634313f60bd16a7d7b1c89a8dab14398860d1b9835049125018617272f394a0",
+  "C1_eval.py": "c45dab042f93c2679a242f3a0c37fbf1e439d97ca57a213fd1fbfdfde8117df9",
+  "C1_eval_v2.py": "7241b59a6c518e8b9693c029fb55b34fdf24f440c0ac9c9b58395587a6078f61",
+  "harness.py": "c346c51a951435a15ed2fa693acffb5bbfd0217d44bc4559d008ef6aa335b5e3"
+ },
+ "referencia_diseno_v2": {
+  "G3H96": {
+   "n": 467,
+   "WR": 0.7238,
+   "E_pct": 0.5408,
+   "t_dia": 2.22,
+   "p_dia": 0.014,
+   "p_iid": 0.004,
+   "E_030": 0.481
+  },
+  "T48": {
+   "n": 459,
+   "WR": 0.6166,
+   "E_pct": 0.7285,
+   "t_dia": 2.27,
+   "p_dia": 0.0121,
+   "p_iid": 0.0006,
+   "E_030": 0.668
+  },
+  "nota": "en DISEÑO ambas APRUEBAN con Holm; la terciaria NO se afirmaría (Wilson inferior 68.2 % < 70 %)"
+ },
+ "correccion": "el score usa 45 columnas (39 variables + sin/cos hora + 4 indicadoras), no 47 como decían la ronda 1 y preregistro.md; el código no cambió"
+}

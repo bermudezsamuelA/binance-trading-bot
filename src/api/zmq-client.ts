@@ -1,13 +1,19 @@
 import { Request } from 'zeromq';
+import { envValue } from '../config/env';
 
 class BrainConnection {
-    private sock: Request;
+    private sock: Request | null = null;
     private isLocked = false;
     private queue: (() => void)[] = [];
 
-    constructor() {
-        this.sock = new Request();
-        this.sock.connect('tcp://127.0.0.1:5555');
+    // El socket se crea con la primera pregunta: importar este modulo (p. ej. en las pruebas) no abre conexiones
+    private socket(): Request {
+        if (!this.sock) {
+            this.sock = new Request();
+            // BRAIN_ZMQ_URL (opcional, .env): p. ej. tcp://host.docker.internal:5555 desde un contenedor Docker
+            this.sock.connect(envValue('BRAIN_ZMQ_URL') || 'tcp://127.0.0.1:5555');
+        }
+        return this.sock;
     }
 
     private async acquireLock(): Promise<void> {
@@ -30,8 +36,9 @@ class BrainConnection {
     public async ask(type: string, payload: any = {}): Promise<any> {
         await this.acquireLock();
         try {
-            await this.sock.send(JSON.stringify({ type, payload }));
-            const [result] = await this.sock.receive();
+            const sock = this.socket();
+            await sock.send(JSON.stringify({ type, payload }));
+            const [result] = await sock.receive();
             if (!result) {
                 throw new Error("ZeroMQ received an empty frame from Python.");
             }
