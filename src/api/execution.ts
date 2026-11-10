@@ -247,3 +247,39 @@ export function netPnl(entry: EntryCost, exit: { quoteQty: number; fees: FeeSumm
     const residualValue = residualQty > 0 ? residualQty * (exit.avgPrice ?? 0) : 0;
     return exit.quoteQty + residualValue - entry.entryQuote - entryFeeNotEmbedded - exit.fees.totalQuote;
 }
+
+/**
+ * Calcula la cantidad a vender en un cierre parcial (ratio entre 0 y 1 sobre lo que queda por vender)
+ * y comprueba que tanto el tramo a vender como el remanente posterior sean operables en Binance (isTradable).
+ * Si alguno queda bajo minQty o minNotional, devuelve canSplit = false para evitar dejar polvo bloqueado.
+ */
+export function splitPartialQuantity(
+    remainingNetQty: number,
+    ratio: number,
+    price: number,
+    f: SymbolFilters,
+    notionalMargin = 0
+): { canSplit: boolean; sellQty: string; sellQtyNum: number; remainingAfterNum: number } {
+    if (!(ratio > 0 && ratio < 1) || !(remainingNetQty > 0)) {
+        return { canSplit: false, sellQty: floorToStep(0, f.stepSize), sellQtyNum: 0, remainingAfterNum: remainingNetQty };
+    }
+    const sellQty = floorToStep(remainingNetQty * ratio, f.stepSize);
+    const sellQtyNum = parseFloat(sellQty);
+    const remainingAfterNum = parseFloat(floorToStep(remainingNetQty - sellQtyNum, f.stepSize));
+    const canSplit =
+        isTradable(sellQtyNum, price, f, notionalMargin) &&
+        isTradable(remainingAfterNum, price, f, notionalMargin);
+    return { canSplit, sellQty, sellQtyNum, remainingAfterNum };
+}
+
+/**
+ * PnL neto realizado en un tramo parcial, asignando proporcionalmente el costo y la comisión de entrada
+ * según la fracción que representa `part.executedQty` sobre la cantidad neta total de la posición.
+ */
+export function partialNetPnl(entry: EntryCost, netQuantity: number, part: Execution): number {
+    if (!(netQuantity > 0) || !(part.executedQty > 0)) return 0;
+    const share = Math.min(1, part.executedQty / netQuantity);
+    const entryFeeNotEmbedded = entry.entryFeeQuote - entry.entryFeeBaseQty * entry.entryPrice;
+    const proportionalCost = (entry.entryQuote + entryFeeNotEmbedded) * share;
+    return part.quoteQty - proportionalCost - part.fees.totalQuote;
+}

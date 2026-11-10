@@ -1,12 +1,18 @@
+# strategy_engine.py
 import datetime
 import json
 import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 import inspect
 from quantitative_strategies.mean_reversion import MeanReversionStrategy
 from quantitative_strategies.rolling_volatility import RollingVolatilityStrategy
 from quantitative_strategies.vwap_strategy import VWAPReversionStrategy
 from quantitative_strategies.volatility_squeeze import VolatilitySqueezeStrategy
 from quantitative_strategies.capitulation import CapitulationStrategy
+from custom_strategies.custom_fractal_strategy import CustomFractalStrategy
 from config import (ACTIVE_ROSTER, BINANCE_MARKET, COSIGNAL_CANDLES, ENTRY_MIN_RISK_PCT, KLINE_INTERVAL,
                     KLINE_INTERVAL_MS, MOMENTUM_MONTHS)
 
@@ -18,13 +24,14 @@ ALLOW_UNVALIDATED = os.environ.get("ALLOW_UNVALIDATED_STRATEGIES", "").strip().l
 # apagado (el diario de senales lo anota), para juntar resultados reales de las senales. Con mainnet se ignora.
 TESTNET_IGNORE_MOMENTUM = os.environ.get("TESTNET_IGNORE_MOMENTUM", "").strip().lower() in ("1", "true", "yes", "si")
 
-# Mismos nombres que ml_results.json / fast_backtest.STRATEGY_CLASSES
+# Mismos nombres que ml_results.json / fast_backtest.STRATEGY_CLASSES + Estrategias Personalizadas
 STRATEGY_MAP = {
     "MeanReversion": MeanReversionStrategy,
     "TrendFollowing": RollingVolatilityStrategy,
     "VWAP": VWAPReversionStrategy,
     "VolatilitySqueeze": VolatilitySqueezeStrategy,
-    "Capitulation": CapitulationStrategy
+    "Capitulation": CapitulationStrategy,
+    "CustomFractal": CustomFractalStrategy
 }
 
 
@@ -152,14 +159,14 @@ class StrategyEngine:
                 print(f"[ENGINE] ⏸️ {symbol} no opera: {reason}")
                 for strat_name in strat_map:
                     if isinstance(data.get(strat_name), dict):
-                        print(f"[ENGINE]      · {strat_name}: {data[strat_name].get('status')} ({data[strat_name].get('motivo')})")
+                        print(f"[ENGINE]       · {strat_name}: {data[strat_name].get('status')} ({data[strat_name].get('motivo')})")
                 if not experimental:
                     continue
                 # Modo experimental: la de mejor PnL OOS entre las que tienen parametros rentables en la ventana mas reciente
                 candidates = [n for n in strat_map if isinstance(data.get(n), dict)
                               and data[n].get("entrenamiento_vivo", {}).get("operar") and data[n].get("window")]
                 if not candidates:
-                    print(f"[ENGINE]      Modo experimental: {symbol} tampoco tiene parametros rentables en la ventana mas reciente.")
+                    print(f"[ENGINE]       Modo experimental: {symbol} tampoco tiene parametros rentables en la ventana mas reciente.")
                     continue
                 tag = "NO VALIDADA, modo experimental ALLOW_UNVALIDATED_STRATEGIES"
                 if self.ignore_momentum:
@@ -231,6 +238,31 @@ class StrategyEngine:
                     checks.append((f"sin co-senal en las {self.cosignal} velas previas", True))
         return checks
 
+    @staticmethod
+    def _build_candle_payload(market_data: dict, open_time) -> tuple:
+        """
+        Devuelve (basic_candle, full_candle):
+        - basic_candle: {'close', 'volume'} para estrategias clasicas (paridad exacta con optimize.py).
+        - full_candle: {'open_time', 'open', 'high', 'low', 'close', 'volume'} para estrategias con
+                       requires_full_candle = True (ej. CustomFractalStrategy).
+        """
+        close_px = float(market_data.get('close', 0.0))
+        vol = float(market_data.get('volume', 0.0))
+        open_px = float(market_data.get('open', close_px))
+        high_px = float(market_data.get('high', max(open_px, close_px)))
+        low_px = float(market_data.get('low', min(open_px, close_px)))
+
+        basic_candle = {"close": close_px, "volume": vol}
+        full_candle = {
+            "open_time": open_time,
+            "open": open_px,
+            "high": high_px,
+            "low": low_px,
+            "close": close_px,
+            "volume": vol
+        }
+        return basic_candle, full_candle
+
     def get_signal(self, symbol: str, market_data: dict, own: bool = True, shadow_for=None) -> dict:
         """Procesa una vela cerrada de `symbol`: alimenta las instancias en sombra de la co-senal que miran esta moneda
         y, si tiene estrategia, la evalua y aplica los filtros de entrada. own / shadow_for: la precarga
@@ -252,20 +284,34 @@ class StrategyEngine:
                 print(f"[ENGINE] ⚠️ {symbol}: faltan {faltan} vela(s) entre {last} y {open_time}.")
             self.last_open_time[symbol] = open_time
 
-        # Todas las estrategias aceptan la vela completa (dict); VWAP y Capitulation leen de ahi el volumen.
-        # Igual que optimize.simulate_live, para que vivo y backtest den las mismas senales.
-        candle = {"close": float(market_data.get('close', 0.0)), "volume": float(market_data.get('volume', 0.0))}
+        # Condicional de payload: las estrategias clasicas reciben {'close', 'volume'}; las estrategias de
+        # custom_strategies/ con requires_full_candle = True reciben el diccionario OHLCV completo.
+        candle, full_candle = self._build_candle_payload(market_data, open_time)
         for watcher in watchers:
             if shadow_for is None or watcher in shadow_for:
-                shadow_signal = self.shadows[watcher][symbol].evaluate(symbol, candle)
+                shadow_strat = self.shadows[watcher][symbol]
+                shadow_input = full_candle if getattr(shadow_strat, "requires_full_candle", False) else candle
+                shadow_signal = shadow_strat.evaluate(symbol, shadow_input)
                 if open_time is not None and shadow_signal and shadow_signal.get("action") == "BUY":
                     self.cosignal_hits[watcher].append(open_time)
 
         if symbol not in self.strategies or not own:
             return None
         strat = self.strategies[symbol]
-        signal = strat.evaluate(symbol, candle)
-        if not (signal and signal.get("action") == "BUY"):
+        strat_input = full_candle if getattr(strat, "requires_full_candle", False) else candle
+        signal = strat.evaluate(symbol, strat_input)
+
+        if not signal:
+            return {"symbol": symbol.upper(), "action": "HOLD"}
+
+        action = signal.get("action")
+        # Si es una accion de gestion de posicion abierta (parciales, trailing SL, time-stop), se propaga directo
+        if action in ("PARTIAL_CLOSE", "FULL_CLOSE", "UPDATE_SL"):
+            out = dict(signal)
+            out["symbol"] = symbol.upper()
+            return out
+
+        if action != "BUY":
             return {"symbol": symbol.upper(), "action": "HOLD"}
 
         # Respetamos el formato de retorno exacto que Node.js espera
@@ -276,6 +322,11 @@ class StrategyEngine:
             "take_profit": signal.get("take_profit"),
             "stop_loss": signal.get("stop_loss")
         }
+        # Si es una estrategia personalizada con dimensionamiento dinamico (P_USDT) y plan de salida, se adjuntan
+        for extra_key in ("quote_usdt", "risk_usd", "distance_sl_pct", "leverage", "plan", "exit_plan"):
+            if extra_key in signal and signal[extra_key] is not None:
+                buy[extra_key] = signal[extra_key]
+
         checks = self.filter_checks(symbol, buy, open_time)
         reasons = [text for text, blocks in checks if blocks]
         name = next((n for n, c in STRATEGY_MAP.items() if type(strat) is c), type(strat).__name__)
