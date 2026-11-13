@@ -1,0 +1,257 @@
+{
+ "variables": [
+  "r24",
+  "curv",
+  "r6",
+  "vol_rel",
+  "volumen_rel",
+  "taker",
+  "pos_7d",
+  "tendencia_btc",
+  "funding",
+  "d_oi"
+ ],
+ "ic_entrenamiento": {
+  "r24": 0.0639,
+  "curv": 0.0077,
+  "r6": 0.0228,
+  "vol_rel": 0.029,
+  "volumen_rel": 0.0111,
+  "taker": 0.022,
+  "pos_7d": 0.0344,
+  "tendencia_btc": 0.0562,
+  "funding": 0.0546,
+  "d_oi": 0.0215
+ },
+ "pesos_aprendidos": {
+  "r24": 1.976,
+  "curv": 0.238,
+  "r6": 0.704,
+  "vol_rel": 0.898,
+  "volumen_rel": 0.345,
+  "taker": 0.681,
+  "pos_7d": 1.064,
+  "tendencia_btc": 1.738,
+  "funding": 1.689,
+  "d_oi": 0.666
+ },
+ "por_paso": {
+  "0 · solo forma": {
+   "paso": "0 · solo forma",
+   "h": 24,
+   "k": 100,
+   "peso": 0,
+   "q": 0.65,
+   "dis": {
+    "ic": 0.0113,
+    "acierto": 50.19,
+    "n": 322,
+    "wr": 57.5,
+    "e": 0.539,
+    "pnl": 26.0,
+    "t": 2.01,
+    "meses_pos": "16/24"
+   },
+   "val": {
+    "ic": -0.0081,
+    "acierto": 49.78,
+    "n": 261,
+    "wr": 49.0,
+    "e": -0.24,
+    "pnl": -9.4,
+    "t": -0.81,
+    "meses_pos": "11/22"
+   }
+  },
+  "1 · + contexto sin estandarizar": {
+   "paso": "1 · + contexto sin estandarizar",
+   "h": 24,
+   "k": 100,
+   "peso": 0,
+   "q": 0.65,
+   "dis": {
+    "ic": 0.0017,
+    "acierto": 49.84,
+    "n": 291,
+    "wr": 58.8,
+    "e": 0.638,
+    "pnl": 27.8,
+    "t": 2.48,
+    "meses_pos": "19/24"
+   },
+   "val": {
+    "ic": -0.0014,
+    "acierto": 49.92,
+    "n": 330,
+    "wr": 52.7,
+    "e": 0.024,
+    "pnl": 1.2,
+    "t": 0.1,
+    "meses_pos": "13/22"
+   }
+  },
+  "2 · + estandarizar": {
+   "paso": "2 · + estandarizar",
+   "h": 24,
+   "k": 100,
+   "peso": 0,
+   "q": 0.65,
+   "dis": {
+    "ic": 0.0083,
+    "acierto": 50.21,
+    "n": 268,
+    "wr": 57.5,
+    "e": 0.859,
+    "pnl": 34.5,
+    "t": 2.89,
+    "meses_pos": "15/24"
+   },
+   "val": {
+    "ic": 0.0006,
+    "acierto": 49.69,
+    "n": 333,
+    "wr": 47.1,
+    "e": -0.083,
+    "pnl": -4.1,
+    "t": -0.32,
+    "meses_pos": "10/22"
+   }
+  },
+  "3 · + pesos aprendidos": {
+   "paso": "3 · + pesos aprendidos",
+   "h": 24,
+   "k": 100,
+   "peso": 0,
+   "q": 0.65,
+   "dis": {
+    "ic": 0.0064,
+    "acierto": 50.0,
+    "n": 285,
+    "wr": 64.2,
+    "e": 1.37,
+    "pnl": 58.6,
+    "t": 4.89,
+    "meses_pos": "19/24"
+   },
+   "val": {
+    "ic": 0.0054,
+    "acierto": 49.78,
+    "n": 364,
+    "wr": 50.3,
+    "e": 0.115,
+    "pnl": 6.3,
+    "t": 0.53,
+    "meses_pos": "12/22"
+   }
+  },
+  "4 · + PCA (m = 4)": {
+   "paso": "4 · + PCA (m = 4)",
+   "h": 24,
+   "k": 100,
+   "peso": 0,
+   "q": 0.7,
+   "dis": {
+    "ic": 0.0223,
+    "acierto": 50.81,
+    "n": 173,
+    "wr": 60.7,
+    "e": 1.598,
+    "pnl": 41.5,
+    "t": 4.15,
+    "meses_pos": "20/24"
+   },
+   "val": {
+    "ic": 0.0278,
+    "acierto": 50.62,
+    "n": 138,
+    "wr": 47.8,
+    "e": -0.393,
+    "pnl": -8.1,
+    "t": -0.96,
+    "meses_pos": "8/22"
+   }
+  },
+  "solo contexto": {
+   "paso": "solo contexto",
+   "h": 24,
+   "k": 100,
+   "peso": 0,
+   "q": 0.65,
+   "dis": {
+    "ic": -0.0061,
+    "acierto": 49.75,
+    "n": 196,
+    "wr": 52.0,
+    "e": 0.322,
+    "pnl": 9.5,
+    "t": 1.01,
+    "meses_pos": "12/24"
+   },
+   "val": {
+    "ic": -0.0047,
+    "acierto": 49.57,
+    "n": 285,
+    "wr": 51.2,
+    "e": 0.116,
+    "pnl": 5.0,
+    "t": 0.46,
+    "meses_pos": "12/22"
+   }
+  },
+  "control con fuga: sin margen": {
+   "paso": "control con fuga: sin margen",
+   "h": 24,
+   "k": 100,
+   "peso": 0,
+   "q": 0.7,
+   "dis": {
+    "ic": 0.118,
+    "acierto": 53.6,
+    "n": 118,
+    "wr": 66.9,
+    "e": 2.057,
+    "pnl": 36.4,
+    "t": 4.08,
+    "meses_pos": "16/24"
+   },
+   "val": {
+    "ic": 0.1108,
+    "acierto": 53.2,
+    "n": 147,
+    "wr": 61.2,
+    "e": 1.209,
+    "pnl": 26.7,
+    "t": 3.27,
+    "meses_pos": "16/22"
+   }
+  }
+ },
+ "mejor_en_diseno": {
+  "paso": "4 · + PCA (m = 4)",
+  "h": 24,
+  "k": 100,
+  "peso": 0,
+  "q": 0.7,
+  "dis": {
+   "ic": 0.0223,
+   "acierto": 50.81,
+   "n": 173,
+   "wr": 60.7,
+   "e": 1.598,
+   "pnl": 41.5,
+   "t": 4.15,
+   "meses_pos": "20/24"
+  },
+  "val": {
+   "ic": 0.0278,
+   "acierto": 50.62,
+   "n": 138,
+   "wr": 47.8,
+   "e": -0.393,
+   "pnl": -8.1,
+   "t": -0.96,
+   "meses_pos": "8/22"
+  }
+ },
+ "pasa_criterio": false
+}

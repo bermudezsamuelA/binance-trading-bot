@@ -1,0 +1,243 @@
+{
+  "temporalidad_gatillo": "5m",
+  "monedas": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "DOGEUSDT",
+    "AAVEUSDT",
+    "ALGOUSDT",
+    "APEUSDT",
+    "APTUSDT",
+    "AXSUSDT",
+    "CHZUSDT",
+    "CRVUSDT",
+    "EGLDUSDT",
+    "GALAUSDT",
+    "HBARUSDT",
+    "ICPUSDT",
+    "INJUSDT",
+    "KAVAUSDT",
+    "LDOUSDT",
+    "MANAUSDT",
+    "OPUSDT",
+    "RUNEUSDT",
+    "SANDUSDT",
+    "XLMUSDT"
+  ],
+  "corte_validacion": "2025-01-01",
+  "costo_ida_vuelta": 0.0024,
+  "configuracion_video": {
+    "parametros": {
+      "piv_n": 3,
+      "tol_atr": 0.5,
+      "toques": 2,
+      "lookback_dias": 365,
+      "rango_dias": 90,
+      "pos_max": 0.25,
+      "k": 5,
+      "theta": 2.0,
+      "freno": 0.6,
+      "mecha": 0.3,
+      "usar_c3": true,
+      "ventana_dias": 3,
+      "piv_n_1h": 3,
+      "busca_min_dias": 5,
+      "c_conf": 1.0,
+      "tol_fib": 0.25,
+      "gatillo": "ambas",
+      "piv_n_g": 3,
+      "gatillo_horas": 6.0,
+      "objetivo": "maximo",
+      "rb": 1.6,
+      "max_dias": 7.0
+    },
+    "diseno": {
+      "n": 1,
+      "acierto": 0.0,
+      "e": -1.724,
+      "t": null,
+      "dias_distintos": 1,
+      "e_por_dia": -1.724,
+      "t_por_dia": null,
+      "r_medio": -1.162,
+      "pnl_usdt": -0.26,
+      "max_dd_usdt": 0.26,
+      "meses_pos": "0/1",
+      "por_motivo": {
+        "objetivo": 0,
+        "stop": 1,
+        "tiempo": 0
+      }
+    },
+    "validacion": {
+      "n": 1,
+      "acierto": 1.0,
+      "e": 0.088,
+      "t": null,
+      "dias_distintos": 1,
+      "e_por_dia": 0.088,
+      "t_por_dia": null,
+      "r_medio": 0.013,
+      "pnl_usdt": 0.01,
+      "max_dd_usdt": 0.0,
+      "meses_pos": "1/1",
+      "por_motivo": {
+        "objetivo": 1,
+        "stop": 0,
+        "tiempo": 0
+      }
+    },
+    "pasa_criterio": false,
+    "embudo_diseno": {
+      "dias": 26311,
+      "c1": 7087,
+      "c12": 1047,
+      "senales": 76,
+      "ventanas": 76,
+      "sin_ruptura": 0,
+      "rompe_075": 5,
+      "sin_toque": 25,
+      "sin_confluencia": 38,
+      "sin_gatillo": 1,
+      "stop_antes": 6,
+      "operaciones": 1
+    },
+    "embudo_validacion": {
+      "dias": 15387,
+      "c1": 5072,
+      "c12": 477,
+      "senales": 33,
+      "ventanas": 33,
+      "sin_ruptura": 0,
+      "rompe_075": 0,
+      "sin_toque": 13,
+      "sin_confluencia": 19,
+      "sin_gatillo": 0,
+      "stop_antes": 0,
+      "operaciones": 1
+    }
+  },
+  "mejor_en_diseno": {
+    "parametros": {
+      "piv_n": 3,
+      "tol_atr": 0.5,
+      "toques": 2,
+      "lookback_dias": 365,
+      "rango_dias": 90,
+      "pos_max": 0.25,
+      "k": 5,
+      "theta": 2.0,
+      "freno": 0.6,
+      "mecha": 0.3,
+      "usar_c3": false,
+      "ventana_dias": 3,
+      "piv_n_1h": 3,
+      "busca_min_dias": 5,
+      "c_conf": 2.0,
+      "tol_fib": 0.25,
+      "gatillo": "ambas",
+      "piv_n_g": 3,
+      "gatillo_horas": 6.0,
+      "objetivo": "maximo",
+      "rb": 1.6,
+      "max_dias": 7.0
+    },
+    "diseno": {
+      "n": 64,
+      "acierto": 0.359,
+      "e": 0.436,
+      "t": 0.61,
+      "dias_distintos": 48,
+      "e_por_dia": 0.914,
+      "t_por_dia": 1.05,
+      "r_medio": 0.213,
+      "pnl_usdt": 4.18,
+      "max_dd_usdt": 5.89,
+      "meses_pos": "8/20",
+      "por_motivo": {
+        "objetivo": 22,
+        "stop": 41,
+        "tiempo": 1
+      }
+    },
+    "validacion": {
+      "n": 51,
+      "acierto": 0.294,
+      "e": -0.327,
+      "t": -0.51,
+      "dias_distintos": 39,
+      "e_por_dia": -0.689,
+      "t_por_dia": -0.9,
+      "r_medio": -0.373,
+      "pnl_usdt": -2.5,
+      "max_dd_usdt": 6.19,
+      "meses_pos": "5/15",
+      "por_motivo": {
+        "objetivo": 15,
+        "stop": 36,
+        "tiempo": 0
+      }
+    },
+    "pasa_criterio": false,
+    "embudo_diseno": {
+      "dias": 26311,
+      "c1": 7087,
+      "c12": 1047,
+      "senales": 1047,
+      "ventanas": 1014,
+      "sin_ruptura": 4,
+      "rompe_075": 68,
+      "sin_toque": 419,
+      "sin_confluencia": 396,
+      "sin_gatillo": 6,
+      "stop_antes": 57,
+      "operaciones": 64
+    },
+    "embudo_validacion": {
+      "dias": 15387,
+      "c1": 5072,
+      "c12": 477,
+      "senales": 477,
+      "ventanas": 457,
+      "sin_ruptura": 6,
+      "rompe_075": 17,
+      "sin_toque": 171,
+      "sin_confluencia": 173,
+      "sin_gatillo": 6,
+      "stop_antes": 33,
+      "operaciones": 51
+    }
+  },
+  "referencias": {
+    "solo_diario_3d": {
+      "diseno": {
+        "n": 58,
+        "e": 0.693,
+        "t": 0.9,
+        "acierto": 0.603
+      },
+      "validacion": {
+        "n": 27,
+        "e": 2.214,
+        "t": 1.94,
+        "acierto": 0.593
+      }
+    },
+    "todos_los_dias_3d": {
+      "diseno": {
+        "n": 6580,
+        "e": 0.175,
+        "t": 1.46,
+        "acierto": 0.478
+      },
+      "validacion": {
+        "n": 3838,
+        "e": -0.573,
+        "t": -4.4,
+        "acierto": 0.446
+      }
+    }
+  },
+  "segundos": 150
+}

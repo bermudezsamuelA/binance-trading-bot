@@ -1,0 +1,264 @@
+{
+ "nombre": "NN-meta G3 ensamble lgb+lgb+lgb+mlp+mlp+mlp con futuros",
+ "creado_utc": "2026-10-14 10:24:36",
+ "agente": "constructor",
+ "geometria": {
+  "id": "G3",
+  "tp": "c*(1+0.75*sd)",
+  "sl": "c*(1-1.5*sd)",
+  "max_hold_velas": 192,
+  "sd": "std(log-ret 15m, 672 velas, ddof=1) * sqrt(96)",
+  "b": 0.5,
+  "entrada": "cierre de la vela de senal; barreras desde la vela siguiente; empate TP/SL = SL; hueco = apertura",
+  "una_posicion_por_moneda": true,
+  "costos_ida_vuelta": 0.0024,
+  "estres": 0.003
+ },
+ "variables": [
+  "atr_rel",
+  "bar_body",
+  "bar_range",
+  "bar_upwick",
+  "basis",
+  "basis_z_672",
+  "beta_btc",
+  "btc_ret_16",
+  "btc_ret_4",
+  "btc_ret_672",
+  "btc_ret_96",
+  "btc_vol_ratio",
+  "btc_z_672",
+  "dd_672",
+  "dd_96",
+  "funding",
+  "funding_z_2016",
+  "fut_imb_1",
+  "fut_imb_16",
+  "fut_spot_vol",
+  "fut_taker_1",
+  "fut_taker_16",
+  "fut_taker_4",
+  "glob_acc_chg_16",
+  "glob_acc_chg_96",
+  "glob_acc_lvl",
+  "glob_acc_z_672",
+  "hour_cos",
+  "hour_sin",
+  "metrics_missing",
+  "oi_chg_1",
+  "oi_chg_16",
+  "oi_chg_4",
+  "oi_chg_96",
+  "oi_to_vol",
+  "oi_z_672",
+  "premium",
+  "premium_16",
+  "premium_z_672",
+  "rel_btc_672",
+  "rel_btc_96",
+  "ret_1",
+  "ret_16",
+  "ret_288",
+  "ret_4",
+  "ret_48",
+  "ret_672",
+  "ret_96",
+  "rngpos_672",
+  "rngpos_96",
+  "rsi14",
+  "taker_imb_1",
+  "taker_imb_16",
+  "taker_imb_4",
+  "taker_imb_96",
+  "top_acc_chg_16",
+  "top_acc_chg_96",
+  "top_acc_lvl",
+  "top_acc_z_672",
+  "top_pos_chg_16",
+  "top_pos_chg_96",
+  "top_pos_lvl",
+  "top_pos_z_672",
+  "vol_level",
+  "vol_ratio_16_96",
+  "vol_ratio_96_672",
+  "vol_rel_1",
+  "vol_rel_16",
+  "vol_rel_96",
+  "wd_cos",
+  "wd_sin",
+  "z_20",
+  "z_672",
+  "z_96"
+ ],
+ "usa_futuros": true,
+ "datos_necesarios": {
+  "spot": "klines/{SYM}_15m.npy y klines/BTCUSDT_15m.npy (N x 7: open_time_ms, o, h, l, c, v, taker_buy_base), formato de scripts/download_klines.py; desde >= 35 dias antes de --start",
+  "futuros": "futures/{SYM}_metrics.npy, _funding.npy, _premium15m.npy, _fut15m.npy generados por nn/nn_download_futures.py --symbols SYM --start (inicio-35 dias) --end (fin) --out <data-dir>/futures"
+ },
+ "alineacion_metrics": "create_time T se conoce en T+5m; se usa T <= t_i + 5 min (vela i abre en t_i); relleno hacia adelante <= 30 min por columna",
+ "entrenamiento": {
+  "ajuste": "[2023-01-01 + 800 velas, 2025-04-01 - 193 velas)",
+  "validacion": "[2025-04-01, 2025-07-01 - 193 velas)",
+  "n_ajuste": 311272,
+  "n_validacion": 34172,
+  "etiqueta": "neto > 0 con la geometria (triple barrera, costos 0.24 %)",
+  "lgb": "binary, lr 0.03, 15 hojas, min_data_in_leaf 1000, feature_fraction 0.7, bagging 0.5, l2 10, max_bin 63, parada por AUC val (150), min 50 arboles",
+  "mlp": "74->128->64->1 GELU, dropout 0.3, AdamW lr 5e-4 wd 1e-3, lote 512, parada por AUC val (paciencia 3, max 12 epocas); estandarizacion con media/desv del ajuste, NaN->0, recorte +-5"
+ },
+ "calibracion": "Platt por miembro en validacion; p = media de probabilidades calibradas",
+ "regla": {
+  "tipo": "wr70",
+  "descripcion": "comprar al cierre si p >= umbral (umbral = cuantil de p en validacion que maximiza E con WR>=0.70, >=150 velas y >=15 dias)",
+  "umbral": 0.7133642153870117,
+  "cuantil_val": 0.98,
+  "wr_val": 0.9736842105263158,
+  "E_val": 0.023079651283906624,
+  "n_val_velas": 684
+ },
+ "miembros": [
+  {
+   "kind": "lgb",
+   "seed": 0,
+   "file": "lgb_G3_f1_s0.txt",
+   "iterations": 50,
+   "platt": [
+    2.375188465974504,
+    -0.34513191950667604
+   ],
+   "sha256": {
+    "lgb_G3_f1_s0.txt": "4abe27b58f3557475e18d45a1b59277c90463b1e935efbf72dd3e789b39530b7"
+   },
+   "auc_val": 0.6027107868639455
+  },
+  {
+   "kind": "lgb",
+   "seed": 1,
+   "file": "lgb_G3_f1_s1.txt",
+   "iterations": 50,
+   "platt": [
+    5.30475646745909,
+    -1.3595116399945708
+   ],
+   "sha256": {
+    "lgb_G3_f1_s1.txt": "c427dae80d530abcd9461f221c202443c419714e59dc858518eec82e877a80a5"
+   },
+   "auc_val": 0.6041243061015534
+  },
+  {
+   "kind": "lgb",
+   "seed": 2,
+   "file": "lgb_G3_f1_s2.txt",
+   "iterations": 50,
+   "platt": [
+    7.398703583630218,
+    -2.0163216414720213
+   ],
+   "sha256": {
+    "lgb_G3_f1_s2.txt": "a945456ce734110ca7db9183b5ba4fb6a0f35dccb39d19016b6bba8cd3cb39dc"
+   },
+   "auc_val": 0.6048386675374636
+  },
+  {
+   "kind": "mlp",
+   "seed": 0,
+   "file": "mlp_G3_f1_s0.pt",
+   "scaler": "mlp_G3_f1_s0_scaler.npz",
+   "epochs": 1,
+   "platt": [
+    0.29288366459478793,
+    0.32718921114382465
+   ],
+   "sha256": {
+    "mlp_G3_f1_s0.pt": "ceb2ebc586e141cddd057aee32b69896421f916b2f80836ea8513b2e8b4d0bf8",
+    "mlp_G3_f1_s0_scaler.npz": "e3861d94d7c05c61cbe72308d153dfb46c9754cce750cdc95c439a4f986ebcb2"
+   },
+   "auc_val": 0.5295439611222171
+  },
+  {
+   "kind": "mlp",
+   "seed": 1,
+   "file": "mlp_G3_f1_s1.pt",
+   "scaler": "mlp_G3_f1_s1_scaler.npz",
+   "epochs": 1,
+   "platt": [
+    0.5227964340001633,
+    0.24741554438582125
+   ],
+   "sha256": {
+    "mlp_G3_f1_s1.pt": "fb39eb0eef1ee516bccc8c5cf65e57ec7fc54d7ff1a35e43eff96ef0a1cbcd76",
+    "mlp_G3_f1_s1_scaler.npz": "e3861d94d7c05c61cbe72308d153dfb46c9754cce750cdc95c439a4f986ebcb2"
+   },
+   "auc_val": 0.5573897983471273
+  },
+  {
+   "kind": "mlp",
+   "seed": 2,
+   "file": "mlp_G3_f1_s2.pt",
+   "scaler": "mlp_G3_f1_s2_scaler.npz",
+   "epochs": 1,
+   "platt": [
+    0.44005898369173035,
+    0.2810643881202157
+   ],
+   "sha256": {
+    "mlp_G3_f1_s2.pt": "c16df19dc1e99145113ac062ad99d49718459e8d0dfaaaa46b1615575fdc02c7",
+    "mlp_G3_f1_s2_scaler.npz": "e3861d94d7c05c61cbe72308d153dfb46c9754cce750cdc95c439a4f986ebcb2"
+   },
+   "auc_val": 0.5450896359459724
+  }
+ ],
+ "sha256_scripts": {
+  "nn_common.py": "3e00fdb5bab55a3bbf1fb58b433f04b6507efb71454ad3285ed3ed1cdbe067a0",
+  "nn_wf.py": "bb4500ba344711f5bdcaaa6a1a9b79ba6571cbbd97502f4754798636cc87d97e",
+  "nn_report.py": "5309aa7b35a6368e914a8af7abf3e0440507b506935d39a5708cedf64ab70560",
+  "nn_final.py": "083e66fb899b10bfcd3b9a4b49a253c1e97683ad59db620dcbd3a516b849b833",
+  "nn_eval.py": "121e9fe003016babfa34a7c03202f8a6466c8150a1c190efe2caa24fb21807a6",
+  "nn_download_futures.py": "e8cd57f11f458cec5d5e45a22d981c33c14a6133d20c7921dde2af373cab25d4",
+  "harness.py": "c346c51a951435a15ed2fa693acffb5bbfd0217d44bc4559d008ef6aa335b5e3"
+ },
+ "entorno": {
+  "python": "3.11.4 (.venv en binance-research/.venv)",
+  "torch": "2.14.1+cpu",
+  "lightgbm": "4.7.0",
+  "numpy": "2.4.6",
+  "scipy": "1.17.1",
+  "ejecutar": "PYTHONIOENCODING=utf-8 binance-research/.venv/Scripts/python.exe -I nn_eval.py ..."
+ },
+ "como_evaluar": {
+  "1_spot": "klines 15m de cada moneda y de BTCUSDT en <data-dir>/klines/{SYM}_15m.npy (formato de scripts/download_klines.py), desde >= 35 dias antes de --start",
+  "2_futuros": "python -I nn/nn_download_futures.py --symbols SYM1,SYM2 --start <inicio-35d> --end <fin-1d> --out <data-dir>/futures  (data.binance.vision: futures/um daily metrics, monthly fundingRate, monthly premiumIndexKlines 15m, monthly klines 15m; fusiona con archivos existentes)",
+  "3_eval": "python -I nn/nn_eval.py --symbols SYM1,SYM2 --start 2025-07-01 --end 2026-10-01 --data-dir <data-dir> --reason '<motivo>' [--out carpeta]",
+  "salida": "trades_{SYM}.csv y metrics.json (n, WR+Wilson, b, E %, E R, PF, MDD, t por dia, azar misma moneda/mes/geometria, dWR, dE, estres 0.30 %, operaciones por moneda y anio)"
+ },
+ "walk_forward_diseno": {
+  "pliegues": "tests 2024Q1..2025Q2, reentreno trimestral, purga 193 velas",
+  "n": 132,
+  "wr": 0.72,
+  "wr_ic95": [
+   0.638,
+   0.789
+  ],
+  "b_eff": 0.68,
+  "E_pct": 0.927,
+  "E_R": 0.117,
+  "pf": 1.74,
+  "t_dia": 2.33,
+  "t_semana": 1.86,
+  "t_mes": 2.07,
+  "azar_wr": 0.558,
+  "azar_E_pct": -0.408,
+  "dWR_pt": 16.1,
+  "dE_pct": 1.33,
+  "E_pct_c030": 0.866,
+  "dsr_todos_los_ensayos": 0.14,
+  "p_bonf_54": 0.2,
+  "frecuencia_por_moneda_y_anio": 22.0
+ },
+ "advertencias": [
+  "2026-10-18: corregido nn_report.summarize (asignaba cada operacion a la moneda equivocada). Solo cambian el desglose por moneda y el azar misma moneda y mes; las senales, las operaciones y n, WR y E agregados no cambian. Se re-firmo el hash de nn_report.py y se actualizaron azar_wr, azar_E_pct, dWR_pt y dE_pct.",
+  "2026-10-19: corregido nn_report.random_baseline (el mes se asignaba por bloques de 96 velas y, con el hueco de 5 velas del 2023-03-24, 135 velas por moneda caian en el mes equivocado; ahora se calcula por vela). Solo cambia el azar: azar_E_pct -0.409 -> -0.408 y dE_pct 1.34 -> 1.33. Se re-firmo el hash de nn_report.py.",
+  "El umbral congelado (0.713) es mayor que todos los del walk-forward (0.59-0.70): se esperan menos operaciones (~15-30 por moneda y anio).",
+  "Con WR central ~0.72 el limite inferior de Wilson no supera 0.70 salvo con ~2 000 operaciones; la prueba realista es E > 0.",
+  "Las entradas se concentran en velas de capitulacion (rango y volumen altos, caida reciente): en vivo el deslizamiento puede superar 0.02 %."
+ ]
+}

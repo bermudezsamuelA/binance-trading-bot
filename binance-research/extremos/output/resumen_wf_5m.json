@@ -1,0 +1,395 @@
+{
+  "completa": {
+    "bloques": [
+      {
+        "prueba": "2024",
+        "elegida": {
+          "toques": 2,
+          "theta": 2.0,
+          "usar_c3": false,
+          "c_conf": 2.0,
+          "gatillo": "ambas",
+          "objetivo": "maximo"
+        },
+        "diseno": {
+          "n": 46,
+          "acierto": 0.304,
+          "e": -0.568,
+          "t": -0.76,
+          "dias_distintos": 37,
+          "e_por_dia": -0.42,
+          "t_por_dia": -0.5,
+          "r_medio": -0.149,
+          "pnl_usdt": -3.92,
+          "max_dd_usdt": 7.21,
+          "meses_pos": "4/15",
+          "por_motivo": {
+            "objetivo": 13,
+            "stop": 32,
+            "tiempo": 1
+          }
+        },
+        "prueba_res": {
+          "n": 18,
+          "acierto": 0.5,
+          "e": 3.0,
+          "t": 1.91,
+          "dias_distintos": 11,
+          "e_por_dia": 5.401,
+          "t_por_dia": 2.58,
+          "r_medio": 1.137,
+          "pnl_usdt": 8.1,
+          "max_dd_usdt": 1.71,
+          "meses_pos": "4/5",
+          "por_motivo": {
+            "objetivo": 9,
+            "stop": 9,
+            "tiempo": 0
+          }
+        }
+      },
+      {
+        "prueba": "2025",
+        "elegida": {
+          "toques": 2,
+          "theta": 2.0,
+          "usar_c3": false,
+          "c_conf": 2.0,
+          "gatillo": "ambas",
+          "objetivo": "maximo"
+        },
+        "diseno": {
+          "n": 64,
+          "acierto": 0.359,
+          "e": 0.436,
+          "t": 0.61,
+          "dias_distintos": 48,
+          "e_por_dia": 0.914,
+          "t_por_dia": 1.05,
+          "r_medio": 0.213,
+          "pnl_usdt": 4.18,
+          "max_dd_usdt": 5.89,
+          "meses_pos": "8/20",
+          "por_motivo": {
+            "objetivo": 22,
+            "stop": 41,
+            "tiempo": 1
+          }
+        },
+        "prueba_res": {
+          "n": 22,
+          "acierto": 0.455,
+          "e": 0.901,
+          "t": 0.65,
+          "dias_distintos": 16,
+          "e_por_dia": 0.032,
+          "t_por_dia": 0.02,
+          "r_medio": 0.26,
+          "pnl_usdt": 2.97,
+          "max_dd_usdt": 3.31,
+          "meses_pos": "3/7",
+          "por_motivo": {
+            "objetivo": 10,
+            "stop": 12,
+            "tiempo": 0
+          }
+        }
+      },
+      {
+        "prueba": "2026",
+        "elegida": {
+          "toques": 2,
+          "theta": 1.5,
+          "usar_c3": true,
+          "c_conf": 2.0,
+          "gatillo": "ema",
+          "objetivo": "maximo"
+        },
+        "diseno": {
+          "n": 20,
+          "acierto": 0.65,
+          "e": 1.996,
+          "t": 2.12,
+          "dias_distintos": 14,
+          "e_por_dia": 0.967,
+          "t_por_dia": 0.87,
+          "r_medio": 0.945,
+          "pnl_usdt": 5.99,
+          "max_dd_usdt": 1.3,
+          "meses_pos": "6/11",
+          "por_motivo": {
+            "objetivo": 13,
+            "stop": 7,
+            "tiempo": 0
+          }
+        },
+        "prueba_res": {
+          "n": 1,
+          "acierto": 0.0,
+          "e": -0.934,
+          "t": null,
+          "dias_distintos": 1,
+          "e_por_dia": -0.934,
+          "t_por_dia": null,
+          "r_medio": -1.346,
+          "pnl_usdt": -0.14,
+          "max_dd_usdt": 0.14,
+          "meses_pos": "0/1",
+          "por_motivo": {
+            "objetivo": 0,
+            "stop": 1,
+            "tiempo": 0
+          }
+        }
+      }
+    ],
+    "fuera_de_muestra": {
+      "n": 41,
+      "acierto": 0.463,
+      "e": 1.778,
+      "t": 1.75,
+      "dias_distintos": 28,
+      "e_por_dia": 2.107,
+      "t_por_dia": 1.52,
+      "r_medio": 0.606,
+      "pnl_usdt": 10.93,
+      "max_dd_usdt": 3.45,
+      "meses_pos": "7/13",
+      "por_motivo": {
+        "objetivo": 19,
+        "stop": 22,
+        "tiempo": 0
+      }
+    },
+    "pasa_criterio": false
+  },
+  "solo_diario": {
+    "bloques": [
+      {
+        "prueba": "2024",
+        "elegida": {
+          "toques": 2,
+          "theta": 1.5,
+          "usar_c3": true,
+          "hold_dias": 3
+        },
+        "diseno": {
+          "n": 67,
+          "acierto": 0.522,
+          "e": 0.302,
+          "t": 0.36,
+          "dias_distintos": 41,
+          "e_por_dia": 0.092,
+          "t_por_dia": 0.08,
+          "r_medio": NaN,
+          "pnl_usdt": 3.04,
+          "max_dd_usdt": 7.03,
+          "meses_pos": "7/18",
+          "por_motivo": {
+            "objetivo": 0,
+            "stop": 0,
+            "tiempo": 67
+          }
+        },
+        "prueba_res": {
+          "n": 29,
+          "acierto": 0.724,
+          "e": 3.236,
+          "t": 3.49,
+          "dias_distintos": 9,
+          "e_por_dia": 1.656,
+          "t_por_dia": 1.1,
+          "r_medio": NaN,
+          "pnl_usdt": 14.08,
+          "max_dd_usdt": 1.44,
+          "meses_pos": "2/5",
+          "por_motivo": {
+            "objetivo": 0,
+            "stop": 0,
+            "tiempo": 29
+          }
+        }
+      },
+      {
+        "prueba": "2025",
+        "elegida": {
+          "toques": 2,
+          "theta": 1.5,
+          "usar_c3": true,
+          "hold_dias": 5
+        },
+        "diseno": {
+          "n": 95,
+          "acierto": 0.463,
+          "e": 1.873,
+          "t": 1.3,
+          "dias_distintos": 50,
+          "e_por_dia": 0.5,
+          "t_por_dia": 0.34,
+          "r_medio": NaN,
+          "pnl_usdt": 26.69,
+          "max_dd_usdt": 9.87,
+          "meses_pos": "9/23",
+          "por_motivo": {
+            "objetivo": 0,
+            "stop": 0,
+            "tiempo": 95
+          }
+        },
+        "prueba_res": {
+          "n": 32,
+          "acierto": 0.688,
+          "e": 2.663,
+          "t": 2.48,
+          "dias_distintos": 16,
+          "e_por_dia": 1.631,
+          "t_por_dia": 1.2,
+          "r_medio": NaN,
+          "pnl_usdt": 12.78,
+          "max_dd_usdt": 3.15,
+          "meses_pos": "6/9",
+          "por_motivo": {
+            "objetivo": 0,
+            "stop": 0,
+            "tiempo": 32
+          }
+        }
+      },
+      {
+        "prueba": "2026",
+        "elegida": {
+          "toques": 2,
+          "theta": 1.5,
+          "usar_c3": true,
+          "hold_dias": 5
+        },
+        "diseno": {
+          "n": 127,
+          "acierto": 0.52,
+          "e": 2.072,
+          "t": 1.86,
+          "dias_distintos": 66,
+          "e_por_dia": 0.774,
+          "t_por_dia": 0.66,
+          "r_medio": NaN,
+          "pnl_usdt": 39.48,
+          "max_dd_usdt": 8.11,
+          "meses_pos": "15/32",
+          "por_motivo": {
+            "objetivo": 0,
+            "stop": 0,
+            "tiempo": 127
+          }
+        },
+        "prueba_res": {
+          "n": 14,
+          "acierto": 0.5,
+          "e": -0.787,
+          "t": -0.4,
+          "dias_distintos": 7,
+          "e_por_dia": -2.303,
+          "t_por_dia": -0.61,
+          "r_medio": NaN,
+          "pnl_usdt": -1.65,
+          "max_dd_usdt": 3.9,
+          "meses_pos": "2/5",
+          "por_motivo": {
+            "objetivo": 0,
+            "stop": 0,
+            "tiempo": 14
+          }
+        }
+      }
+    ],
+    "fuera_de_muestra": {
+      "n": 75,
+      "acierto": 0.667,
+      "e": 2.24,
+      "t": 3.2,
+      "dias_distintos": 32,
+      "e_por_dia": 0.777,
+      "t_por_dia": 0.68,
+      "r_medio": NaN,
+      "pnl_usdt": 25.2,
+      "max_dd_usdt": 3.9,
+      "meses_pos": "10/19",
+      "por_motivo": {
+        "objetivo": 0,
+        "stop": 0,
+        "tiempo": 75
+      }
+    },
+    "pasa_criterio": false
+  },
+  "referencia_todos_los_dias_3d": {
+    "2024": {
+      "n": 2806,
+      "acierto": 0.492,
+      "e": 0.302,
+      "t": 1.65,
+      "dias_distintos": 366,
+      "e_por_dia": 0.205,
+      "t_por_dia": 0.42,
+      "r_medio": NaN,
+      "pnl_usdt": 127.08,
+      "max_dd_usdt": 41.12,
+      "meses_pos": "6/13",
+      "por_motivo": {
+        "objetivo": 0,
+        "stop": 0,
+        "tiempo": 2806
+      }
+    },
+    "2025": {
+      "n": 2804,
+      "acierto": 0.444,
+      "e": -0.84,
+      "t": -5.12,
+      "dias_distintos": 365,
+      "e_por_dia": -0.928,
+      "t_por_dia": -2.06,
+      "r_medio": NaN,
+      "pnl_usdt": -353.5,
+      "max_dd_usdt": 355.83,
+      "meses_pos": "6/13",
+      "por_motivo": {
+        "objetivo": 0,
+        "stop": 0,
+        "tiempo": 2804
+      }
+    },
+    "2026": {
+      "n": 2302,
+      "acierto": 0.425,
+      "e": -0.472,
+      "t": -2.94,
+      "dias_distintos": 301,
+      "e_por_dia": -0.596,
+      "t_por_dia": -1.56,
+      "r_medio": NaN,
+      "pnl_usdt": -162.86,
+      "max_dd_usdt": 168.77,
+      "meses_pos": "3/10",
+      "por_motivo": {
+        "objetivo": 0,
+        "stop": 0,
+        "tiempo": 2302
+      }
+    }
+  },
+  "bloques": [
+    [
+      "2024-01-01",
+      "2025-01-01"
+    ],
+    [
+      "2025-01-01",
+      "2026-01-01"
+    ],
+    [
+      "2026-01-01",
+      "2100-01-01"
+    ]
+  ],
+  "min_operaciones_diseno": 20
+}

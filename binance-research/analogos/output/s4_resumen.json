@@ -1,0 +1,84 @@
+{
+ "mejor_en_diseno": {
+  "n": 3,
+  "niveles": 4,
+  "h": 12,
+  "min_apariciones": 30,
+  "bonferroni": 1,
+  "dis": {
+   "ic": 0.0049,
+   "acierto": 49.95,
+   "n": 125,
+   "wr": 52.0,
+   "e": 0.631,
+   "pnl": 11.8,
+   "t": 1.95,
+   "meses_pos": "2/24"
+  },
+  "val": {
+   "ic": 0.0049,
+   "acierto": 50.27,
+   "n": 603,
+   "wr": 48.3,
+   "e": -0.174,
+   "pnl": -15.8,
+   "t": -1.38,
+   "meses_pos": "6/22"
+  }
+ },
+ "pasa_criterio": false,
+ "mejor_sin_correccion": {
+  "n": 6,
+  "niveles": 4,
+  "h": 24,
+  "min_apariciones": 30,
+  "bonferroni": 0,
+  "dis": {
+   "ic": 0.02,
+   "acierto": 50.79,
+   "n": 403,
+   "wr": 53.6,
+   "e": 0.482,
+   "pnl": 29.1,
+   "t": 2.14,
+   "meses_pos": "11/24"
+  },
+  "val": {
+   "ic": 0.0095,
+   "acierto": 50.09,
+   "n": 907,
+   "wr": 48.4,
+   "e": -0.157,
+   "pnl": -21.3,
+   "t": -1.21,
+   "meses_pos": "9/22"
+  }
+ },
+ "mejor_con_bonferroni": {
+  "n": 3,
+  "niveles": 4,
+  "h": 12,
+  "min_apariciones": 30,
+  "bonferroni": 1,
+  "dis": {
+   "ic": 0.0049,
+   "acierto": 49.95,
+   "n": 125,
+   "wr": 52.0,
+   "e": 0.631,
+   "pnl": 11.8,
+   "t": 1.95,
+   "meses_pos": "2/24"
+  },
+  "val": {
+   "ic": 0.0049,
+   "acierto": 50.27,
+   "n": 603,
+   "wr": 48.3,
+   "e": -0.174,
+   "pnl": -15.8,
+   "t": -1.38,
+   "meses_pos": "6/22"
+  }
+ }
+}

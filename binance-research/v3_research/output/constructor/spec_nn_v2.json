@@ -1,0 +1,385 @@
+{
+ "nombre": "NN-meta v2: ensamble 13 modelos (etiqueta G3) operado con salida X5",
+ "creado_utc": "2026-10-14 10:59:50",
+ "agente": "constructor",
+ "etiqueta_entrenamiento": {
+  "id": "G3",
+  "a_m_H": [
+   0.75,
+   1.5,
+   192
+  ],
+  "clase": "neto > 0 con costos 0.24 %"
+ },
+ "geometria_salida": {
+  "id": "X5",
+  "tp": "c*(1+0.7*sd)",
+  "sl": "c*(1-1.75*sd)",
+  "max_hold_velas": 288,
+  "b": 0.39999999999999997,
+  "sd": "std(log-ret 15m, 672 velas, ddof=1) * sqrt(96)",
+  "entrada": "cierre de la vela; barreras desde la siguiente; empate TP/SL = SL; hueco = apertura",
+  "una_posicion_por_moneda": true,
+  "costos": 0.0024,
+  "estres": 0.003
+ },
+ "variables": [
+  "atr_rel",
+  "bar_body",
+  "bar_range",
+  "bar_upwick",
+  "basis",
+  "basis_z_672",
+  "beta_btc",
+  "btc_ret_16",
+  "btc_ret_4",
+  "btc_ret_672",
+  "btc_ret_96",
+  "btc_vol_ratio",
+  "btc_z_672",
+  "dd_672",
+  "dd_96",
+  "funding",
+  "funding_z_2016",
+  "fut_imb_1",
+  "fut_imb_16",
+  "fut_spot_vol",
+  "fut_taker_1",
+  "fut_taker_16",
+  "fut_taker_4",
+  "glob_acc_chg_16",
+  "glob_acc_chg_96",
+  "glob_acc_lvl",
+  "glob_acc_z_672",
+  "hour_cos",
+  "hour_sin",
+  "metrics_missing",
+  "oi_chg_1",
+  "oi_chg_16",
+  "oi_chg_4",
+  "oi_chg_96",
+  "oi_to_vol",
+  "oi_z_672",
+  "premium",
+  "premium_16",
+  "premium_z_672",
+  "rel_btc_672",
+  "rel_btc_96",
+  "ret_1",
+  "ret_16",
+  "ret_288",
+  "ret_4",
+  "ret_48",
+  "ret_672",
+  "ret_96",
+  "rngpos_672",
+  "rngpos_96",
+  "rsi14",
+  "taker_imb_1",
+  "taker_imb_16",
+  "taker_imb_4",
+  "taker_imb_96",
+  "top_acc_chg_16",
+  "top_acc_chg_96",
+  "top_acc_lvl",
+  "top_acc_z_672",
+  "top_pos_chg_16",
+  "top_pos_chg_96",
+  "top_pos_lvl",
+  "top_pos_z_672",
+  "vol_level",
+  "vol_ratio_16_96",
+  "vol_ratio_96_672",
+  "vol_rel_1",
+  "vol_rel_16",
+  "vol_rel_96",
+  "wd_cos",
+  "wd_sin",
+  "z_20",
+  "z_672",
+  "z_96"
+ ],
+ "usa_futuros": true,
+ "alineacion_metrics": "create_time T se conoce en T+5m; se usa T <= t_i + 5 min; relleno <= 30 min por columna",
+ "entrenamiento": {
+  "ajuste": "[2023-01-01 + 800 velas, 2025-04-01 - 193 velas)",
+  "validacion": "[2025-04-01, 2025-07-01 - 289 velas)",
+  "n_ajuste": 311272,
+  "n_validacion": 33788,
+  "hiperparametros": "identicos a la v1 (spec_nn.json); CNN: 96 velas x 10 canales, 4 conv dilatadas de 24 filtros, 1 de cada 4 velas"
+ },
+ "calibracion": "Platt por miembro con la etiqueta G3 en validacion; p = media de las probabilidades calibradas",
+ "regla": {
+  "descripcion": "comprar al cierre si p >= umbral; umbral = cuantil de p en validacion que maximiza E (salida X5) con WR_val >= 0.75, >=150 velas, >=15 dias",
+  "wr_min": 0.75,
+  "umbral": 0.7142683625605063,
+  "cuantil_val": 0.98,
+  "wr_val": 0.9866863905325444,
+  "E_val": 0.02182439617935155,
+  "n_val_velas": 676
+ },
+ "miembros": [
+  {
+   "kind": "lgb",
+   "seed": 0,
+   "file": "lgb_G3_s0.txt",
+   "iterations": 50,
+   "platt": [
+    2.5525910331895436,
+    -0.41948849923668097
+   ],
+   "auc_val": 0.6070808118013072,
+   "sha256": {
+    "lgb_G3_s0.txt": "4abe27b58f3557475e18d45a1b59277c90463b1e935efbf72dd3e789b39530b7"
+   }
+  },
+  {
+   "kind": "lgb",
+   "seed": 1,
+   "file": "lgb_G3_s1.txt",
+   "iterations": 50,
+   "platt": [
+    7.289637400108216,
+    -2.0386215362297495
+   ],
+   "auc_val": 0.6078408909640955,
+   "sha256": {
+    "lgb_G3_s1.txt": "54483155352ac0257e1fc2f0443dadb8624afee3d253caa1e712c29705701931"
+   }
+  },
+  {
+   "kind": "lgb",
+   "seed": 2,
+   "file": "lgb_G3_s2.txt",
+   "iterations": 50,
+   "platt": [
+    6.465337727708612,
+    -1.7272236944863972
+   ],
+   "auc_val": 0.6050931413160703,
+   "sha256": {
+    "lgb_G3_s2.txt": "c36ee273cd1e5e6a2550ede1bf8a343e9cb7838788cab19eef634fbb4306e747"
+   }
+  },
+  {
+   "kind": "lgb",
+   "seed": 3,
+   "file": "lgb_G3_s3.txt",
+   "iterations": 50,
+   "platt": [
+    2.5096627980168864,
+    -0.40082840987011603
+   ],
+   "auc_val": 0.6074313592196603,
+   "sha256": {
+    "lgb_G3_s3.txt": "0e34db2ffc139c498d363fc25da8b1b674a75f6f455f75696fae98cd9233cd3e"
+   }
+  },
+  {
+   "kind": "lgb",
+   "seed": 4,
+   "file": "lgb_G3_s4.txt",
+   "iterations": 50,
+   "platt": [
+    20.74676609493727,
+    -6.518935602860982
+   ],
+   "auc_val": 0.6119621403385312,
+   "sha256": {
+    "lgb_G3_s4.txt": "fda8dde27538bbe1a932e957e7aaabe3d927b9e6e5371addf1d2597d10d6d8bf"
+   }
+  },
+  {
+   "kind": "lgb",
+   "seed": 5,
+   "file": "lgb_G3_s5.txt",
+   "iterations": 50,
+   "platt": [
+    14.089301647066033,
+    -4.298180302621542
+   ],
+   "auc_val": 0.6164446534233959,
+   "sha256": {
+    "lgb_G3_s5.txt": "7042c7ba75aec1e4b061fe71ca0e881ce3d85bea73ac615754e1db7320ed92dd"
+   }
+  },
+  {
+   "kind": "mlp",
+   "seed": 0,
+   "file": "mlp_G3_s0.pt",
+   "scaler": "mlp_G3_s0_scaler.npz",
+   "epochs": 1,
+   "platt": [
+    0.31976079775732713,
+    0.3039621553903817
+   ],
+   "auc_val": 0.5322968599887947,
+   "sha256": {
+    "mlp_G3_s0.pt": "e305d05f3aa8cdecc5e5d1dd3123bbdf96a03cb4e67750ecf15706a99d551b73",
+    "mlp_G3_s0_scaler.npz": "e3861d94d7c05c61cbe72308d153dfb46c9754cce750cdc95c439a4f986ebcb2"
+   }
+  },
+  {
+   "kind": "mlp",
+   "seed": 1,
+   "file": "mlp_G3_s1.pt",
+   "scaler": "mlp_G3_s1_scaler.npz",
+   "epochs": 1,
+   "platt": [
+    0.5541524846852185,
+    0.2222300215970112
+   ],
+   "auc_val": 0.560568508366323,
+   "sha256": {
+    "mlp_G3_s1.pt": "f66d7b41b955c5eb2ccc99965c7513bf761411a907c9cad31be10530b7b03a6c",
+    "mlp_G3_s1_scaler.npz": "e3861d94d7c05c61cbe72308d153dfb46c9754cce750cdc95c439a4f986ebcb2"
+   }
+  },
+  {
+   "kind": "mlp",
+   "seed": 2,
+   "file": "mlp_G3_s2.pt",
+   "scaler": "mlp_G3_s2_scaler.npz",
+   "epochs": 1,
+   "platt": [
+    0.47737592618919383,
+    0.2541168088597393
+   ],
+   "auc_val": 0.5485851584943796,
+   "sha256": {
+    "mlp_G3_s2.pt": "142a76eb1242ade17643da03aa708fc967e417b235820d439e132d0e816d8b1e",
+    "mlp_G3_s2_scaler.npz": "e3861d94d7c05c61cbe72308d153dfb46c9754cce750cdc95c439a4f986ebcb2"
+   }
+  },
+  {
+   "kind": "mlp",
+   "seed": 3,
+   "file": "mlp_G3_s3.pt",
+   "scaler": "mlp_G3_s3_scaler.npz",
+   "epochs": 1,
+   "platt": [
+    0.3977546278780626,
+    0.27685938701079416
+   ],
+   "auc_val": 0.5432473243110733,
+   "sha256": {
+    "mlp_G3_s3.pt": "41861ad5979096ebb9ca96dc2049a9d01857416456c8d4935b6cc0a2ad659aad",
+    "mlp_G3_s3_scaler.npz": "e3861d94d7c05c61cbe72308d153dfb46c9754cce750cdc95c439a4f986ebcb2"
+   }
+  },
+  {
+   "kind": "mlp",
+   "seed": 4,
+   "file": "mlp_G3_s4.pt",
+   "scaler": "mlp_G3_s4_scaler.npz",
+   "epochs": 1,
+   "platt": [
+    0.5218042670251066,
+    0.24550197540953791
+   ],
+   "auc_val": 0.550796337867535,
+   "sha256": {
+    "mlp_G3_s4.pt": "ffa61bb908f088a160393cde5e96762edf56bec6261e278acd9e736890d2731d",
+    "mlp_G3_s4_scaler.npz": "e3861d94d7c05c61cbe72308d153dfb46c9754cce750cdc95c439a4f986ebcb2"
+   }
+  },
+  {
+   "kind": "mlp",
+   "seed": 5,
+   "file": "mlp_G3_s5.pt",
+   "scaler": "mlp_G3_s5_scaler.npz",
+   "epochs": 1,
+   "platt": [
+    0.41734747777974274,
+    0.2543876174189375
+   ],
+   "auc_val": 0.5398886748283233,
+   "sha256": {
+    "mlp_G3_s5.pt": "c9b7741b0629b7072f93ad62efe8f5ef7aaf0339d2971c43619b0a639a9ede1e",
+    "mlp_G3_s5_scaler.npz": "e3861d94d7c05c61cbe72308d153dfb46c9754cce750cdc95c439a4f986ebcb2"
+   }
+  },
+  {
+   "kind": "cnn",
+   "seed": 0,
+   "file": "cnn_G3_s0.pt",
+   "scaler": "cnn_G3_s0_scaler.npz",
+   "epochs": 1,
+   "platt": [
+    1.7234130900909816,
+    -0.27676850598928737
+   ],
+   "auc_val": 0.5811233075450173,
+   "sha256": {
+    "cnn_G3_s0.pt": "54b9d76e981fde31d98a1bc7672135af150ecb1dd1f15a0e249dfb7ac3fb93ea",
+    "cnn_G3_s0_scaler.npz": "e6a21c100d7467374ef921a85940c8982ce2ebad22b9ed7c78c2f08541849692"
+   }
+  }
+ ],
+ "sha256_scripts": {
+  "nn_common.py": "3e00fdb5bab55a3bbf1fb58b433f04b6507efb71454ad3285ed3ed1cdbe067a0",
+  "nn_wf.py": "bb4500ba344711f5bdcaaa6a1a9b79ba6571cbbd97502f4754798636cc87d97e",
+  "nn_report.py": "5309aa7b35a6368e914a8af7abf3e0440507b506935d39a5708cedf64ab70560",
+  "nn_v2_report.py": "e61ed8feed6d7b5d07ded8848f2957580db978934e148a32f0390355423e68a7",
+  "nn_v2_final.py": "633122d8d9103adb256f08bd27c7ffcc30fa4df293298d7f722f85c495dd326c",
+  "nn_v2_eval.py": "2a724731639283ead486735b2693e8a04972b58537ad950c0589d51e257ec008",
+  "nn_download_futures.py": "e8cd57f11f458cec5d5e45a22d981c33c14a6133d20c7921dde2af373cab25d4",
+  "harness.py": "c346c51a951435a15ed2fa693acffb5bbfd0217d44bc4559d008ef6aa335b5e3"
+ },
+ "como_evaluar": "python -I nn/nn_v2_eval.py --symbols S1,S2 --start AAAA-MM-DD --end AAAA-MM-DD --data-dir <dir> [--reason ...]; datos: <dir>/klines/{SYM,BTCUSDT}_15m.npy y <dir>/futures/{SYM}_*.npy (nn_download_futures.py) desde >= 35 dias antes de --start",
+ "entorno": {
+  "python": "3.11.4 (.venv en binance-research/.venv)",
+  "torch": "2.14.1+cpu",
+  "lightgbm": "4.7.0",
+  "numpy": "2.4.6",
+  "scipy": "1.17.1",
+  "ejecutar": "PYTHONIOENCODING=utf-8 binance-research/.venv/Scripts/python.exe -I nn/nn_v2_eval.py ..."
+ },
+ "datos_necesarios": {
+  "spot": "<data-dir>/klines/{SYM}_15m.npy y BTCUSDT_15m.npy (formato scripts/download_klines.py), >= 35 dias antes de --start",
+  "futuros": "python -I nn/nn_download_futures.py --symbols SYM1,SYM2 --start <inicio-35d> --end <fin> --out <data-dir>/futures"
+ },
+ "walk_forward_diseno": {
+  "pliegues": "tests 2024Q1..2025Q2, reentreno trimestral, purga 193 velas (modelo) y 289 velas (etiqueta de salida en validacion)",
+  "n": 188,
+  "wr": 0.814,
+  "wr_ic95": [
+   0.752,
+   0.863
+  ],
+  "b_eff": 0.53,
+  "E_pct": 1.407,
+  "E_R": 0.145,
+  "pf": 2.31,
+  "mdd_pct_capital_completo": 41.0,
+  "t_dia": 4.8,
+  "t_semana": 5.15,
+  "t_mes": 5.79,
+  "azar_wr": 0.617,
+  "azar_E_pct": -0.426,
+  "dWR_pt": 19.7,
+  "dE_pct": 1.833,
+  "E_pct_c030": 1.346,
+  "pliegues_E_pos": "6/6",
+  "meses_E_pos": "17/18",
+  "dsr_ensayos_equipo_12396": 0.755,
+  "dsr_ensayos_constructor_74": 0.967,
+  "operaciones_por_moneda_y_anio": 31.3,
+  "umbrales_wf": [
+   0.705,
+   0.667,
+   0.695,
+   0.616,
+   0.67,
+   0.591
+  ]
+ },
+ "advertencias": [
+  "2026-10-18: corregido nn_report.summarize (asignaba cada operacion a la moneda equivocada). Solo cambian el desglose por moneda y el azar misma moneda y mes; las senales, las operaciones y n, WR y E agregados no cambian. Se re-firmo el hash de nn_report.py y se actualizaron azar_wr, azar_E_pct, dWR_pt y dE_pct.",
+  "2026-10-19: corregido nn_report.random_baseline (mes por vela, no por bloques de 96 velas): dE_pct 1.832 -> 1.833; el resto del azar no cambia al redondear. nn_v2_report.load_cache ahora incluye la geometria (con la barrera de tiempo H) en la clave de la cache de etiquetas; X1-X5 siguen usando sus archivos. Se re-firmaron los hashes de nn_report.py y nn_v2_report.py.",
+  "La v1 (mismas variables, etiqueta y familia de modelos) no aprobo la prueba independiente; la v2 cambia la salida (X5), la restriccion del umbral y el tamano del ensamble.",
+  "La salida X5 se eligio entre 5 geometrias de salida mirando el walk-forward de diseno (las 5 mejoraron a G3).",
+  "El umbral congelado (0.714) es mayor que los del walk-forward (0.59-0.705): la frecuencia fuera de muestra puede ser menor que 31 por moneda y anio; dentro de muestra (2024-01..2025-03) da 45.",
+  "SL a 1.75 sd (R mediano ~7.5 %) y hasta 3 dias en posicion: dimensionar por riesgo."
+ ]
+}

@@ -8,7 +8,7 @@
 - Los mensajes de commit se escriben en **inglés**, sin trailer `Co-Authored-By`.
 - Cuando el usuario diga "Haz commit": desde WSL con `git2`, agrega los últimos cambios, haz commit y **push** a la rama actual, y al final verifica que el autor sea `tlou520`.
 - Fuera de eso, no hagas commit ni push sin que el usuario lo pida expresamente.
-- La rama de trabajo actual es `Improvement-experiment-on-v1`. No cambies a `main` ni crees ramas sin confirmar.
+- La rama de trabajo actual es `Improvement-experiment-on-v2`. No cambies a `main` ni crees ramas sin confirmar.
 
 ## Ejecución del bot y VPN
 

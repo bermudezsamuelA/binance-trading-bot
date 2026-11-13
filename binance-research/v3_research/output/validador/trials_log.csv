@@ -1,0 +1,79 @@
+utc,script,agent,n_configs,part,description
+2026-10-13 23:50:59,analista_06_reglas.py,analista,64,design,"R1 rejilla MR n{20,48} x Rmin{0.5..2%} x tend x VR16 x {G1,G2}"
+2026-10-13 23:53:10,analista_08_candidato.py,analista,20,design,"R1 candidato MR20 + score ridge (h48/h96, q80/q90) x 5 geometrias fijas"
+2026-10-13 23:54:12,analista_09_robustez.py,analista,18,design,"R1 robustez candidato ridge (lambda, compacto, next_open) x 3 geometrias"
+2026-10-13 23:55:48,wf_pbo_botgrid.py,validador,3588,design,"rejilla original del bot (MR/TF/SQ x 23 n x 12 k) x 4 monedas, variante B"
+2026-10-13 23:56:33,-c,analista,204,design,"R1 01_base: estrategias del bot (12) + rejilla MR/TF/SQ (192), simulacion honesta"
+2026-10-13 23:56:33,-c,analista,394,design,R1 03_filtros: 41 variables x bins x 2 geometrias (A y B)
+2026-10-13 23:56:33,-c,analista,600,design,R1 04_alfa: 120 conjuntos senal/moneda/parte x 5 horizontes (retorno futuro bruto)
+2026-10-13 23:56:33,-c,analista,10,design,R1 05_meta: logistica walk-forward 2 geometrias x 5 umbrales
+2026-10-13 23:56:33,-c,analista,18,design,R1 07_ridge: ridge walk-forward 3 horizontes x 3 cortes x 2 partes
+2026-10-14 00:05:48,riesgo_r2_c1.py,riesgo,1,design,R2 C1: variante nueva C48 (tiempo 48 + stop catastrofe c-3R); T48/G2H96/G3H96 ya contadas por el Analista
+2026-10-14 00:06:34,-c,riesgo,6894,design,R1 frontera 15m (3447) + 1h (3447): entradas MR/BO x salidas ATR/PATH/MEAN/CHAN/PART/BOT (registrado por el Validador a pedido del coordinador)
+2026-10-14 00:06:34,-c,riesgo,294,design,R1 control aleatorio RND (registrado por el Validador)
+2026-10-14 00:07:39,riesgo_r2_extra.py,riesgo,1,design,R2 C1: variante nueva C48 (tiempo 48 + stop catastrofe c-3R); T48/G2H96/G3H96 ya contadas por el Analista
+2026-10-14 00:08:02,riesgo_log_trials.py,riesgo,3447,design,R1 frontera 15m: entradas MR/BO (n 20/48/96 x k 1.5/2/2.5) x salidas ATR/PATH/MEAN/CHAN/PART/BOT (riesgo_frontera.py 1)
+2026-10-14 00:08:02,riesgo_log_trials.py,riesgo,3447,design,R1 frontera 1h (agregada de 15m): misma rejilla (riesgo_frontera.py 4); R2 walk-forward 12/3/3 reutiliza estas 3447
+2026-10-14 00:08:02,riesgo_log_trials.py,riesgo,0,design,"R1 controles RND (294 geometrias con entradas aleatorias; no son hipotesis) y R2 nota: la fila 'R2 C1 variante C48' se duplico por re-ejecucion, cuenta 1"
+2026-10-14 00:08:13,riesgo_log_fix.py,riesgo,-6895,design,CORRECCION: anula duplicados (R1 6894 ya registrado por el Validador 00:06:34; C48 duplicada). Total riesgo = 6894 + 294 control + 1 (C48) = 7189
+2026-10-14 00:08:44,r2_audit_c1.py,validador,90,design,"R2 auditoria C1: WF 12/3/3 (9), costos/retraso (6), placebo (40), familia PBO"
+2026-10-14 00:08:57,analista_13_reconcilia.py,analista,16,design,"R2 conciliacion: deciles x horizontes, C1/RND con geometrias ATR del Gestor"
+2026-10-14 00:09:48,r2_bo1h.py,validador,29,design,"R2 auditoria BO 1h del Gestor: reproduccion, costos/retraso, azar x10, familia WF/PBO 16"
+2026-10-14 00:10:11,analista_14_bo1h.py,analista,2,design,"R2 critica BO(96,2.5) 1h del Gestor: reproduccion + azar emparejado + regimen"
+2026-10-14 00:11:09,analista_15_protocolo.py,analista,26,design,"R2 protocolo C1: WF12/3/3 (2 geom + 2 estres), spec por bloques, familia PBO (20)"
+2026-10-14 00:11:20,r2_power.py,validador,90,design,"R2 auditoria C1: WF 12/3/3 (9), costos/retraso (6), placebo (40), familia PBO"
+2026-10-14 00:12:06,-c,validador,-90,design,CORRECCION: la fila anterior de r2_power.py duplica r2_audit_c1.py (se re-ejecuto al importarlo); no son configuraciones nuevas
+2026-10-14 10:35:18,nn_log_trials.py,constructor,5,design,"fase1 geometrias triple barrera G1(0.5,1.0,96) G2(0.4,1.2,96) G3(0.75,1.5,192) G4(0.4,1.2,192) G5(0.6,1.5,192) en sd diaria; estadisticas del azar (sin modelo)"
+2026-10-14 10:35:18,nn_log_trials.py,constructor,4,design,"fase1 v1 LightGBM meta-etiquetado todas las velas, G3/G4 x con/sin futuros, parada por logloss, WF trimestral 2024Q1-2025Q2"
+2026-10-14 10:35:18,nn_log_trials.py,constructor,4,design,"fase1 v2 LightGBM parada por AUC, umbral val WR>=0.70 y >=15 dias, G3/G4 x con/sin futuros"
+2026-10-14 10:35:18,nn_log_trials.py,constructor,4,design,"fase1 v2 MLP G3 futuros (2 corridas, una abortada), ensamble LGB+MLP G3, CNN G3 abortada"
+2026-10-14 10:35:18,nn_log_trials.py,constructor,12,design,fase1 v3 (retardo metrics T<=t_i+5m) LGB y MLP x G3/G4 x con/sin futuros + 4 ensambles LGB+MLP
+2026-10-14 10:35:18,nn_log_trials.py,constructor,6,design,fase1 v3 semillas extra LGB/MLP G3 futuros (4) y CNN v3 G3 con/sin futuros abortadas (2)
+2026-10-14 10:35:18,nn_log_trials.py,constructor,15,design,"fase1 v4 (regla huecos del Verificador) G3 fut: LGB, MLP, LGBx3, MLPx3, ENS6, ENS s0; G3 sin fut: LGB, MLP, ENS; G5 fut: LGB, MLP, ENS; G5 sin fut: ENS (+2 modelos)"
+2026-10-14 10:35:18,nn_log_trials.py,constructor,3,design,fase1 v4 CNN 1D dilatada G3 con/sin futuros y ENS6+CNN
+2026-10-14 10:35:18,nn_log_trials.py,constructor,1,design,"fase1 placebo: futuros retrasados 1 h, ENS6 G3"
+2026-10-14 10:58:10,nn_v2_log_trials.py,constructor,5,design,"fase3 v2 geometrias de salida X1(0.6,1.5,192) X2(0.8,2.0,288) X3(0.75,1.5,288) X4(1.0,2.0,288) X5(0.7,1.75,288): estadisticas del azar"
+2026-10-14 10:58:10,nn_v2_log_trials.py,constructor,4,design,"fase3 v2 ENS6 (etiqueta G3) con umbral WR_val>=0.75 y salida G3, X1, X3, X5"
+2026-10-14 10:58:10,nn_v2_log_trials.py,constructor,5,design,fase3 v2 ENS6 salida X2 y X4 (wr>=.75); X5 wr>=.80; X5 wr>=.80 max n; X5 con filtro BTC>SMA30d
+2026-10-14 10:58:10,nn_v2_log_trials.py,constructor,1,design,"fase3 v2 re-ejecucion con purga de la geometria de salida corregida (X1-X5, X5 max n)"
+2026-10-14 10:58:10,nn_v2_log_trials.py,constructor,3,design,fase3 v2 ENS12 (6 LGB + 6 MLP) X5; ENS6+CNN X5; ENS12+CNN X5
+2026-10-14 10:58:10,nn_v2_log_trials.py,constructor,2,design,fase3 v2 ablacion sin futuros (LGB+MLP+CNN) X5; placebo futuros +1 h ENS6 X5
+2026-10-16 00:46:16,be_breadth.py,bleeding_edge,11,design,"E01 amplitud del panico: B_price W{16,48,96}xk{0.2,0.4}, A_model W{16,48,96}, umbral relajado con panico d{0.03,0.06} (diseno, ENS13 X5)"
+2026-10-16 00:47:00,be_breadth2.py,bleeding_edge,7,design,"E01b A_model: complementos, A>=2, umbral relajado d{0.02,0.04} con A>=1, A_low>=2"
+2026-10-16 00:47:44,be_liqproxy.py,bleeding_edge,15,design,E03-proxy liquidaciones: 11 gradientes por tercil + 4 compuertas (diseno)
+2026-10-16 00:48:37,be_conformal.py,bleeding_edge,4,design,"E02 umbral con garantia: LTT-Bonferroni {0.75,0.80}, conforme+BH {0.25,0.20}"
+2026-10-16 00:49:57,be_maker.py,bleeding_edge,10,design,"E07/E08 entrada maker k{0.5,1,2}xJ{1,4} A/B, BNB+TP limite (diseno)"
+2026-10-16 00:50:15,be_maker.py,bleeding_edge,10,design,"E07/E08 entrada maker k{0.5,1,2}xJ{1,4} A/B, BNB+TP limite (diseno)"
+2026-10-16 00:51:16,be_manage.py,bleeding_edge,5,design,"E12/E30 gestion: BE, parcial+BE, salida 24h, SL 2.5sd, tesis rota (diseno)"
+2026-10-16 00:51:32,be_manage.py,bleeding_edge,5,design,"E12/E30 gestion: BE, parcial+BE, salida 24h, SL 2.5sd, tesis rota (diseno)"
+2026-10-16 00:54:05,be_liqproxy.py,bleeding_edge,1,design,E03-proxy exploratorio post-hoc: compuerta oi_to_vol T1 (diseno)
+2026-10-16 00:54:10,be_conformal.py,bleeding_edge,2,design,"E02 LTT con calibracion agrandada (val + tests previos), WR>={0.70,0.75}"
+2026-10-16 00:55:37,be_structural.py,bleeding_edge,16,design,"E31/E32 grid delta{0.5,1}% x4 monedas, DCA con/sin stop x4 monedas (diseno, pedagogico)"
+2026-10-16 00:57:07,be_capbreadth.py,bleeding_edge,4,design,"E01c A_cap (capitulaciones de precio en 18 monedas) W{16,48} x k{2,4} (diseno)"
+2026-10-16 00:57:59,be_disagree.py,bleeding_edge,4,design,"E09 desacuerdo T1-T2 y T1, isotonica X5 >= {0.80,0.85} (diseno); bootstrap A_model sin config nueva"
+2026-10-16 00:58:32,be_confirm.py,bleeding_edge,4,design,"E06 entrada confirmada M{1,4} x cuerpo{no,si} (diseno)"
+2026-10-16 01:02:52,be_stack.py,bleeding_edge,2,design,Pila: BNB 0.19 % y A_model>=1 combinados (diseno; sin parametros nuevos)
+2026-10-16 01:06:04,be_hedge_aci.py,bleeding_edge,6,design,"E27 cobertura BTC h{0.5,1}; E26 ACI alpha{0.20,0.25} x eta{0.005,0.02} (diseno)"
+2026-10-16 01:08:01,be_events.py,bleeding_edge,0,design,episodios y estres SL (sin configuraciones nuevas)
+2026-10-16 01:10:56,be_leadlag.py,bleeding_edge,2,design,"E25 rezago relativo rel_4, rel_16: gradiente por tercil (diseno, descriptivo)"
+2026-10-16 01:11:38,be_uniq.py,bleeding_edge,1,design,"E11 LightGBM ponderado por unicidad entre monedas, 3 semillas (diseno)"
+2026-10-16 01:52:23,be_tabpfn.py,bleeding_edge,2,design,"E10 TabPFN v2 sobre candidatas (top 10/5 %), y mezcla de rangos con ENS13 (diseno)"
+2026-10-16 01:55:14,be_uniq2.py,bleeding_edge,3,design,"E11b unicidad: LGB s3-s5, MLP x6 ponderados; ENS6 y ENS12 ponderados (diseno)"
+2026-10-16 01:55:42,be_uniq_gate.py,bleeding_edge,2,design,Pila v3: ENS12 ponderado + co-senal; c 0.24/0.19 (diseno)
+2026-10-16 04:49:27,be2_gatevar.py,bleeding_edge_r2,12,design,"R2-E2/E3 orden en el episodio (rank, tsf, nprev; 7 cortes) y variantes de compuerta (exc, BE, prev, p25, p50)"
+2026-10-16 04:50:06,be2_geom.py,bleeding_edge_r2,60,design,"R2-E1 geometria condicionada a la compuerta: 30 geometrias (a,m,H) x 2 selectores WF"
+2026-10-16 04:50:39,be2_reentry.py,bleeding_edge_r2,2,design,"R2-E4 re-entrada tras TP con senal activa (L=48, 16) y compuerta abierta"
+2026-10-16 04:51:55,be2_stage2.py,bleeding_edge_r2,4,design,"R2-E5/E6 segunda etapa logistica WF: LR5, LR6 (+rebote 18 monedas spot) x q{0.25,0.5}"
+2026-10-16 04:55:08,be2_joint.py,bleeding_edge_r2,8,design,"R2-E7/E8/E9 cortacircuitos tras SL (coin96, mkt48), tope de posiciones (2, 3), H en WF {192,288,384,576}"
+2026-10-16 04:56:32,be2_extra.py,bleeding_edge_r2,2,design,R2-E10 co-firma de otro ensamble (misma selectividad); R2-E11 BTC > SMA30d
+2026-10-16 04:57:51,be2_tpdecay.py,bleeding_edge_r2,2,design,R2-E12 TP decreciente desde 36 h: 0.35 s_d y +0.6 % (SL y H sin cambio)
+2026-10-16 04:58:50,be2_extra2.py,bleeding_edge_r2,3,design,"R2-E13 episodio aislado >= 3 dias; R2-E14 theta elegido en validacion con compuerta (0.75, 0.80)"
+2026-10-16 05:00:05,be2_v3.py,bleeding_edge_r2,3,design,"R2 pila v3 (pila + H384) medida una vez; frontera post hoc H384+D2 y (0.6,1.75,384) solo informativa"
+2026-10-16 05:01:55,be2_geom2.py,bleeding_edge_r2,36,design,"R2-E15 geometria (a 0.5-0.7, m 1.75/2.25, H 288/384/576) elegida en WF: pliegues anteriores y validacion"
+2026-10-16 05:11:16,be2b_sel.py,bleeding_edge_r2,10,design,"R2A seleccion: H1 rezagados L<1 (+control L>0), H6 funding previo, H7 divergencia OI/taker, H10 co-firma G5; x2 bases (X5, H384)"
+2026-10-16 05:12:01,be2b_h2.py,bleeding_edge_r2,8,design,"R2A H2 TP anclado a la brecha clip(f*g,0.35,1.2) f=0.5 (+theta re-elegido en val), f=0.6 sensib., a fijo medio; x2 bases"
+2026-10-16 05:12:48,be2b_h3.py,bleeding_edge_r2,3,design,"R2A H3 TP2 +0.6% disparado por estado (3 anclas rebotadas y posicion < mitad del TP, desde 2 h); x2 bases; D2 con H384"
+2026-10-16 05:14:02,be2b_h4h5.py,bleeding_edge_r2,6,design,"R2A H4 meta-etiquetado bayesiano (g, dispersion, funding previo; pesos por episodio; q20) x2 bases; H5 prioridad por antiguedad MAX2/MAX3 x2 bases"
+2026-10-16 05:14:57,be2b_h8h9.py,bleeding_edge_r2,6,design,"R2A H8a calibracion beta, H8b theta con pesos por episodio, H9 Platt mensual; x2 bases"
+2026-10-16 05:42:51,-c,bleeding_edge_r2_A_peek,30,design,"chequeo descriptivo de fuentes nuevas, investigador A"
+2026-10-16 05:42:51,-c,bleeding_edge_r2,13,design,"R2B D1 DVOL z30<-1, D1-ETH, D2 tercil train+val, C1 USDT-USD Coinbase z30<-1, B1 Bitfinex 2 colas; x2 bases (X5, H384); + combinacion v3+D1"

@@ -37,6 +37,9 @@ SIGNALS_COLUMNS = [
     "risk_pct", "decision", "reason", "momentum_on", "market",
 ]
 
+# Meta-etiquetado en sombra: cada BUY de signals.csv con la p del modelo, el minimo p* y si lo habria tomado
+META_SIGNALS_FILE = os.path.join(LEDGER_DIR, "meta_signals.csv")
+
 LEGACY_COLUMNS = [
     "order_id", "symbol", "action", "entry_price", "take_profit", "stop_loss", "quantity", "status",
     "timestamp", "exit_price", "pnl", "exit_reason", "exit_timestamp",
@@ -146,16 +149,23 @@ def append_trade(trade: dict, path: str = None):
         csv.writer(f, lineterminator="\n").writerow([format_value(trade.get(c)) for c in header])
 
 
-def append_signal(signal: dict, path: str = None):
+def append_signal(signal: dict, path: str = None, columns: list = None):
     """Añade una fila al diario de señales (orders/signals.csv); lo crea con su encabezado si no existe."""
     path = path or SIGNALS_FILE
+    columns = columns or SIGNALS_COLUMNS
     os.makedirs(os.path.dirname(path), exist_ok=True)
     new = not os.path.exists(path) or os.path.getsize(path) == 0
     with open(path, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, lineterminator="\n")
         if new:
-            writer.writerow(SIGNALS_COLUMNS)
-        writer.writerow([format_value(signal.get(c)) for c in SIGNALS_COLUMNS])
+            writer.writerow(columns)
+        writer.writerow([format_value(signal.get(c)) for c in columns])
+
+
+def append_meta_signal(record: dict, path: str = None):
+    """Añade un BUY juzgado por el meta-etiquetado en sombra (meta_filter.py) a orders/meta_signals.csv."""
+    from meta_filter import META_SIGNALS_COLUMNS
+    append_signal(record, path or META_SIGNALS_FILE, META_SIGNALS_COLUMNS)
 
 
 def _ends_with_newline(path: str) -> bool:

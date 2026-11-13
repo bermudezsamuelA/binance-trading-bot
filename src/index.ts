@@ -2,6 +2,8 @@ import { BinanceRestClient } from './api/rest-client';
 import { BinanceWSClient } from './api/ws-client';
 import { brain } from './api/zmq-client'; 
 import { TelegramClient, escapeHtml } from './api/telegram-client';
+import { BnbFeeMonitor } from './api/bnb-fees';
+import { EarnManager } from './api/earn';
 import { config } from './config/env';
 import { parseBrainHandshake } from './brain-handshake';
 import { installProcessGuards } from './process-guards';
@@ -59,8 +61,12 @@ async function main() {
     // temporalidad de las velas (config.KLINE_INTERVAL).
     let tradeQuoteUsdt: number;
     let klineInterval: string;
+    let payFeesWithBnb: boolean;
+    let feePerSide: number | null;
+    let v3Testnet: boolean;
     try {
-        ({ notionalUsdt: tradeQuoteUsdt, klineInterval } = parseBrainHandshake(await brain.ask('market'), config.MARKET));
+        ({ notionalUsdt: tradeQuoteUsdt, klineInterval, payFeesWithBnb, feePerSide, v3Testnet } =
+            parseBrainHandshake(await brain.ask('market'), config.MARKET));
     } catch (error: any) {
         console.error(`❌ ${error.message}`);
         await telegram.sendMessage(`❌ <b>ERROR CRÍTICO:</b> ${escapeHtml(error.message)}`);
@@ -68,10 +74,33 @@ async function main() {
     }
     console.log(`💰 Tamaño por operación (backtest): ${tradeQuoteUsdt} USDT | Velas: ${klineInterval}`);
 
+    // Comisiones con BNB (PAY_FEES_WITH_BNB en el .env): el backtest las cobra al 0.075 %; se vigila que Binance también
+    const bnb = new BnbFeeMonitor(restClient, message => { telegram.sendMessage(message).catch(() => {}); },
+        { enabled: payFeesWithBnb, market: config.MARKET });
+    const feeText = feePerSide === null ? '?' : `${(100 * feePerSide).toFixed(3)} %`;
+    if (bnb.enabled) {
+        const bnbUsdt = await bnb.checkBalance();
+        await bnb.checkAccountSetting();
+        console.log(`🟡 Comisiones con BNB (backtest ${feeText} por lado) | BNB libre: ` +
+            `${bnbUsdt === null ? '?' : `${bnbUsdt.toFixed(2)} USDT`}`);
+    } else {
+        console.log(`💸 Comisiones sin BNB (backtest ${feeText} por lado). Con PAY_FEES_WITH_BNB=1 en el .env bajan a 0.075 %.`);
+    }
+
     console.log(`\nConnecting to live order book for all rostered coins...`);
     // El cliente WebSocket usa el mismo cliente REST (y el mismo desfase horario); start() recupera las
     // posiciones del ledger antes de conectarse a los precios.
-    const wsClient = new BinanceWSClient(roster, tradeQuoteUsdt, { rest: restClient, telegram, klineInterval });
+    // USDT ocioso en Simple Earn (EARN_IDLE_USDT=1, solo mainnet): interés del producto flexible sin depender de señales
+    const earn = new EarnManager(restClient, message => { telegram.sendMessage(message).catch(() => {}); },
+        { enabled: config.EARN_IDLE_USDT, market: config.MARKET, tradeQuoteUsdt });
+    const earnText = await earn.start();
+    if (earnText) console.log(`🏦 ${earnText}`);
+    earn.schedule();
+
+    const wsClient = new BinanceWSClient(roster, tradeQuoteUsdt,
+        { rest: restClient, telegram, klineInterval, ...(bnb.enabled ? { bnb } : {}), ...(earn.active ? { earn } : {}),
+          ...(v3Testnet ? { v3: { pollMs: 30_000 } } : {}) });
+    if (v3Testnet) console.log('🧪 Modo V3_TESTNET: se operan en la testnet las señales S1H de la v3 (TP/SL en %, barrera de 384 velas).');
     await wsClient.start();
 
     // Notificación de encendido exitoso
@@ -81,6 +110,7 @@ async function main() {
         console.log("\nShutting down bot...");
         await telegram.sendMessage("🔴 <b>BOT APAGADO</b>\nDesconexión manual o caída del servidor.");
         wsClient.close();
+        earn.stop();
         process.exit(0);
     });
 }

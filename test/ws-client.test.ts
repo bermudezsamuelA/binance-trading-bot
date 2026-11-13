@@ -4,6 +4,7 @@ import './setup-env';
 import { afterEach, beforeEach, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { OrderNotFoundError, OrderStatusUnknownError } from '../src/api/rest-client';
+import { feeAssets } from '../src/api/bnb-fees';
 import {
     BinanceWSClient, LATE_BUY_CANCEL_REASON, LATE_ORDER_RECHECKS_MS, STALE_CHECK_MS, STALE_SOCKET_MS, positionFromLedger
 } from '../src/api/ws-client';
@@ -843,6 +844,83 @@ test('comisión de compra en BNB: no reduce la cantidad vendible y suma al PnL',
     assert.equal(h.rest.sells[0]!.qty, '184');
     const quote = 184 * 0.0825;
     close(h.brain.of('ledger_close')[0]!.payload.pnl, quote - quote * 0.001 - p.entryQuote - p.entryFeeQuote);
+});
+
+test('comisiones con BNB: cada compra y venta ejecutada pasa por el monitor de BNB', async () => {
+    const seen: { symbol: string; assets: string[] }[] = [];
+    const bnb = { afterTrade: async (symbol: string, exec: any) => { seen.push({ symbol, assets: feeAssets(exec) }); } };
+    const h = await makeClient(undefined, ({ rest }) => { rest.buyFeeAsset = 'BNB'; }, { bnb });
+    await openDoge(h);
+    assert.deepEqual(seen, [{ symbol: 'DOGEUSDT', assets: ['BNB'] }]);
+    await h.send('DOGEUSDT', T0 + CANDLE, 0.0826, false);
+    assert.equal(seen.length, 2);
+    assert.equal(seen[1]!.symbol, 'DOGEUSDT');
+});
+
+test('Simple Earn: rescata antes de cada compra y vuelve a suscribir tras cada venta', async () => {
+    const calls: string[] = [];
+    const earn = {
+        ensureFunds: async (quote: number) => { calls.push(`ensure ${quote}`); return true; },
+        sweep: async () => { calls.push('sweep'); return 0; }
+    };
+    const h = await makeClient(undefined, undefined, { earn });
+    await openDoge(h);
+    assert.deepEqual(calls, ['ensure 15']);
+    assert.equal(h.rest.buys.length, 1);
+    await h.send('DOGEUSDT', T0 + CANDLE, 0.0826, false);
+    assert.deepEqual(calls, ['ensure 15', 'sweep']);
+});
+
+test('Simple Earn que falla no frena la compra', async () => {
+    const earn = { ensureFunds: async () => { throw new Error('sin red'); }, sweep: async () => { throw new Error('sin red'); } };
+    const h = await makeClient(undefined, undefined, { earn });
+    await openDoge(h);
+    assert.ok(h.client.getPosition('DOGEUSDT'));
+});
+
+test('V3_TESTNET: la señal de Python abre con el precio de la testnet y TP/SL en porcentaje', async () => {
+    const h = await makeClient(undefined, ({ rest }) => { rest.fillPrice['DOGEUSDT'] = 0.1; }, { v3: { pollMs: 1e9 } });
+    h.brain.v3Replies.push({ signals: [{ symbol: 'DOGEUSDT', open_time: T0, tp_pct: 0.03, sl_pct: 0.05, brazo: 'S1H' }], exits: [] });
+    await h.client.v3Poll();
+    const p = h.client.getPosition('DOGEUSDT')!;
+    assert.ok(p, 'posición abierta');
+    close(p.takeProfit, 0.1 * 1.03);
+    close(p.stopLoss, 0.1 * 0.95);
+    assert.equal(h.rest.buys.length, 1);
+    // la misma señal otra vez (o con la posición abierta) no compra de nuevo
+    h.brain.v3Replies.push({ signals: [{ symbol: 'DOGEUSDT', open_time: T0, tp_pct: 0.03, sl_pct: 0.05 }], exits: [] });
+    await h.client.v3Poll();
+    assert.equal(h.rest.buys.length, 1);
+});
+
+test('V3_TESTNET: señales no válidas se ignoran y una moneda sin precio no compra', async () => {
+    const h = await makeClient(undefined, undefined, { v3: { pollMs: 1e9 } });
+    h.brain.v3Replies.push({ signals: [
+        { symbol: 'DOGEUSDT', open_time: T0, tp_pct: -1, sl_pct: 0.05 }, { symbol: 'DOGEUSDT', open_time: T0, tp_pct: 0.03, sl_pct: 1.5 },
+        { symbol: '', open_time: T0, tp_pct: 0.03, sl_pct: 0.05 }, { symbol: 'DOGEUSDT', open_time: NaN, tp_pct: 0.03, sl_pct: 0.05 }], exits: [] });
+    await h.client.v3Poll();
+    assert.equal(h.rest.buys.length, 0);
+    h.rest.getPrice = async () => { throw new Error('sin red'); };
+    h.brain.v3Replies.push({ signals: [{ symbol: 'DOGEUSDT', open_time: T0, tp_pct: 0.03, sl_pct: 0.05 }], exits: [] });
+    await h.client.v3Poll();
+    assert.equal(h.rest.buys.length, 0);
+});
+
+test('V3_TESTNET: la barrera de tiempo vende a mercado con su motivo; sin posición no hace nada', async () => {
+    const h = await makeClient(undefined, undefined, { v3: { pollMs: 1e9 } });
+    await openDoge(h);
+    h.brain.v3Replies.push({ signals: [], exits: ['BTCUSDT', 'DOGEUSDT'] });
+    await h.client.v3Poll();
+    assert.equal(h.client.getPosition('DOGEUSDT'), undefined);
+    assert.equal(h.rest.sells.length, 1);
+    assert.equal(h.brain.of('ledger_close')[0]!.payload.reason, 'BARRERA DE TIEMPO ⏱️');
+});
+
+test('monitor de BNB que falla no frena la operación', async () => {
+    const bnb = { afterTrade: async () => { throw new Error('sin red'); } };
+    const h = await makeClient(undefined, undefined, { bnb });
+    await openDoge(h);
+    assert.ok(h.client.getPosition('DOGEUSDT'));
 });
 
 test('conexión muerta sin close: sin mensajes ni pings durante 2 min se corta y se reconecta', async () => {

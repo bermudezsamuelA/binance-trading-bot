@@ -34,7 +34,9 @@ export const config = {
     REST_URL: market.REST_URL,
     WS_URL: market.WS_URL,
     TELEGRAM_BOT_TOKEN: envValue('TELEGRAM_BOT_TOKEN'),
-    TELEGRAM_CHAT_ID: envValue('TELEGRAM_CHAT_ID')
+    TELEGRAM_CHAT_ID: envValue('TELEGRAM_CHAT_ID'),
+    // USDT ocioso en Simple Earn flexible (src/api/earn.ts): solo mainnet y solo si se pide (mueve saldo de la cuenta)
+    EARN_IDLE_USDT: ['1', 'true', 'yes', 'si'].includes(envValue('EARN_IDLE_USDT').toLowerCase())
 };
 
 // Validación inicial

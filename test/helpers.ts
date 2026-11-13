@@ -1,6 +1,6 @@
 // Dobles de prueba (sin red) para BinanceWSClient: socket, REST, cerebro Python y Telegram.
 import './setup-env';
-import { BinanceWSClient, SocketLike } from '../src/api/ws-client';
+import { BinanceWSClient, SocketLike, WSClientDeps } from '../src/api/ws-client';
 import { Execution, SymbolFilters, floorToStep, parseExecution, tradesToResponse } from '../src/api/execution';
 
 export const DOGE: SymbolFilters = {
@@ -82,6 +82,7 @@ export class FakeBrain {
     ledgerCloseResult: any = { status: 'updated' };
     ledgerPendingResult: any = { status: 'logged' };
     ledgerCancelResult: any = { status: 'updated' };
+    v3Replies: any[] = [];
     async ask(type: string, payload: any = {}): Promise<any> {
         this.asks.push({ type, payload });
         switch (type) {
@@ -95,6 +96,7 @@ export class FakeBrain {
                     this.openTrades = [...this.openTrades, { ...payload, status: 'OPEN', timestamp: Date.now() }];
                 }
                 return this.ledgerOpenResult;
+            case 'v3_poll': return this.v3Replies.shift() ?? { signals: [], exits: [] };
             case 'ledger_close': return this.ledgerCloseResult;
             case 'ledger_pending': return this.ledgerPendingResult;
             case 'ledger_cancel': return this.ledgerCancelResult;
@@ -256,14 +258,15 @@ export function klineMessage(symbol: string, openTime: number, close: number, cl
 }
 
 /** Cliente con dobles; send() emite una vela en el último socket y devuelve la promesa del handler. */
-export async function makeClient(roster = ['DOGEUSDT', 'BTCUSDT'], setup?: (h: { rest: FakeRest; brain: FakeBrain }) => void) {
+export async function makeClient(roster = ['DOGEUSDT', 'BTCUSDT'], setup?: (h: { rest: FakeRest; brain: FakeBrain }) => void,
+                                 extra: Partial<WSClientDeps> = {}) {
     const rest = new FakeRest();
     const brain = new FakeBrain();
     const telegram = new FakeTelegram();
     const sockets: FakeSocket[] = [];
     setup?.({ rest, brain });
     const client = new BinanceWSClient(roster, 15, {
-        rest, brain, telegram,
+        rest, brain, telegram, ...extra,
         sleep: async () => {},
         createSocket: (url: string) => {
             const socket = new FakeSocket(url);

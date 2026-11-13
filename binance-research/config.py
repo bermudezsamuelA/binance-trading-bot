@@ -49,6 +49,12 @@ if BINANCE_MARKET not in _MARKET_REST_URLS:
     raise ValueError(f'BINANCE_MARKET="{BINANCE_MARKET}" no es valido. Usa "testnet" o "mainnet" en el archivo .env')
 MARKET_DATA_REST_URL = _MARKET_REST_URLS[BINANCE_MARKET]
 
+# Comisiones pagadas con BNB (descuento del 25 %: 0.075 % por lado en vez de 0.10 %). Lo decide PAY_FEES_WITH_BNB en el
+# .env (1 por defecto; 0 lo apaga). Es la unica fuente: el backtest y la seleccion (optimize.FEE_PER_SIDE) usan esa
+# comision, y Node la recibe en el handshake 'market' para vigilar el saldo de BNB y avisar si Binance cobra en otra moneda.
+# Hay que tener BNB en la cuenta spot y activar "Usar BNB para pagar comisiones" en Binance; si no, el backtest es optimista.
+PAY_FEES_WITH_BNB = os.environ.get("PAY_FEES_WITH_BNB", "1").strip().lower() in ("1", "true", "yes", "si")
+
 # Precarga: max(ventana de las estrategias cargadas) + margen, con un minimo.
 PRESEED_MARGIN = 20
 PRESEED_MIN = 100
@@ -61,6 +67,14 @@ COSIGNAL_CANDLES = 48        # el BUY necesita que la misma regla haya dado BUY 
                              # anteriores (48 h con velas de 1 h; 12 h con 15 min), sin contar la actual
 MOMENTUM_MONTHS = 12         # una moneda solo opera su estrategia si el PnL en sombra de sus ultimos 12 meses es > 0
 
+# Meta-etiquetado EN SOMBRA (meta_filter.py): un LightGBM juzga cada BUY y anota en orders/meta_signals.csv si lo habria
+# tomado. No bloquea nada; False lo apaga. El modelo se entrena con: python meta_filter.py --train
+META_SHADOW = True
+
+# Modo V3_TESTNET (solo testnet; con mainnet se ignora): el bot opera en la testnet las senales S1H de la v3
+# (v3_research/shadow/v3_trader.py) con TP/SL en porcentaje y la barrera de 384 velas, y deja de usar las estrategias
+# de Bollinger. Sirve para medir ejecucion real (fills, comisiones, deslizamiento), no la calidad de la senal.
+V3_TESTNET = BINANCE_MARKET == "testnet" and os.environ.get("V3_TESTNET", "").strip().lower() in ("1", "true", "yes", "si")
 # Parametros globales por defecto para custom_strategies/ (Modulos 1, 2 y 3)
 CUSTOM_INITIAL_CAPITAL = float(os.environ.get("CUSTOM_INITIAL_CAPITAL", "5000.0"))
 CUSTOM_RISK_PCT = float(os.environ.get("CUSTOM_RISK_PCT", "0.05"))

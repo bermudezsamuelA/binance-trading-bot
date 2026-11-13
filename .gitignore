@@ -6,3 +6,13 @@ binance-research/.venv/
 __pycache__/
 *.pyc
 orders/
+binance-research/v3_research/klines/
+binance-research/v3_research/futures/
+binance-research/v3_research/tmp/
+binance-research/v3_research/cache/coinalyze/
+
+# Analogos: logs de corridas locales
+binance-research/analogos/output_*.log
+binance-research/analogos/__pycache__/
+binance-research/extremos/output_*.log
+binance-research/extremos/__pycache__/
