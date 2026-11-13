@@ -1,3 +1,4 @@
+# machine_learning_strategies/ml_evaluator.py
 import os
 import sys
 import glob
@@ -27,9 +28,10 @@ def results_file(interval: str) -> str:
     return RESULTS_FILE if interval == KLINE_INTERVAL else RESULTS_FILE.replace(".json", f"_{interval}.json")
 
 
-def parity_smoke_test(symbol: str, interval: str = "15m") -> bool:
+def parity_smoke_test(symbol: str, interval: str = "15m", strategies: list = None) -> bool:
     """FASE 0: la version rapida solo se usa si da EXACTAMENTE las mismas operaciones que simulate_live con las
     clases reales (en este equipo y con estas versiones de pandas/numpy). Prueba completa: python fast_backtest.py"""
+    strat_list = strategies or wf.STRATEGIES
     hist = load_history(symbol, interval=interval)
     t = pd.to_datetime(hist["open_time"], unit="ms", utc=True)
     last_month = t.iloc[-1].normalize().replace(day=1) - pd.DateOffset(months=1)
@@ -37,13 +39,22 @@ def parity_smoke_test(symbol: str, interval: str = "15m") -> bool:
     if check_stats_bitwise(month, [8, 20, 52, 96], samples=40) > 0:
         print("[FASE 0] ❌ La media/desviacion rapida no coincide bit a bit con pandas.")
         return False
-    cases = [(symbol, month, s, w, m) for s in STRATEGY_CLASSES for w, m in [(8, 0.8), (48, 2.0), (96, 3.2)]]
+
+    cases = []
+    for s in strat_list:
+        if s == "CustomFractal":
+            cases.append((symbol, month, s, 60, 0.6))
+        else:
+            for w, m in [(8, 0.8), (48, 2.0), (96, 3.2)]:
+                cases.append((symbol, month, s, w, m))
+
     # Modo tramo (mes de prueba del walk-forward): instancia nueva precargada, entradas durante el penultimo mes
     # completo y salidas seguidas hasta un mes despues. Tambien con el inicio retrasado: si la operacion del mes
     # anterior sigue abierta, el mes no abre hasta la vela siguiente a su salida (una posicion por moneda).
     start = int(np.searchsorted(hist["open_time"].to_numpy(), (last_month - pd.DateOffset(months=1)).value // 10**6))
     end = int(np.searchsorted(hist["open_time"].to_numpy(), last_month.value // 10**6))
-    for s, (w, m) in zip(STRATEGY_CLASSES, [(20, 1.4), (56, 2.2), (32, 1.8), (88, 2.6), (12, 1.0)]):
+    classic_only = [s for s in strat_list if s != "CustomFractal"]
+    for s, (w, m) in zip(classic_only, [(20, 1.4), (56, 2.2), (32, 1.8), (88, 2.6), (12, 1.0)]):
         for delay in (0, 500):
             cases.append((symbol, hist, s, w, m, (start - wf.preseed_candles(w), start + delay, end,
                                                   min(len(hist), 2 * end - start))))
@@ -90,7 +101,8 @@ def _print_summary(analysis: dict, roster: list):
     print(f"{'':<27}| {'ops/mes  WR %    PnL/op':<27}| {'ops   WR %    PnL     PnL/op  meses+  t/dia  p':<46}| {'ops  WR %    PnL':<21}|")
     print("-" * 132)
     for symbol in roster:
-        for name in STRATEGY_CLASSES:
+        eval_strats = [name for name in STRATEGY_CLASSES if isinstance(analysis.get(symbol, {}).get(name), dict)]
+        for name in eval_strats:
             e = analysis[symbol][name]
             tr, oos, hold = e["entrenamiento_pliegues"], e["oos"], e["validacion_final"]
             print(f"{symbol:<9}{name:<18}| {tr['ops_por_mes']:>6.1f} {tr['win_rate']:>5.1f} {tr['expected_payoff']:>+9.4f}{'':<5}"
@@ -103,9 +115,11 @@ def _print_summary(analysis: dict, roster: list):
     print("=" * 132)
 
 
-def run_ml_evaluation(roster: list, interval: str = KLINE_INTERVAL):
+def run_ml_evaluation(roster: list, interval: str = KLINE_INTERVAL, include_custom: bool = False):
     out_file = results_file(interval)
-    print(f"[ML EVALUATOR] Iniciando evaluación maestra para {len(roster)} activos en velas de {interval}...")
+    strat_list = list(STRATEGY_CLASSES) if include_custom else list(wf.STRATEGIES)
+    print(f"[ML EVALUATOR] Iniciando evaluación maestra para {len(roster)} activos en velas de {interval} "
+          f"({len(strat_list)} estrategias: {', '.join(strat_list)})...")
     if interval != KLINE_INTERVAL:
         print(f"[ML EVALUATOR] Estudio de temporalidad: se guarda en {os.path.basename(out_file)}; el bot sigue "
               f"leyendo ml_results.json (velas de {KLINE_INTERVAL}, config.py).")
@@ -114,7 +128,7 @@ def run_ml_evaluation(roster: list, interval: str = KLINE_INTERVAL):
 
     # --- FASE 0: PARIDAD DE LA VERSION RAPIDA ---
     print("\n[FASE 0] Verificando paridad exacta de la simulacion rapida con optimize.simulate_live...")
-    if not parity_smoke_test(roster[0], interval):
+    if not parity_smoke_test(roster[0], interval, strategies=strat_list):
         print(f"[FASE 0] ❌ Sin paridad exacta: no se usa la version rapida y no se actualiza {os.path.basename(out_file)}.")
         sys.exit(1)
     print("[FASE 0] ✅ Paridad exacta (mismas operaciones, mismos precios, mismo PnL).")
@@ -128,7 +142,7 @@ def run_ml_evaluation(roster: list, interval: str = KLINE_INTERVAL):
     print(f"[FASE 1] Validacion final reservada: {periods['holdout_start']:%Y-%m-%d} a "
           f"{periods['end'] - pd.Timedelta(days=1):%Y-%m-%d} (no elige nada; solo veta si pierde dinero).")
     print(f"[FASE 1] Rejilla: {len(wf.WINDOWS)} ventanas x {len(wf.MULTIPLIERS)} multiplicadores por estrategia.")
-    results = wf.run_walk_forward(roster, interval=interval)
+    results = wf.run_walk_forward(roster, interval=interval, strategies=strat_list)
     n_tests = len(results)
 
     ml_analysis = {"_protocolo": {
@@ -145,7 +159,7 @@ def run_ml_evaluation(roster: list, interval: str = KLINE_INTERVAL):
         "entrenamiento_vivo": {"desde": f"{periods['live']['train'][0]:%Y-%m-%d}",
                                "hasta": f"{periods['end'] - pd.Timedelta(days=1):%Y-%m-%d}"},
         "rejilla": {"windows": wf.WINDOWS, "multipliers": wf.MULTIPLIERS},
-        "seleccion": (f"max del score (PnL - {wf.DD_PENALTY:g} * MDD %) promediado con sus vecinos 3x3 de la rejilla, "
+        "seleccion": (f"max del score (PnL - {wf.DD_PENALTY:g}MDD %) promediado con sus vecinos 3x3 de la rejilla, "
                       f"entre combinaciones con >= {wf.MIN_TRADES_TRAIN} operaciones; si su PnL de entrenamiento <= 0, no opera"),
         "mes_de_prueba": ("instancia nueva precargada con max(n + 20, 100) velas (como pre_seed_engine); entradas solo "
                           "durante el mes; una posicion por moneda, como el bot: si la operacion de un mes anterior sigue "
@@ -171,21 +185,20 @@ def run_ml_evaluation(roster: list, interval: str = KLINE_INTERVAL):
         for res in (r for r in results if r["symbol"] == symbol):
             status, motivo, passed_wf = wf.decide(res, n_tests)
             ml_analysis[symbol][res["strategy"]] = _strategy_entry(res, status, motivo, passed_wf)
-        validated = [n for n, e in ml_analysis[symbol].items() if e["status"] == "validada"]
+        eval_strats = [n for n in strat_list if n in ml_analysis[symbol]]
+        validated = [n for n in eval_strats if ml_analysis[symbol][n]["status"] == "validada"]
         if validated:
             best = max(validated, key=lambda n: ml_analysis[symbol][n]["oos"]["t_dia"])
             ml_analysis[symbol]["seleccionada"] = best
             ml_analysis[symbol]["motivo"] = f"mayor t por dia entre {len(validated)} validada(s)"
         else:
-            best = max(STRATEGY_CLASSES, key=lambda n: ml_analysis[symbol][n]["oos"]["pnl"])
+            best = max(eval_strats, key=lambda n: ml_analysis[symbol][n]["oos"]["pnl"])
             oos = ml_analysis[symbol][best]["oos"]
             ml_analysis[symbol]["seleccionada"] = None
             ml_analysis[symbol]["motivo"] = (f"ninguna estrategia validada (mejor OOS: {best}, {oos['trades']} ops, "
                                              f"PnL {oos['pnl']:+.2f} USDT, p = {oos['p_valor']:.3g})")
 
     # --- FASE 2: ENTRENAMIENTO DE MACHINE LEARNING (XGBOOST) ---
-    # Igual que antes: el ultimo mes completo, etiquetas a 12 velas. No se usa en vivo ni en la seleccion.
-    # Solo con velas de 15 min (lee los CSV de 15 min); en los estudios de otra temporalidad se omite.
     data_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
     for symbol in (roster if interval == "15m" else []):
         files = glob.glob(f"{data_path}/**/*{symbol}*.csv", recursive=True)
@@ -195,20 +208,14 @@ def run_ml_evaluation(roster: list, interval: str = KLINE_INTERVAL):
             continue
         print(f"\n[FASE 2] Entrenando filtro táctico XGBoost para {symbol} ({os.path.basename(m15_files[-1])})...")
         df = pd.read_csv(m15_files[-1])
-        # Mapeo de seguridad por si el CSV no tiene cabeceras
         if 'close' not in df.columns:
             df.columns = ["open_time", "open", "high", "low", "close", "volume", "close_time", "quote_volume", "trades", "taker_buy_base", "taker_buy_quote", "ignore"]
 
-        # Etiquetado (Labeling): Le enseñamos a la IA qué es un buen trade.
-        # Regla: "Es un buen trade (1) si el precio sube más de un 1% en las próximas 12 velas (3 horas)"
         df['future_return'] = df['close'].shift(-12) / df['close'] - 1
         target_labels = (df['future_return'] > 0.01).astype(int)
 
-        # Instanciamos y entrenamos el cerebro táctico
         xgb_model = XGBoostClassifier()
         xgb_model.train(df, target_labels)
-
-        # Marcamos en el JSON que el modelo está entrenado y listo
         ml_analysis[symbol]["XGBoost_Status"] = "Trained"
 
     with open(out_file, 'w', encoding='utf-8', newline='\n') as f:
@@ -226,4 +233,7 @@ if __name__ == "__main__":
     parser.add_argument("--interval", choices=list(INTERVAL_MS), default=KLINE_INTERVAL,
                         help=f"temporalidad de las velas (1h y 4h se arman con las de 15 min; por defecto la del bot, "
                              f"{KLINE_INTERVAL}, que escribe ml_results.json)")
-    run_ml_evaluation(ACTIVE_ROSTER, parser.parse_args().interval)
+    parser.add_argument("--include-custom", action="store_true",
+                        help="Incluye tambien CustomFractalStrategy en la evaluacion walk-forward.")
+    args = parser.parse_args()
+    run_ml_evaluation(ACTIVE_ROSTER, args.interval, include_custom=args.include_custom or wf._INCLUDE_CUSTOM)

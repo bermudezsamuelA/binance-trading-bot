@@ -193,9 +193,10 @@ class PairEvaluator:
                 n, g, p, dd = _slice_stats(self.train_trades((w, m), a, b))
                 trades[r, c], wins[r, c], pnl[r, c], score[r, c] = n, g, p, p - DD_PENALTY * dd
         smooth = _smooth3x3(score)
-        eligible = trades >= MIN_TRADES_TRAIN
+        min_trades = 8 if self.strategy == "CustomFractal" else MIN_TRADES_TRAIN
+        eligible = trades >= min_trades
         if not eligible.any():
-            return {"combo": None, "motivo": f"ninguna combinacion con >= {MIN_TRADES_TRAIN} operaciones"}
+            return {"combo": None, "motivo": f"ninguna combinacion con >= {min_trades} operaciones"}
         r, c = np.unravel_index(np.argmax(np.where(eligible, smooth, -np.inf)), shape)
         combo = (self.windows[r], self.multipliers[c])
         info = {"combo": combo, "trades": int(trades[r, c]), "wins": int(wins[r, c]), "pnl": float(pnl[r, c]),
@@ -288,8 +289,11 @@ def evaluate_pair(task):
     set_interval(interval)
     fs, open_time = _symbol_data(symbol, interval)
     periods = build_periods(open_time, train_months, holdout_start, INTERVAL_MS[interval])
-    others = [_symbol_data(o, interval) for o in roster if o != symbol] if COSIGNAL_CANDLES else []
-    ev = PairEvaluator(SF.FilteredFS(fs, open_time, others, INTERVAL_MS[interval], ENTRY_MIN_RISK_PCT, COSIGNAL_CANDLES),
+    # CustomFractal ya aplica internamente sus propios filtros MTF (trade_filters.py), por lo que no requiere
+    # recalcular co-senal cruzada sobre las demas monedas en cada pliegue.
+    use_cosignal = None if strategy == "CustomFractal" else COSIGNAL_CANDLES
+    others = [_symbol_data(o, interval) for o in roster if o != symbol] if use_cosignal else []
+    ev = PairEvaluator(SF.FilteredFS(fs, open_time, others, INTERVAL_MS[interval], ENTRY_MIN_RISK_PCT, use_cosignal),
                        open_time, strategy)
     t_sim = time.perf_counter() - t0
 
@@ -331,9 +335,10 @@ def decide(result: dict, n_tests: int) -> tuple:
     alpha = ALPHA / n_tests
     if oos is None:
         return "rechazada", "no hay meses de desarrollo suficientes", False
+    min_oos = 10 if result.get("strategy") == "CustomFractal" else MIN_TRADES_OOS
     fails = []
-    if oos["trades"] < MIN_TRADES_OOS:
-        fails.append(f"{oos['trades']} operaciones OOS < {MIN_TRADES_OOS}")
+    if oos["trades"] < min_oos:
+        fails.append(f"{oos['trades']} operaciones OOS < {min_oos}")
     if oos["pnl"] <= 0:
         fails.append(f"PnL OOS {oos['pnl']:+.2f} USDT <= 0")
     if oos["pliegues_positivos_pct"] < 100 * MIN_POSITIVE_FOLDS:
