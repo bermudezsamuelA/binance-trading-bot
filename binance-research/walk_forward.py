@@ -48,16 +48,32 @@ from config import COSIGNAL_CANDLES, ENTRY_MIN_RISK_PCT, MOMENTUM_MONTHS, PRESEE
 from fast_backtest import CANDLE_MS, INTERVAL_MS, STRATEGY_CLASSES, FastSymbol, load_history, set_interval
 from optimize import INITIAL_CAPITAL, trades_to_metrics
 
-WINDOWS = list(range(8, 100, 4))                          # 23 ventanas
+WINDOWS = list(range(8, 100, 4))                          # 23 ventanas para estrategias clasicas
 MULTIPLIERS = [round(0.8 + 0.2 * i, 2) for i in range(13)]  # 0.8 ... 3.2 (los mismos valores que se cargan en vivo)
+
+# Rejilla compacta para estrategias estructurales multitemporales (CustomFractal)
+CUSTOM_WINDOWS = [60, 120, 200]
+CUSTOM_MULTIPLIERS = [0.3, 0.6]
+
 TRAIN_MONTHS = 6
 MIN_TRADES_TRAIN = 30        # ~5 operaciones por mes de entrenamiento
 MIN_TRADES_OOS = 30
 MIN_POSITIVE_FOLDS = 0.5     # al menos la mitad de los meses con operaciones en positivo
 ALPHA = 0.05
 DD_PENALTY = 10.0            # score = PnL - 10 * MDD %, como QuantCalculator
-STRATEGIES = list(STRATEGY_CLASSES)
+
+# Por defecto evalua las 5 estrategias cuantitativas clasicas (mantiene intacto el alfa de Bonferroni en tests);
+# si INCLUDE_CUSTOM_FRACTAL=1 en el entorno, incluye tambien CustomFractal en el walk-forward.
+_INCLUDE_CUSTOM = os.environ.get("INCLUDE_CUSTOM_FRACTAL", "").strip().lower() in ("1", "true", "yes", "si")
+STRATEGIES = list(STRATEGY_CLASSES) if _INCLUDE_CUSTOM else [k for k in STRATEGY_CLASSES if k != "CustomFractal"]
 DAY_MS = 86_400_000
+
+
+def _grid_for_strategy(strategy: str) -> tuple:
+    """Devuelve (windows, multipliers) segun el tipo de estrategia."""
+    if strategy == "CustomFractal":
+        return CUSTOM_WINDOWS, CUSTOM_MULTIPLIERS
+    return WINDOWS, MULTIPLIERS
 
 
 def preseed_candles(window: int) -> int:
@@ -133,9 +149,10 @@ class PairEvaluator:
         self.fs = fs
         self.open_time = open_time
         self.strategy = strategy
+        self.windows, self.multipliers = _grid_for_strategy(strategy)
         self.sims = {}
-        for w in WINDOWS:
-            for m in MULTIPLIERS:
+        for w in self.windows:
+            for m in self.multipliers:
                 self.sims[(w, m)] = fs.simulate(strategy, w, m)
 
     def idx(self, ts: pd.Timestamp) -> int:
@@ -166,21 +183,22 @@ class PairEvaluator:
     def select(self, train: tuple) -> dict:
         """Eleccion de (n, k) con SOLO el periodo de entrenamiento (zona estable de la rejilla)."""
         a, b = self.idx(train[0]), self.idx(train[1])
-        shape = (len(WINDOWS), len(MULTIPLIERS))
+        shape = (len(self.windows), len(self.multipliers))
         trades = np.zeros(shape, dtype=np.int64)
         wins = np.zeros(shape, dtype=np.int64)
         pnl = np.zeros(shape)
         score = np.zeros(shape)
-        for r, w in enumerate(WINDOWS):
-            for c, m in enumerate(MULTIPLIERS):
+        for r, w in enumerate(self.windows):
+            for c, m in enumerate(self.multipliers):
                 n, g, p, dd = _slice_stats(self.train_trades((w, m), a, b))
                 trades[r, c], wins[r, c], pnl[r, c], score[r, c] = n, g, p, p - DD_PENALTY * dd
         smooth = _smooth3x3(score)
-        eligible = trades >= MIN_TRADES_TRAIN
+        min_trades = 8 if self.strategy == "CustomFractal" else MIN_TRADES_TRAIN
+        eligible = trades >= min_trades
         if not eligible.any():
-            return {"combo": None, "motivo": f"ninguna combinacion con >= {MIN_TRADES_TRAIN} operaciones"}
+            return {"combo": None, "motivo": f"ninguna combinacion con >= {min_trades} operaciones"}
         r, c = np.unravel_index(np.argmax(np.where(eligible, smooth, -np.inf)), shape)
-        combo = (WINDOWS[r], MULTIPLIERS[c])
+        combo = (self.windows[r], self.multipliers[c])
         info = {"combo": combo, "trades": int(trades[r, c]), "wins": int(wins[r, c]), "pnl": float(pnl[r, c]),
                 "score": float(score[r, c]), "score_suavizado": float(smooth[r, c])}
         if pnl[r, c] <= 0:
@@ -271,8 +289,11 @@ def evaluate_pair(task):
     set_interval(interval)
     fs, open_time = _symbol_data(symbol, interval)
     periods = build_periods(open_time, train_months, holdout_start, INTERVAL_MS[interval])
-    others = [_symbol_data(o, interval) for o in roster if o != symbol] if COSIGNAL_CANDLES else []
-    ev = PairEvaluator(SF.FilteredFS(fs, open_time, others, INTERVAL_MS[interval], ENTRY_MIN_RISK_PCT, COSIGNAL_CANDLES),
+    # CustomFractal ya aplica internamente sus propios filtros MTF (trade_filters.py), por lo que no requiere
+    # recalcular co-senal cruzada sobre las demas monedas en cada pliegue.
+    use_cosignal = None if strategy == "CustomFractal" else COSIGNAL_CANDLES
+    others = [_symbol_data(o, interval) for o in roster if o != symbol] if use_cosignal else []
+    ev = PairEvaluator(SF.FilteredFS(fs, open_time, others, INTERVAL_MS[interval], ENTRY_MIN_RISK_PCT, use_cosignal),
                        open_time, strategy)
     t_sim = time.perf_counter() - t0
 
@@ -285,7 +306,7 @@ def evaluate_pair(task):
         on_hold = SF.momentum_gate(hold_rows, [r["pnl"] for r in dev_rows], MOMENTUM_MONTHS)
         dev_rows, dev_entry, dev_exit, dev_pnl = SF.gate_trades(dev_rows, dev_entry, dev_exit, dev_pnl, open_time, on_dev)
         hold_rows, hold_entry, hold_exit, hold_pnl = SF.gate_trades(hold_rows, hold_entry, hold_exit, hold_pnl,
-                                                                     open_time, on_hold)
+                                                                    open_time, on_hold)
         shadow = sum(r["pnl_sombra"] for r in (dev_rows + hold_rows)[-MOMENTUM_MONTHS:])
         momentum = {"meses": MOMENTUM_MONTHS, "pnl_sombra": round(float(shadow), 4), "encendido": bool(shadow > 0)}
 
@@ -317,9 +338,10 @@ def decide(result: dict, n_tests: int) -> tuple:
     alpha = ALPHA / n_tests
     if oos is None:
         return "rechazada", "no hay meses de desarrollo suficientes", False
+    min_oos = 10 if result.get("strategy") == "CustomFractal" else MIN_TRADES_OOS
     fails = []
-    if oos["trades"] < MIN_TRADES_OOS:
-        fails.append(f"{oos['trades']} operaciones OOS < {MIN_TRADES_OOS}")
+    if oos["trades"] < min_oos:
+        fails.append(f"{oos['trades']} operaciones OOS < {min_oos}")
     if oos["pnl"] <= 0:
         fails.append(f"PnL OOS {oos['pnl']:+.2f} USDT <= 0")
     if oos["pliegues_positivos_pct"] < 100 * MIN_POSITIVE_FOLDS:
@@ -342,10 +364,11 @@ def decide(result: dict, n_tests: int) -> tuple:
 
 
 def run_walk_forward(roster: list, workers: int = None, train_months: int = TRAIN_MONTHS,
-                     holdout_start: str = None, interval: str = "15m") -> list:
+                     holdout_start: str = None, interval: str = "15m", strategies: list = None) -> list:
     """Evalua todos los pares (moneda, estrategia) en paralelo (deja 2 nucleos libres)."""
     from multiprocessing import Pool
-    tasks = [(s, st, train_months, holdout_start, interval, tuple(roster)) for s in roster for st in STRATEGIES]
+    strat_list = strategies or STRATEGIES
+    tasks = [(s, st, train_months, holdout_start, interval, tuple(roster)) for s in roster for st in strat_list]
     workers = workers or max(1, (os.cpu_count() or 3) - 2)
     results = []
     with Pool(processes=min(workers, len(tasks))) as pool:

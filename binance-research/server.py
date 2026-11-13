@@ -1,3 +1,4 @@
+# server.py
 import inspect
 import sys
 import zmq
@@ -6,6 +7,8 @@ import pandas as pd
 import os
 import time
 import requests
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import ledger
 # Tamano por operacion del backtest: unica fuente. Node lo recibe en el handshake 'market' y lo usa.
@@ -28,20 +31,49 @@ def init_ledger():
     # (con copia de seguridad previa y sin tocar las filas existentes). Ver ledger.py.
     ledger.ensure_ledger()
 
+
 def fetch_closed_klines(symbol: str, limit: int = None, start_time: int = None, end_time: int = None) -> list:
     """Velas CERRADAS de KLINE_INTERVAL del mismo mercado que el WebSocket (MARKET_DATA_REST_URL).
-    Binance devuelve tambien la vela en formacion: se descarta toda vela cuyo close_time no haya pasado."""
-    params = {"symbol": symbol, "interval": KLINE_INTERVAL}
-    if limit is not None:
-        params["limit"] = min(int(limit), 1000)
-    if start_time is not None:
-        params["startTime"] = int(start_time)
-    if end_time is not None:
-        params["endTime"] = int(end_time)
-    response = requests.get(f"{MARKET_DATA_REST_URL}/api/v3/klines", params=params, timeout=10)
-    response.raise_for_status()
+    Binance devuelve tambien la vela en formacion: se descarta toda vela cuyo close_time no haya pasado.
+    Si limit > 1000 (ej. precarga multitemporal en 5m/15m), pagina hacia atras en bloques de 1000."""
     now_ms = server_time_ms()
-    return [k for k in response.json() if int(k[6]) < now_ms]
+
+    if limit is None or int(limit) <= 1000:
+        params = {"symbol": symbol, "interval": KLINE_INTERVAL}
+        if limit is not None:
+            params["limit"] = min(int(limit), 1000)
+        if start_time is not None:
+            params["startTime"] = int(start_time)
+        if end_time is not None:
+            params["endTime"] = int(end_time)
+        response = requests.get(f"{MARKET_DATA_REST_URL}/api/v3/klines", params=params, timeout=10)
+        response.raise_for_status()
+        return [k for k in response.json() if int(k[6]) < now_ms]
+
+    # Paginacion hacia atras cuando se requieren mas de 1000 velas cerradas
+    remaining = int(limit)
+    current_end = int(end_time) if end_time is not None else now_ms
+    collected = []
+
+    while remaining > 0:
+        batch_size = min(remaining + 1, 1000)
+        params = {"symbol": symbol, "interval": KLINE_INTERVAL, "limit": batch_size, "endTime": current_end}
+        if start_time is not None:
+            params["startTime"] = int(start_time)
+        response = requests.get(f"{MARKET_DATA_REST_URL}/api/v3/klines", params=params, timeout=10)
+        response.raise_for_status()
+        batch = [k for k in response.json() if int(k[6]) < now_ms]
+        if not batch:
+            break
+        collected = batch + collected
+        if len(batch) < batch_size - 1:
+            break
+        oldest_open_time = int(batch[0][0])
+        current_end = oldest_open_time - 1
+        remaining = int(limit) - len(collected)
+
+    return collected[-int(limit):]
+
 
 def server_time_ms() -> int:
     """Hora del servidor de Binance: con el reloj local adelantado, la vela en formacion pasaria por cerrada."""
@@ -51,6 +83,7 @@ def server_time_ms() -> int:
         return int(response.json()["serverTime"])
     except Exception:
         return int(time.time() * 1000)
+
 
 def kline_to_market_data(kline: list) -> dict:
     return {
@@ -64,6 +97,7 @@ def kline_to_market_data(kline: list) -> dict:
         "taker_buy": float(kline[9]) if len(kline) > 9 else None
     }
 
+
 def preseed_count(symbol: str) -> int:
     """Velas de precarga de una moneda: max(SU ventana + PRESEED_MARGIN, PRESEED_MIN). Es lo que simula el
     backtest (walk_forward.preseed_candles(n) y fast_backtest con first = inicio - precarga): con la ventana
@@ -73,6 +107,7 @@ def preseed_count(symbol: str) -> int:
     window = int(getattr(strategy, "window", 0) or 0)
     return max(window + PRESEED_MARGIN, PRESEED_MIN)
 
+
 def reset_strategy(symbol: str):
     """Instancia NUEVA de la estrategia de la moneda, con los mismos parametros, y sin historial de velas. Igual
     que al arrancar: ventana vacia y la trampa de VolatilitySqueeze desarmada (fast_backtest con `first`)."""
@@ -81,6 +116,47 @@ def reset_strategy(symbol: str):
               if name != "self" and hasattr(old, name)}
     engine.strategies[symbol] = type(old)(**params)
     engine.last_open_time.pop(symbol, None)
+
+
+def _sync_custom_position_manager_on_open(symbol: str, trade: dict):
+    """Si la moneda usa una estrategia con PositionManager interno (ej. CustomFractalStrategy), sincroniza
+    el precio real de entrada ejecutado en Binance y la cantidad neta."""
+    if not engine or symbol not in engine.strategies:
+        return
+    strat = engine.strategies[symbol]
+    pm = getattr(strat, "position_manager", None)
+    if pm is None:
+        return
+    try:
+        entry_px = float(trade.get("entry_price") or 0.0)
+        sl_px = float(trade.get("stop_loss") or 0.0)
+        tp_px = float(trade.get("take_profit") or 0.0)
+        qty = float(trade.get("net_quantity") or trade.get("quantity") or 1.0)
+        ts = int(trade.get("timestamp") or int(time.time() * 1000))
+        if entry_px > 0 and sl_px > 0:
+            pm.register_position(
+                symbol=symbol,
+                is_long=(trade.get("action", "BUY").upper() == "BUY"),
+                entry_price=entry_px,
+                stop_loss=sl_px,
+                tp1_price=tp_px if tp_px > 0 else None,
+                opened_at_ms=ts,
+                quantity=qty,
+                mode=getattr(strat, "exit_mode", "SWING_PARCIALES")
+            )
+    except Exception as e:
+        print(f"[ENGINE] No se pudo sincronizar PositionManager al abrir {symbol}: {e}")
+
+
+def _sync_custom_position_manager_on_close(symbol: str):
+    """Limpia la posicion del PositionManager interno cuando Node.js confirma el cierre total."""
+    if not engine or not symbol or symbol.upper() not in engine.strategies:
+        return
+    strat = engine.strategies[symbol.upper()]
+    pm = getattr(strat, "position_manager", None)
+    if pm is not None:
+        pm.remove_position(symbol.upper())
+
 
 def pre_seed_engine(roster: list, required_candles: int = None):
     """Calienta cada estrategia con sus velas cerradas mas recientes (sus senales se ignoran), como el backtest
@@ -113,10 +189,15 @@ def pre_seed_engine(roster: list, required_candles: int = None):
                 engine.get_signal(symbol, kline_to_market_data(kline), own=left <= own_count,
                                   shadow_for={x for x, c in shadow_counts.items() if left <= c})
 
+            # Si durante la precarga una CustomFractalStrategy abrio una posicion simulada interna, la limpiamos
+            # y cargamos solo si realmente está OPEN en el ledger.
+            _sync_custom_position_manager_on_close(symbol)
+
             print(f"[PRE-SEED] Buffer de memoria lleno para {symbol} ({len(klines)} velas"
                   + (f"; co-senal de {', '.join(shadow_counts)}" if shadow_counts else "") + ").")
         except Exception as e:
             print(f"[PRE-SEED] Error cargando contexto para {symbol}: {e}")
+
 
 def fill_gap(symbol: str, open_time: int):
     """Si entre la ultima vela procesada y la que llega faltan velas (reconexion, arranque entre la
@@ -142,10 +223,11 @@ def fill_gap(symbol: str, open_time: int):
     except Exception as e:
         print(f"[DATA] No se pudieron recuperar velas faltantes de {symbol}: {e}")
 
+
 def handle_request(message: dict):
     global engine
     req_type = message.get("type")
-    
+
     if req_type == "roster":
         try:
             return list(set((v3.symbols if v3 is not None else ACTIVE_ROSTER) + ledger.open_symbols()))
@@ -171,14 +253,32 @@ def handle_request(message: dict):
             print(f"[V3] Error en v3_poll: {e}")
             return {"signals": [], "exits": []}
 
+    elif req_type == "scan_market":
+        # Escaneo bajo demanda del Top 50 (Modulos 3: CRYPTO_L y CRYPTO_S con semaforo de prioridad)
+        try:
+            from custom_strategies.market_scanner import MarketScanner
+            payload = message.get("payload") or {}
+            top_n = int(payload.get("top_n", 50))
+            market_type = str(payload.get("market_type", "spot"))
+            scanner = MarketScanner(top_n=top_n, market_type=market_type)
+            return scanner.scan_market()
+        except Exception as e:
+            print(f"[SCANNER] Error ejecutando scan_market: {e}")
+            return {"status": "error", "message": str(e)}
+
     elif req_type == "sync_positions":
         # Vacios como null (pandas devolvia NaN, que no es JSON valido para Node)
         try:
-            return ledger.open_trades()
+            open_rows = ledger.open_trades()
+            for row in open_rows:
+                sym = str(row.get("symbol", "")).upper()
+                if sym:
+                    _sync_custom_position_manager_on_open(sym, row)
+            return open_rows
         except Exception as e:
             print(f"[LEDGER] No se pudo leer el ledger: {e}")
         return []
-        
+
     elif req_type == "evaluate":
         payload = message.get("payload", {})
         symbol = payload.get("symbol")
@@ -187,7 +287,7 @@ def handle_request(message: dict):
             return {"symbol": str(symbol).upper(), "action": "HOLD"}      # en modo V3_TESTNET deciden las senales de la v3
         if market_data.get("open_time") is not None:
             fill_gap(symbol, int(market_data["open_time"]))
-        
+
         signal = engine.get_signal(symbol, market_data)
         # Diario de senales: cada BUY de la estrategia en una vela del WebSocket, abierto o bloqueado por un filtro
         # (las de la precarga y del relleno de huecos no pasan por aqui)
@@ -207,7 +307,7 @@ def handle_request(message: dict):
         except Exception as e:
             print(f"[META] No se pudo juzgar o anotar el BUY en sombra: {e}")
         return signal
-        
+
     elif req_type == "sync_pending":
         # Compras PENDING (registradas antes de enviarlas y sin confirmar): Node las consulta por client_order_id
         try:
@@ -266,8 +366,49 @@ def handle_request(message: dict):
         except Exception as e:
             print(f"[LEDGER] Error registrando la compra {trade.get('order_id')}: {e}")
             return {"status": "error", "message": str(e)}
+        _sync_custom_position_manager_on_open(values["symbol"], values)
         print(f"[LEDGER] Trade ABIERTO para {trade['symbol']} (ID: {trade['order_id']})")
         return {"status": "logged"}
+
+    elif req_type == "ledger_update_sl":
+        # Actualizacion dinamica de Stop Loss (Break Even, Trailing EMA 50 o Fibonacci progresivo)
+        trade = message.get("payload", {})
+        order_id = trade.get("order_id")
+        symbol = trade.get("symbol")
+        new_sl = trade.get("stop_loss")
+        try:
+            updated = ledger.update_stop_loss(order_id, new_sl, symbol=symbol)
+        except Exception as e:
+            print(f"[LEDGER] Error actualizando SL de la orden {order_id}: {e}")
+            return {"status": "error", "message": str(e)}
+        if not updated:
+            return {"status": "error", "message": f"order_id {order_id} ({symbol}) no encontrado entre las OPEN"}
+        print(f"[LEDGER] Stop Loss actualizado para {symbol} (ID: {order_id}) -> {new_sl}")
+        return {"status": "updated"}
+
+    elif req_type == "ledger_partial":
+        # Cierre parcial (TP1 50% o TP2 25%): actualiza stop_loss (Break Even), limpia take_profit (Infinity al recargar)
+        # y anota lo vendido hasta ahora sin pisar net_quantity (para mantener paridad con /myTrades en reinicios).
+        trade = message.get("payload", {})
+        order_id = trade.get("order_id")
+        symbol = trade.get("symbol")
+        try:
+            updated = ledger.record_partial_exit(
+                order_id,
+                stop_loss=trade.get("stop_loss"),
+                take_profit=trade.get("take_profit"),
+                sold_qty=trade.get("sold_quantity"),
+                sold_quote=trade.get("sold_quote"),
+                sold_fee_usdt=trade.get("sold_fee_usdt"),
+                symbol=symbol,
+            )
+        except Exception as e:
+            print(f"[LEDGER] Error registrando cierre parcial de la orden {order_id}: {e}")
+            return {"status": "error", "message": str(e)}
+        if not updated:
+            return {"status": "error", "message": f"order_id {order_id} ({symbol}) no encontrado entre las OPEN"}
+        print(f"[LEDGER] Cierre PARCIAL registrado para {symbol} (ID: {order_id})")
+        return {"status": "updated"}
 
     elif req_type == "ledger_cancel":
         # La compra PENDING no existe en Binance (o fue rechazada): CANCELLED, fuera de las metricas
@@ -283,9 +424,10 @@ def handle_request(message: dict):
             return {"status": "error", "message": str(e)}
         if not updated:
             return {"status": "error", "message": f"compra pendiente {trade.get('client_order_id')} no encontrada"}
+        _sync_custom_position_manager_on_close(trade.get("symbol"))
         print(f"[LEDGER] Compra {trade.get('client_order_id')} CANCELADA: {trade.get('reason')}")
         return {"status": "updated"}
-        
+
     elif req_type == "ledger_close":
         # pnl = PnL neto en USDT; null si se cerro sin venta (polvo o sin saldo, ver reason)
         trade = message.get("payload", {})
@@ -315,10 +457,12 @@ def handle_request(message: dict):
         if not updated:
             print(f"[LEDGER] Orden {order_id} ({symbol}) no encontrada entre las OPEN del ledger.")
             return {"status": "error", "message": f"order_id {order_id} ({symbol}) no encontrado entre las OPEN"}
+        _sync_custom_position_manager_on_close(symbol)
         print(f"[LEDGER] Trade ID {order_id} marcado como CERRADO.")
         return {"status": "updated"}
 
     return {"error": "Tipo de solicitud desconocida"}
+
 
 if __name__ == "__main__":
     print(f"[SISTEMA] Mercado: {BINANCE_MARKET} ({MARKET_DATA_REST_URL})")
@@ -333,22 +477,22 @@ if __name__ == "__main__":
 
     # 1. Sincronizar datos históricos (Solo el proceso maestro lo hace)
     sync_historical_data(ACTIVE_ROSTER)
-    
+
     # 2. Instanciar el motor de estrategia pesada solo después de descargar
     engine = StrategyEngine()
-    
+
     # 3. Precargar buffer con el historial inmediato
     pre_seed_engine(ACTIVE_ROSTER)
-    
+
     # 4. Iniciar ZMQ
     context = zmq.Context()
     socket = context.socket(zmq.REP)
     # BRAIN_ZMQ_BIND (opcional, .env): p. ej. tcp://0.0.0.0:5555 si Node corre en un contenedor Docker
     bind_address = os.environ.get("BRAIN_ZMQ_BIND", "tcp://127.0.0.1:5555")
     socket.bind(bind_address)
-    
+
     print(f"[SISTEMA] Motor de Estrategia ZMQ activo en {bind_address}")
-    
+
     # En Windows, recv bloqueante no deja que Ctrl+C interrumpa el proceso:
     # se espera con timeout para que KeyboardInterrupt llegue y se libere el puerto.
     poller = zmq.Poller()

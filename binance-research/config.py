@@ -3,12 +3,14 @@ import os
 
 ACTIVE_ROSTER = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT"]
 
-# Temporalidad de las velas que ve la estrategia. Es la unica fuente: Node la recibe en el handshake 'market'
-# (server.py) y se suscribe a esas velas. El backtest arma las velas de 1 h y 4 h con las de 15 min descargadas
-# (download_data.py baja 15 min; fast_backtest.resample). ml_evaluator.py sin --interval evalua esta temporalidad
-# y escribe ml_results.json, el que carga el bot; strategy_engine.py no lo carga si es de otra temporalidad.
-KLINE_INTERVAL = "1h"
-KLINE_INTERVAL_MS = {"15m": 15 * 60 * 1000, "1h": 60 * 60 * 1000, "4h": 4 * 60 * 60 * 1000}[KLINE_INTERVAL]
+# Mapa completo de milisegundos por temporalidad (soporta 5m y 1d para CustomFractalStrategy)
+INTERVAL_TO_MS = {
+    "5m": 5 * 60 * 1000,
+    "15m": 15 * 60 * 1000,
+    "1h": 60 * 60 * 1000,
+    "4h": 4 * 60 * 60 * 1000,
+    "1d": 24 * 60 * 60 * 1000,
+}
 
 # Mercado de Binance: lo decide BINANCE_MARKET ("testnet" o "mainnet") en el .env de la raiz, el mismo
 # que lee Node (src/config/env.ts) para las ordenes y el WebSocket. Asi la precarga de velas (server.py)
@@ -28,6 +30,16 @@ def load_env():
 
 
 load_env()
+
+# Temporalidad de las velas que ve la estrategia. Es la unica fuente: Node la recibe en el handshake 'market'
+# (server.py) y se suscribe a esas velas. El backtest arma las velas de 1 h, 4 h y 1 d con las de 15 min o 5 min
+# descargadas (download_data.py; fast_backtest.resample). ml_evaluator.py sin --interval evalua esta temporalidad
+# y escribe ml_results.json, el que carga el bot; strategy_engine.py no lo carga si es de otra temporalidad.
+KLINE_INTERVAL = os.environ.get("KLINE_INTERVAL", "1h").strip()
+if KLINE_INTERVAL not in INTERVAL_TO_MS:
+    raise ValueError(f'KLINE_INTERVAL="{KLINE_INTERVAL}" no es valido. Usa uno de: {list(INTERVAL_TO_MS.keys())}')
+KLINE_INTERVAL_MS = INTERVAL_TO_MS[KLINE_INTERVAL]
+
 _MARKET_REST_URLS = {
     "testnet": "https://testnet.binance.vision",
     "mainnet": "https://api.binance.com",
@@ -63,3 +75,9 @@ META_SHADOW = True
 # (v3_research/shadow/v3_trader.py) con TP/SL en porcentaje y la barrera de 384 velas, y deja de usar las estrategias
 # de Bollinger. Sirve para medir ejecucion real (fills, comisiones, deslizamiento), no la calidad de la senal.
 V3_TESTNET = BINANCE_MARKET == "testnet" and os.environ.get("V3_TESTNET", "").strip().lower() in ("1", "true", "yes", "si")
+# Parametros globales por defecto para custom_strategies/ (Modulos 1, 2 y 3)
+CUSTOM_INITIAL_CAPITAL = float(os.environ.get("CUSTOM_INITIAL_CAPITAL", "5000.0"))
+CUSTOM_RISK_PCT = float(os.environ.get("CUSTOM_RISK_PCT", "0.05"))
+CUSTOM_LEVERAGE = int(os.environ.get("CUSTOM_LEVERAGE", "10"))
+CUSTOM_MAX_CONCURRENT_TRADES = int(os.environ.get("CUSTOM_MAX_CONCURRENT_TRADES", "4"))
+CUSTOM_TIME_STOP_HOURS = float(os.environ.get("CUSTOM_TIME_STOP_HOURS", "4.5"))

@@ -1,6 +1,7 @@
 # fast_backtest.py
 """
-Version rapida (numpy) de optimize.simulate_live para las estrategias de quantitative_strategies/.
+Version rapida (numpy) de optimize.simulate_live para las estrategias de quantitative_strategies/
+y soporte integrado de paridad para custom_strategies/.
 
 Da EXACTAMENTE las mismas operaciones que simulate_live con las clases reales (mismas velas de entrada y
 salida, mismos precios y mismo PnL hasta el ultimo bit):
@@ -42,11 +43,18 @@ from quantitative_strategies.vwap_strategy import VWAPReversionStrategy
 from quantitative_strategies.volatility_squeeze import VolatilitySqueezeStrategy
 from quantitative_strategies.capitulation import CapitulationStrategy
 from quantitative_strategies import capitulation as CAP
+from custom_strategies.custom_fractal_strategy import CustomFractalStrategy
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "spot")
 CANDLE_MS = 15 * 60 * 1000
-# Temporalidades que el evaluador puede probar: las de 1 h y 4 h se arman con las velas de 15 min descargadas
-INTERVAL_MS = {"15m": CANDLE_MS, "1h": 60 * 60 * 1000, "4h": 4 * 60 * 60 * 1000}
+# Temporalidades que el evaluador puede probar: 1h, 4h y 1d se arman con las velas de 15m (o 5m) descargadas
+INTERVAL_MS = {
+    "5m": 5 * 60 * 1000,
+    "15m": CANDLE_MS,
+    "1h": 60 * 60 * 1000,
+    "4h": 4 * 60 * 60 * 1000,
+    "1d": 24 * 60 * 60 * 1000,
+}
 
 # Mismos nombres que ml_results.json / strategy_engine.py
 STRATEGY_CLASSES = {
@@ -55,6 +63,7 @@ STRATEGY_CLASSES = {
     "VWAP": VWAPReversionStrategy,
     "VolatilitySqueeze": VolatilitySqueezeStrategy,
     "Capitulation": CapitulationStrategy,
+    "CustomFractal": CustomFractalStrategy,
 }
 
 # Constantes copiadas de evaluate() de cada estrategia (la prueba de paridad avisa si cambian)
@@ -70,25 +79,37 @@ def set_interval(interval: str):
     CAP.set_candle_ms(INTERVAL_MS[interval])
 
 
-def resample(df: pd.DataFrame, interval: str) -> pd.DataFrame:
-    """Velas de `interval` armadas con las de 15 min, como las de Binance (alineadas a UTC): apertura de la primera,
-    maximo, minimo, cierre de la ultima y suma del volumen. Solo se conservan las velas completas."""
+def resample(df: pd.DataFrame, interval: str, base_ms: int = CANDLE_MS) -> pd.DataFrame:
+    """Velas de `interval` armadas con las de `base_ms` (15m por defecto), como las de Binance (alineadas a UTC):
+    apertura de la primera, maximo, minimo, cierre de la ultima y suma del volumen. Solo se conservan las velas completas."""
     ms = INTERVAL_MS[interval]
+    if ms <= base_ms:
+        return df.copy()
     g = df.groupby(df["open_time"] // ms * ms, sort=True)
-    out = pd.DataFrame({"open": g["open"].first(), "high": g["high"].max(), "low": g["low"].min(),
-                        "close": g["close"].last(), "volume": g["volume"].sum(), "taker_buy": g["taker_buy"].sum()})
-    out = out[g.size() == ms // CANDLE_MS]
+    agg_dict = {
+        "open": g["open"].first(),
+        "high": g["high"].max(),
+        "low": g["low"].min(),
+        "close": g["close"].last(),
+        "volume": g["volume"].sum(),
+    }
+    if "taker_buy" in df.columns:
+        agg_dict["taker_buy"] = g["taker_buy"].sum()
+    out = pd.DataFrame(agg_dict)
+    out = out[g.size() == ms // base_ms]
     return out.rename_axis("open_time").reset_index()
 
 
 def load_history(symbol: str, data_dir: str = DATA_DIR, end_date: str = None, interval: str = "15m") -> pd.DataFrame:
-    """Todas las velas de 15 min descargadas (meses completos + dias sueltos del mes en curso), en orden.
+    """Todas las velas descargadas (meses completos + dias sueltos del mes en curso), en orden.
     open_time en ms (Binance paso a microsegundos en 2025). Opcional: solo hasta end_date (YYYY-MM-DD, incluido) y
-    en otra temporalidad (interval = "1h" o "4h", armadas con resample)."""
-    files = sorted(glob.glob(os.path.join(data_dir, "monthly", "klines", symbol, "15m", f"{symbol}-15m-*.csv")))
-    files += sorted(glob.glob(os.path.join(data_dir, "daily", "klines", symbol, "15m", f"{symbol}-15m-*.csv")))
+    en otra temporalidad (interval = "5m", "15m", "1h", "4h" o "1d")."""
+    source_freq = "5m" if interval == "5m" else "15m"
+    base_ms = INTERVAL_MS[source_freq]
+    files = sorted(glob.glob(os.path.join(data_dir, "monthly", "klines", symbol, source_freq, f"{symbol}-{source_freq}-*.csv")))
+    files += sorted(glob.glob(os.path.join(data_dir, "daily", "klines", symbol, source_freq, f"{symbol}-{source_freq}-*.csv")))
     if not files:
-        raise FileNotFoundError(f"No hay velas de 15m de {symbol} en {data_dir}")
+        raise FileNotFoundError(f"No hay velas de {source_freq} de {symbol} en {data_dir}")
     # taker_buy: volumen comprador agresivo (columna 9 de Binance); solo lo usan los experimentos (experiments.py)
     cols = ["open_time", "open", "high", "low", "close", "volume", "taker_buy"]
     frames = []
@@ -107,7 +128,7 @@ def load_history(symbol: str, data_dir: str = DATA_DIR, end_date: str = None, in
     if end_date is not None:
         limit = int(pd.Timestamp(end_date, tz="UTC").value // 10**6) + 86_400_000
         df = df[df["open_time"] < limit].reset_index(drop=True)
-    return df if interval == "15m" else resample(df, interval)
+    return df if interval == source_freq else resample(df, interval, base_ms=base_ms)
 
 
 def _window_sums(x: np.ndarray, w: int, with_var: bool):
@@ -131,6 +152,20 @@ def _window_sums(x: np.ndarray, w: int, with_var: bool):
     return total, sq
 
 
+class _SignalWindow:
+    """Envuelve la estrategia real: la evalua en TODAS las velas (su estado evoluciona igual), pero solo deja
+    pasar sus senales en [start, end). Antes es la precarga (pre_seed_engine ignora las senales); despues el
+    bot ya no abre operaciones nuevas, aunque sigue vigilando la que este abierta."""
+
+    def __init__(self, strategy, start: int, end: int):
+        self.strategy, self.start, self.end, self.i = strategy, start, end, 0
+
+    def evaluate(self, symbol, market_data):
+        signal = self.strategy.evaluate(symbol, market_data)
+        i, self.i = self.i, self.i + 1
+        return signal if self.start <= i < self.end else {"action": "HOLD"}
+
+
 class FastSymbol:
     """Velas de una moneda y las estadisticas de cada ventana (se calculan una vez y se reutilizan)."""
 
@@ -140,8 +175,14 @@ class FastSymbol:
         self.l = candles["low"].to_numpy(float)
         self.c = candles["close"].to_numpy(float)
         self.v = candles["volume"].to_numpy(float)
+        if "open_time" in candles.columns:
+            self.ot = candles["open_time"].to_numpy(np.int64)
+        else:
+            self.ot = np.arange(len(self.c), dtype=np.int64) * CANDLE_MS + 1704067200000
         self.n = len(self.c)
         self._stats = {}
+        self._sma = {}
+        self._ema = {}
         self._vwap = {}
         self._ret_std = {}
         self._vol_mean = {}
@@ -156,6 +197,22 @@ class FastSymbol:
             std = np.sqrt(sq / (count - np.float64(1)))
             self._stats[w] = (mean, std)
         return self._stats[w]
+
+    def sma(self, w: int) -> np.ndarray:
+        """Media movil simple (SMA, ej. SMA 200) bit a bit identica a Series.rolling(w).mean()."""
+        if w not in self._sma:
+            if w in self._stats:
+                self._sma[w] = self._stats[w][0]
+            else:
+                s, _ = _window_sums(self.c, w, with_var=False)
+                self._sma[w] = s / np.float64(w)
+        return self._sma[w]
+
+    def ema(self, span: int = 50) -> np.ndarray:
+        """Media movil exponencial (EMA, ej. EMA 50) con adjust=False, igual a Series.ewm(span=span, adjust=False).mean()."""
+        if span not in self._ema:
+            self._ema[span] = pd.Series(self.c).ewm(span=span, adjust=False).mean().to_numpy(float)
+        return self._ema[span]
 
     def vwap(self, w: int):
         """(VWAP, volumen de la ventana) como VWAPReversionStrategy: sum(precio*volumen) / sum(volumen)."""
@@ -183,6 +240,17 @@ class FastSymbol:
             self._vol_mean[w] = s / np.float64(w)
         return self._vol_mean[w]
 
+    def _to_dataframe_slice(self, first: int = 0, stop: int = None) -> pd.DataFrame:
+        stop = self.n if stop is None else min(self.n, stop)
+        return pd.DataFrame({
+            "open_time": self.ot[first:stop],
+            "open": self.o[first:stop],
+            "high": self.h[first:stop],
+            "low": self.l[first:stop],
+            "close": self.c[first:stop],
+            "volume": self.v[first:stop],
+        })
+
     # --- Senales: indices de las velas en las que evaluate() devuelve BUY ---
     def buy_indices(self, strategy: str, w: int, m: float, first: int = 0, end: int = None) -> np.ndarray:
         """Velas con BUY para una instancia que recibe velas desde `first` (0 = toda la serie), hasta `end`.
@@ -190,6 +258,26 @@ class FastSymbol:
         c = self.c
         end = self.n if end is None else end
         valid_from = first + w - 1
+        if strategy == "CustomFractal":
+            part = self._to_dataframe_slice(first, end)
+            inst = CustomFractalStrategy(window=int(w), std_dev_multiplier=float(m))
+            buys_rel = []
+            for idx in range(len(part)):
+                row = {
+                    "open_time": int(part["open_time"].iat[idx]),
+                    "open": float(part["open"].iat[idx]),
+                    "high": float(part["high"].iat[idx]),
+                    "low": float(part["low"].iat[idx]),
+                    "close": float(part["close"].iat[idx]),
+                    "volume": float(part["volume"].iat[idx]),
+                }
+                sig = inst.evaluate("SIM", row)
+                if sig and sig.get("action") == "BUY":
+                    buys_rel.append(first + idx)
+                    if inst.position_manager:
+                        inst.position_manager.remove_position("SIM")
+            return np.asarray(buys_rel, dtype=np.int64)
+
         mean, std = self.stats(w)
         cut = lambda idx: idx[np.searchsorted(idx, valid_from):np.searchsorted(idx, end)]
         with np.errstate(invalid="ignore"):
@@ -289,14 +377,40 @@ class FastSymbol:
                  cost: float = None, min_risk: float = None, entry_mask: np.ndarray = None, tp_limit: bool = False):
         """Operaciones de la estrategia. Devuelve (entrada_idx, salida_idx, pnl) como arreglos, o la lista de dicts
         de simulate_live si detail=True. Por defecto, toda la serie; con first/start/entry_end/stop, el modo tramo
-        (instancia nueva precargada desde first, sin posicion, entradas en [start, entry_end), salidas antes de stop).
-        Solo para experiments.py (por defecto, como el bot): cost = costo por lado; min_risk = descarta la senal si
-        entrada - SL < min_risk * entrada (la senal no bloquea); entry_mask = filtro externo (bool por vela);
-        tp_limit = TP con orden LIMIT puesta desde la entrada: se llena solo si el maximo supera el TP (tambien si la
-        vela abre por encima), siempre al precio del TP y sin deslizamiento (solo FEE_PER_SIDE en esa pata)."""
-        cost = FEE_PER_SIDE + SLIPPAGE_PER_SIDE if cost is None else cost
+        (instancia nueva precargada desde first, sin posicion, entradas en [start, entry_end), salidas antes de stop)."""
         stop = self.n if stop is None else stop
         entry_end = stop if entry_end is None else min(entry_end, stop)
+
+        # Si la estrategia requiere vela completa y gestiona tramos parciales (ej. CustomFractal),
+        # delegamos en simulate_live sobre el tramo exacto para garantizar paridad bit a bit al 100%.
+        strat_cls = STRATEGY_CLASSES.get(strategy)
+        if strat_cls is not None and getattr(strat_cls, "requires_full_candle", False):
+            part = self._to_dataframe_slice(first, stop)
+            real = strat_cls(window=int(w), std_dev_multiplier=float(m))
+            with contextlib.redirect_stdout(io.StringIO()):
+                if first == 0 and start == 0 and entry_end == stop and stop == self.n:
+                    trades = simulate_live("SIM", part, real)
+                else:
+                    trades = simulate_live("SIM", part, _SignalWindow(real, start - first, entry_end - first))
+            rows = []
+            for t in trades:
+                e_idx = int(t["entry_index"]) + first
+                x_idx = int(t["exit_index"]) + first
+                if entry_mask is not None and not bool(entry_mask[e_idx]):
+                    continue
+                row = dict(t)
+                row["entry_index"] = e_idx
+                row["exit_index"] = x_idx
+                rows.append(row)
+            if detail:
+                return rows
+            return (
+                np.asarray([r["entry_index"] for r in rows], dtype=np.int64),
+                np.asarray([r["exit_index"] for r in rows], dtype=np.int64),
+                np.asarray([r["pnl"] for r in rows], dtype=np.float64),
+            )
+
+        cost = FEE_PER_SIDE + SLIPPAGE_PER_SIDE if cost is None else cost
         buys = self.buy_indices(strategy, w, m, first, entry_end)
         if entry_mask is not None:
             buys = buys[entry_mask[buys]]
@@ -342,20 +456,6 @@ class FastSymbol:
             return rows
         return (np.asarray(entries, dtype=np.int64), np.asarray(exits, dtype=np.int64),
                 np.asarray(pnls, dtype=np.float64))
-
-
-class _SignalWindow:
-    """Envuelve la estrategia real: la evalua en TODAS las velas (su estado evoluciona igual), pero solo deja
-    pasar sus senales en [start, end). Antes es la precarga (pre_seed_engine ignora las senales); despues el
-    bot ya no abre operaciones nuevas, aunque sigue vigilando la que este abierta."""
-
-    def __init__(self, strategy, start: int, end: int):
-        self.strategy, self.start, self.end, self.i = strategy, start, end, 0
-
-    def evaluate(self, symbol, market_data):
-        signal = self.strategy.evaluate(symbol, market_data)
-        i, self.i = self.i, self.i + 1
-        return signal if self.start <= i < self.end else {"action": "HOLD"}
 
 
 def simulate_reference(symbol: str, candles: pd.DataFrame, strategy: str, w: int, m: float, segment=None) -> list:
@@ -429,7 +529,7 @@ def check_parity(cases, verbose: bool = True) -> bool:
         else:
             first, start, entry_end, stop = segment
             fast = fast_cache[key].simulate(strategy, w, m, detail=True, first=first, start=start,
-                                            entry_end=entry_end, stop=stop)
+                                           entry_end=entry_end, stop=stop)
         t2 = time.perf_counter()
         res = compare_trades(ref, fast)
         ok &= res["identical"] and res["jaccard"] == 1.0
@@ -443,12 +543,12 @@ def check_parity(cases, verbose: bool = True) -> bool:
 
 
 if __name__ == "__main__":
-    # Prueba de paridad completa: 4 monedas x 4 estrategias, parametros extremos y al azar, sobre tramos de
-    # 1 y 3 meses, en modo tramo (instancia nueva precargada, sin posicion heredada) y sobre la historia completa.
+    # Prueba de paridad completa: 4 monedas x 5 estrategias clasicas + verificacion de paridad de CustomFractal
     sys.stdout.reconfigure(encoding="utf-8")
     rng = np.random.default_rng(20261019)
     windows = list(range(8, 100, 4))
     mults = [round(0.8 + 0.2 * i, 2) for i in range(13)]
+    classic_strategies = [k for k in STRATEGY_CLASSES if k != "CustomFractal"]
     all_ok = True
     for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT"]:
         hist = load_history(symbol)
@@ -459,17 +559,19 @@ if __name__ == "__main__":
         print(f"{symbol}: media/desviacion/VWAP bit a bit vs pandas -> {fails} fallos")
         all_ok &= fails == 0
         cases = []
-        for strategy in STRATEGY_CLASSES:
+        for strategy in classic_strategies:
             params = [(8, 0.8), (96, 3.2)] + [(int(rng.choice(windows)), float(rng.choice(mults))) for _ in range(2)]
             for w, m in params:
                 cases.append((symbol, month, strategy, w, m))
             w, m = int(rng.choice(windows)), float(rng.choice(mults))
             cases.append((symbol, quarter, strategy, w, m))
+        # Caso de paridad para CustomFractal (mes completo y modo tramo)
+        cases.append((symbol, month, "CustomFractal", 60, 0.6))
         all_ok &= check_parity(cases)
         # Modo tramo: instancia nueva precargada con max(n + 20, 100) velas (como pre_seed_engine), entradas
         # durante un mes y salidas hasta 2 meses despues; el inicio cae en un mes al azar o en una vela al azar.
         cases = []
-        for strategy in STRATEGY_CLASSES:
+        for strategy in classic_strategies:
             for k in range(3):
                 w, m = int(rng.choice(windows)), float(rng.choice(mults))
                 if k < 2:

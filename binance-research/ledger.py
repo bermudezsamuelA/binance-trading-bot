@@ -297,3 +297,39 @@ def pending_trades(path: str = None) -> list:
 def open_symbols(path: str = None) -> list:
     """Monedas con posición abierta o compra pendiente: el WebSocket también tiene que vigilarlas."""
     return sorted({t["symbol"] for t in open_trades(path) + pending_trades(path) if t.get("symbol")})
+
+
+def update_stop_loss(order_id, stop_loss: float, path: str = None, symbol: str = None) -> int:
+    """Actualiza el stop_loss (Trailing SL o Break Even) de una posición OPEN sin alterar el resto de la fila."""
+    return update_trade(
+        order_id,
+        values={"stop_loss": stop_loss},
+        path=path,
+        symbol=symbol,
+        only_open=True,
+    )
+
+
+def record_partial_exit(
+    order_id,
+    stop_loss: float = None,
+    take_profit=None,
+    sold_qty: float = None,
+    sold_quote: float = None,
+     sold_fee_usdt: float = None,
+    path: str = None,
+    symbol: str = None,
+) -> int:
+    """Registra en la fila OPEN un cierre parcial sin pisar `net_quantity` (que debe conservar el total original
+    para que `verifyStartupOrder` y `netPnl` cuadren todos los tramos con `/myTrades` si el proceso se reinicia).
+    Desactiva `take_profit` (vacío -> Infinity al recargar) y actualiza `stop_loss` (Break Even)."""
+    values = {"take_profit": take_profit}
+    if stop_loss is not None:
+        values["stop_loss"] = stop_loss
+    if sold_qty is not None:
+        values["exit_quantity"] = sold_qty
+    if sold_quote is not None:
+        values["exit_quote"] = sold_quote
+    if sold_fee_usdt is not None:
+        values["exit_fee_usdt"] = sold_fee_usdt
+    return update_trade(order_id, values=values, path=path, symbol=symbol, only_open=True)

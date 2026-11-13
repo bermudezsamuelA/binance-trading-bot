@@ -1,0 +1,249 @@
+"use strict";
+// Cálculos puros sobre órdenes de Binance Spot: redondeos, mínimos, respuesta FULL, comisiones y PnL neto.
+// Sin red ni estado: los usan rest-client y ws-client, y se prueban aparte (test/execution.test.ts).
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.decimalsOf = decimalsOf;
+exports.floorToStep = floorToStep;
+exports.formatPrice = formatPrice;
+exports.formatQty = formatQty;
+exports.formatUsdt = formatUsdt;
+exports.isTradable = isTradable;
+exports.sellableQuantity = sellableQuantity;
+exports.summarizeFees = summarizeFees;
+exports.foreignFeeAssets = foreignFeeAssets;
+exports.parseExecution = parseExecution;
+exports.tradesToResponse = tradesToResponse;
+exports.soldQuantity = soldQuantity;
+exports.mergeExecutions = mergeExecutions;
+exports.netPnl = netPnl;
+exports.splitPartialQuantity = splitPartialQuantity;
+exports.partialNetPnl = partialNetPnl;
+/** Decimales de un paso de Binance ("0.00100000" -> 3, "1.00000000" -> 0). */
+function decimalsOf(step) {
+    return step.replace(/0+$/, '').split('.')[1]?.length ?? 0;
+}
+/**
+ * Redondea hacia abajo al múltiplo de step y lo devuelve como texto con los decimales justos,
+ * sin notación científica. El 1e-9 absorbe errores de coma flotante (los saldos tienen 8 decimales).
+ */
+function floorToStep(value, step) {
+    const decimals = decimalsOf(step);
+    const stepNum = parseFloat(step);
+    if (!(value > 0) || !(stepNum > 0))
+        return (0).toFixed(decimals);
+    const rounded = Math.floor(value / stepNum + 1e-9) * stepNum;
+    return rounded.toFixed(decimals);
+}
+/** Precio con los decimales del tickSize del par (DOGE 0.08133, no 0.08). */
+function formatPrice(price, tickSize) {
+    if (!Number.isFinite(price))
+        return String(price);
+    if (tickSize && parseFloat(tickSize) > 0)
+        return price.toFixed(decimalsOf(tickSize));
+    return String(Number(price.toPrecision(8)));
+}
+/**
+ * Cantidad tal cual (hasta 8 decimales, sin ceros sobrantes): 183.816, no 184. Nunca en notación
+ * científica: String(0.00000016) da "1.6e-7" (una comisión en BTC), aquí "0.00000016".
+ */
+function formatQty(qty) {
+    if (!Number.isFinite(qty))
+        return String(qty);
+    const text = qty.toFixed(8).replace(/\.?0+$/, '');
+    return text === '-0' ? '0' : text;
+}
+/** USDT con signo y 4 decimales: con 15 USDT por operación, 2 decimales esconden las comisiones. */
+function formatUsdt(value) {
+    const sign = value >= 0 ? '+' : '-';
+    return `${sign}${Math.abs(value).toFixed(4)} USDT`;
+}
+/**
+ * ¿Se puede enviar una orden MARKET con esta cantidad? Comprueba minQty/maxQty y el mínimo nocional.
+ * Binance valora las MARKET con el precio medio de los últimos avgPriceMins minutos, no con el último:
+ * notionalMargin exige ese margen extra sobre minNotional (0.01 = 1 %).
+ */
+function isTradable(qty, price, f, notionalMargin = 0) {
+    if (!(qty > 0))
+        return false;
+    if (qty < f.minQty)
+        return false;
+    if (f.maxQty > 0 && qty > f.maxQty)
+        return false;
+    if (f.minNotional > 0 && qty * price < f.minNotional * (1 + notionalMargin))
+        return false;
+    return true;
+}
+/**
+ * Cantidad vendible de una posición: lo comprado menos la comisión cobrada en la moneda base,
+ * limitado al saldo libre si se conoce, y redondeado hacia abajo al stepSize.
+ */
+function sellableQuantity(netQuantity, f, freeBalance) {
+    const available = freeBalance === undefined ? netQuantity : Math.min(netQuantity, freeBalance);
+    return floorToStep(available, f.stepSize);
+}
+/**
+ * Comisiones de los fills valoradas en la moneda cotizada: en USDT tal cual, en la moneda base al precio
+ * medio de la orden y en otro activo (BNB) con el precio que se pase en assetPrices (activo -> USDT).
+ */
+function summarizeFees(fills, baseAsset, quoteAsset, avgPrice, assetPrices = {}) {
+    const byAsset = new Map();
+    for (const fill of fills) {
+        if (!(fill.commission > 0))
+            continue;
+        byAsset.set(fill.commissionAsset, (byAsset.get(fill.commissionAsset) ?? 0) + fill.commission);
+    }
+    let baseQty = 0;
+    let totalQuote = 0;
+    const unpriced = [];
+    for (const [asset, amount] of byAsset) {
+        if (asset === quoteAsset) {
+            totalQuote += amount;
+        }
+        else if (asset === baseAsset) {
+            baseQty += amount;
+            totalQuote += amount * avgPrice;
+        }
+        else if (assetPrices[asset] !== undefined && Number.isFinite(assetPrices[asset])) {
+            totalQuote += amount * assetPrices[asset];
+        }
+        else {
+            unpriced.push(asset);
+        }
+    }
+    const detail = [...byAsset].map(([asset, amount]) => `${formatQty(amount)} ${asset}`).join(' + ');
+    return { baseQty, totalQuote, detail, unpriced };
+}
+/** Activos de comisión que no son ni la base ni la cotizada (p. ej. BNB) y hay que valorar aparte. */
+function foreignFeeAssets(resp, baseAsset, quoteAsset) {
+    const assets = new Set();
+    for (const fill of resp?.fills ?? []) {
+        const asset = String(fill.commissionAsset ?? '');
+        if (asset && asset !== baseAsset && asset !== quoteAsset && parseFloat(fill.commission) > 0)
+            assets.add(asset);
+    }
+    return [...assets];
+}
+/**
+ * Interpreta la respuesta FULL de POST /api/v3/order (o una reconstruida con /myTrades).
+ * Precio medio real = cummulativeQuoteQty / executedQty.
+ */
+function parseExecution(resp, baseAsset, quoteAsset, assetPrices = {}) {
+    const fills = (resp.fills ?? []).map((f) => ({
+        price: parseFloat(f.price),
+        qty: parseFloat(f.qty),
+        commission: parseFloat(f.commission ?? '0'),
+        commissionAsset: String(f.commissionAsset ?? '')
+    }));
+    const executedQty = parseFloat(resp.executedQty ?? '0') || 0;
+    let quoteQty = parseFloat(resp.cummulativeQuoteQty ?? '0');
+    if (!(quoteQty >= 0)) {
+        // cummulativeQuoteQty < 0 = dato no disponible: se reconstruye con los fills
+        quoteQty = fills.reduce((sum, f) => sum + f.price * f.qty, 0);
+    }
+    const avgPrice = executedQty > 0 ? quoteQty / executedQty : 0;
+    return {
+        orderId: Number(resp.orderId),
+        clientOrderId: String(resp.clientOrderId ?? ''),
+        status: String(resp.status ?? ''),
+        executedQty,
+        quoteQty,
+        avgPrice,
+        fills,
+        fees: summarizeFees(fills, baseAsset, quoteAsset, avgPrice, assetPrices)
+    };
+}
+/**
+ * Operaciones de GET /api/v3/myTrades -> respuesta con la forma FULL (para parseExecution).
+ * Sirve para reconstruir una orden cuyo resultado no llegó o una venta hecha sin que el ledger se enterara.
+ */
+function tradesToResponse(trades, order = {}) {
+    const executedQty = trades.reduce((sum, t) => sum + parseFloat(t.qty), 0);
+    const quoteQty = trades.reduce((sum, t) => sum + (t.quoteQty !== undefined ? parseFloat(t.quoteQty) : parseFloat(t.price) * parseFloat(t.qty)), 0);
+    return {
+        orderId: trades[0]?.orderId,
+        clientOrderId: '',
+        status: 'FILLED',
+        ...order,
+        executedQty: String(executedQty),
+        cummulativeQuoteQty: String(quoteQty),
+        fills: trades.map(t => ({
+            price: t.price, qty: t.qty, commission: t.commission, commissionAsset: t.commissionAsset, tradeId: t.id
+        }))
+    };
+}
+/** Cantidad ya vendida en los tramos de una salida. */
+function soldQuantity(parts) {
+    return (parts ?? []).reduce((sum, p) => sum + p.executedQty, 0);
+}
+/**
+ * Suma varias ejecuciones de la misma venta (si la primera MARKET se llenó solo en parte). Las comisiones
+ * se suman ya valoradas en cada parte (la de base a su propio precio medio, BNB a su precio).
+ */
+function mergeExecutions(parts) {
+    const first = parts[0];
+    if (!first)
+        throw new Error('mergeExecutions sin ejecuciones');
+    if (parts.length === 1)
+        return first;
+    const executedQty = parts.reduce((s, p) => s + p.executedQty, 0);
+    const quoteQty = parts.reduce((s, p) => s + p.quoteQty, 0);
+    return {
+        orderId: first.orderId,
+        clientOrderId: parts.map(p => p.clientOrderId).join('+'),
+        status: parts[parts.length - 1].status,
+        executedQty,
+        quoteQty,
+        avgPrice: executedQty > 0 ? quoteQty / executedQty : 0,
+        fills: parts.flatMap(p => p.fills),
+        fees: {
+            baseQty: parts.reduce((s, p) => s + p.fees.baseQty, 0),
+            totalQuote: parts.reduce((s, p) => s + p.fees.totalQuote, 0),
+            detail: parts.map(p => p.fees.detail).filter(Boolean).join(' + '),
+            unpriced: [...new Set(parts.flatMap(p => p.fees.unpriced))]
+        }
+    };
+}
+/**
+ * PnL neto en USDT = USDT recibidos + residuo − USDT pagados − comisiones.
+ * La comisión de compra cobrada en la moneda base ya está descontada (se vende menos cantidad),
+ * así que no se resta otra vez; el resto de comisiones (USDT, BNB, las de la venta) sí.
+ *
+ * residualQty: cantidad de la posición que sigue en cartera sin poder venderse (por debajo del stepSize o del
+ * mínimo). Con la comisión cobrada en la moneda base, lo neto nunca es múltiplo del paso y siempre queda casi un
+ * paso entero: en BTC (paso 0.00001 ≈ 0.9 USDT) es ~6 % de una posición de 15 USDT. Sigue siendo del usuario, así
+ * que se valora al precio medio de la venta en vez de contarlo como pérdida.
+ */
+function netPnl(entry, exit, residualQty = 0) {
+    const entryFeeNotEmbedded = entry.entryFeeQuote - entry.entryFeeBaseQty * entry.entryPrice;
+    const residualValue = residualQty > 0 ? residualQty * (exit.avgPrice ?? 0) : 0;
+    return exit.quoteQty + residualValue - entry.entryQuote - entryFeeNotEmbedded - exit.fees.totalQuote;
+}
+/**
+ * Calcula la cantidad a vender en un cierre parcial (ratio entre 0 y 1 sobre lo que queda por vender)
+ * y comprueba que tanto el tramo a vender como el remanente posterior sean operables en Binance (isTradable).
+ * Si alguno queda bajo minQty o minNotional, devuelve canSplit = false para evitar dejar polvo bloqueado.
+ */
+function splitPartialQuantity(remainingNetQty, ratio, price, f, notionalMargin = 0) {
+    if (!(ratio > 0 && ratio < 1) || !(remainingNetQty > 0)) {
+        return { canSplit: false, sellQty: floorToStep(0, f.stepSize), sellQtyNum: 0, remainingAfterNum: remainingNetQty };
+    }
+    const sellQty = floorToStep(remainingNetQty * ratio, f.stepSize);
+    const sellQtyNum = parseFloat(sellQty);
+    const remainingAfterNum = parseFloat(floorToStep(remainingNetQty - sellQtyNum, f.stepSize));
+    const canSplit = isTradable(sellQtyNum, price, f, notionalMargin) &&
+        isTradable(remainingAfterNum, price, f, notionalMargin);
+    return { canSplit, sellQty, sellQtyNum, remainingAfterNum };
+}
+/**
+ * PnL neto realizado en un tramo parcial, asignando proporcionalmente el costo y la comisión de entrada
+ * según la fracción que representa `part.executedQty` sobre la cantidad neta total de la posición.
+ */
+function partialNetPnl(entry, netQuantity, part) {
+    if (!(netQuantity > 0) || !(part.executedQty > 0))
+        return 0;
+    const share = Math.min(1, part.executedQty / netQuantity);
+    const entryFeeNotEmbedded = entry.entryFeeQuote - entry.entryFeeBaseQty * entry.entryPrice;
+    const proportionalCost = (entry.entryQuote + entryFeeNotEmbedded) * share;
+    return part.quoteQty - proportionalCost - part.fees.totalQuote;
+}
+//# sourceMappingURL=execution.js.map

@@ -1,0 +1,172 @@
+{
+  "project_context": {
+    "name": "binance-trading-bot",
+    "architecture": "Híbrida de Microservicios",
+    "components": {
+      "execution_motor": "Node.js (v22+), TypeScript, Express. Gestiona el libro de órdenes, sockets y riesgo de latencia.",
+      "quantitative_brain": "Python 3.12 (estricto por librerías C++ de ML en Windows), Pandas, XGBoost, Scikit-learn. Toma de decisiones y análisis matemático.",
+      "ipc": "ZeroMQ (ZMQ) a través del puerto TCP 5555. Node es cliente (Request), Python es servidor (Reply)."
+    },
+    "infrastructure": {
+      "docker": "Dockerfile configura solo el motor Node.js bajo Debian (glibc) con `tsx` para ejecución directa en `src/index.ts`. Python corre fuera del contenedor en `.venv`.",
+      "hardware_constraints": "Disco C lleno. Uso obligatorio de Disco E:\\ para cachés (E:\\pip-cache, E:\\npm-cache) e instalaciones.",
+      "network": "Uso de VPN. Requisito estricto: Desactivar VPN para conectar a APIs de Binance (REST/WS)."
+    }
+  },
+  "git_rules": {
+    "command_override": "wsl -e bash -lic \"cd /mnt/e/GitHub/binance-trading-bot && git2 ...\"",
+    "author_override": "bermudezsamuelA <https://github.com/bermudezsamuelA>",
+    "working_branch": "Improvement-experiment-on-v1",
+    "commit_language": "Inglés estricto, sin trailer Co-Authored-By."
+  },
+  "global_configuration": {
+    "env_vars": [
+      "BINANCE_API_KEY",
+      "BINANCE_API_SECRET",
+      "BINANCE_MARKET",
+      "KLINE_INTERVAL",
+      "TELEGRAM_BOT_TOKEN",
+      "TELEGRAM_CHAT_ID",
+      "BRAIN_ZMQ_URL",
+      "BRAIN_ZMQ_BIND",
+      "ALLOW_UNVALIDATED_STRATEGIES",
+      "TESTNET_IGNORE_MOMENTUM",
+      "CUSTOM_INITIAL_CAPITAL",
+      "CUSTOM_RISK_PCT",
+      "CUSTOM_LEVERAGE",
+      "CUSTOM_MAX_CONCURRENT_TRADES",
+      "CUSTOM_TIME_STOP_HOURS"
+    ],
+    "market_routing": "Variable única `BINANCE_MARKET` ('testnet' o 'mainnet') define REST URLs y WSS URLs en ambos lenguajes.",
+    "kline_intervals": {
+      "bot_execution": "1h por defecto (configurable vía `KLINE_INTERVAL` en .env a 5m, 15m, 1h, 4h, 1d; sincronizado vía handshake ZMQ)",
+      "python_evaluation": "5m, 15m, 1h, 4h, 1d dependiente del experimento y agregación multitemporal en memoria"
+    },
+    "trade_sizing": {
+      "default_notional_usdt": 15.0,
+      "custom_dynamic_sizing": "P_USDT = (R_USD / D_SL) * 100 calculado por RiskManager cuando la estrategia define supports_custom_sizing = True",
+      "fee_per_side": 0.001,
+      "slippage_per_side": 0.0002
+    }
+  },
+  "node_execution_motor_src": {
+    "core": {
+      "index.ts": "Punto de entrada. Secuencia: Init Telegram -> Sincronización REST de hora (prevenir -1021) -> Verificación de balance USDT (>20) -> Handshake ZMQ (roster, market) -> Inicio WSClient.",
+      "brain-handshake.ts": "Valida que Python y Node operen en el mismo mercado, mismo `NOTIONAL_USDT` y mismo `KLINE_INTERVAL`.",
+      "process-guards.ts": "Intercepta `unhandledRejection` y `uncaughtException`. Emite alertas a Telegram con *throttle* de 60s para evitar spam sin detener el proceso vigilante.",
+      "config/env.ts": "Validador de entorno. Extrae variables, limpia comillas (problema común en Docker `env-file`) y define diccionarios estáticos de URLs para testnet/mainnet."
+    },
+    "api": {
+      "execution.ts": "Motor de cálculos puros sin estado. Funciones: `floorToStep`, `formatPrice`, verificación `isTradable` (LOT_SIZE, MIN_NOTIONAL), `summarizeFees` (valora comisiones extranjeras como BNB a USDT usando precios dinámicos), y `netPnl` (PnL neto valorando cantidad residual no vendible).",
+      "rest-client.ts": "Cliente HTTP firmado. Maneja lógica de recuperación de órdenes fantasmas o errores 5xx/timeouts (-1006, -1007, -2013) con `OrderStatusUnknownError` y `OrderNotFoundError`. Gestión automatizada del `serverTimeOffsetMs` para el `recvWindow`.",
+      "ws-client.ts": "Gestor de estado activo. Mantiene mapa de `activePositions`, evalúa carreras entre TP/SL y nuevas velas entrantes. Sincroniza estado inicial consultando Ledger -> Binance REST -> Ajuste de balances. Maneja reconexión exponencial y watchdog de conexión muerta (STALE_SOCKET_MS). Envía mensajes `evaluate` a Python solo con velas cerradas (`k.x === true`).",
+      "telegram-client.ts": "Cliente POST simple a la API de Telegram usando `parse_mode: 'HTML'` y función de escape de caracteres de seguridad.",
+      "zmq-client.ts": "Implementación Singleton de cliente ZMQ Request. Maneja cola de promesas (`queue`) para evitar bloqueos por llamadas simultáneas (lock asíncrono) hacia Python."
+    },
+    "test": {
+      "files": ["rest-client.test.ts", "ws-client.test.ts", "docker.test.ts", "env.test.ts", "execution.test.ts", "process.test.ts", "setup-env.ts", "helpers.ts"],
+      "runner": "`npm test` usando `node --test` y `tsx` sin compilación a carpeta dist/."
+    }
+  },
+  "python_quantitative_brain_research": {
+    "core_system": {
+      "server.py": "Servidor ZMQ REP. Controladores: `roster`, `market`, `scan_market` (Top 50 CRYPTO_L/CRYPTO_S), `sync_positions`, `evaluate` (con deduplicación por open_time, `fill_gap` automático y paginación REST >1000 velas), `ledger_pending`, `ledger_open`, `ledger_update_sl`, `ledger_partial`, `ledger_close`, `ledger_cancel`. Sincroniza automáticamente el `PositionManager` de estrategias custom.",
+      "strategy_engine.py": "Carga dinámicamente estrategias validadas desde `ml_results.json` (incluyendo `CustomFractal`). Maneja pre-instanciación de `shadows`, inyecta condicionalmente la vela OHLCV completa cuando `requires_full_candle = True`, propaga acciones de gestión (`PARTIAL_CLOSE`, `FULL_CLOSE`, `UPDATE_SL`) y adjunta metadatos de dimensionamiento dinámico (`quote_usdt`, `exit_plan`). Escribe en `signals.csv`.",
+      "strategy_filters.py": "Implementación de lógicas algorítmicas de bloqueo: `FilteredFS` (FastSymbol), `cosignal_mask`, `momentum_gate` y `gate_trades`. Usado tanto en backtest (walk-forward) como en vivo (engine).",
+      "ledger.py": "CRUD atómico sobre `orders/trades.csv` y `orders/signals.csv`. Usando archivos temporales (`os.replace`) para evitar corrupción si el proceso se cuelga a mitad de escritura. Soporta formato `LEGACY` migrándolo automáticamente.",
+      "config.py": "Carga variables de entorno, define `ACTIVE_ROSTER` (BTC, ETH, SOL, DOGE), `INTERVAL_TO_MS` (`5m`, `15m`, `1h`, `4h`, `1d`), márgenes de `PRESEED` (20 min, 100 max), filtros algorítmicos globales y constantes `CUSTOM_*` para estrategias personalizadas.",
+      "report.py": "Analizador de rendimiento. Combina datos del ledger local (`trades.csv`) y datos directos de Binance API (`/v3/myTrades`) aplicando lógica FIFO (función `round_trips`) para extraer operaciones cerradas, PnL bruto, neto y win rate real.",
+      "download_data.py": "Automatiza la descarga o actualización de velas históricas (`15m` por defecto, multiparámetro `--intervals 5m 15m ...`) usando `binance_historical_data`. Usa flags independientes (`.last_sync` y `.last_sync_<freq>`) para evitar spam a la API sin pisar cachés.",
+      "analyze_data.py": "Lee y concatena los CSVs descargados para calcular la volatilidad promedio del periodo histórico."
+    },
+    "optimization_engine": {
+      "walk_forward.py": "Framework de validación. 6 meses de entrenamiento (Train) seguidos de 1 mes de prueba (OOS). Selecciona (n,k) maximizando score `PnL - 10 * MDD` suavizado en matriz 3x3. Exige mínimo 30 trades, >50% meses en positivo, y aplica t-test sobre PnL diario con corrección Bonferroni.",
+      "fast_backtest.py": "Versión Numpy hiper-optimizada de backtesting. Reemplaza bucles de pandas. Calcula ventanas rodantes usando `np.lib.stride_tricks.sliding_window_view`. Paridad verificada bit a bit (`parity_smoke_test`).",
+      "optimize.py": "Versión lenta de referencia (`simulate_live`) basada en pandas, usada para validar que el `fast_backtest` produzca salidas 100% idénticas. Calcula métricas de drawdown y esperanza.",
+      "experiments.py": "Corredor de múltiples configuraciones de backtest (P0, P3, P4, P34, P5, P6, P7, P8, TODO) validando hipótesis pre-registradas (riesgo, costos BNB, momentum, weekdays_off). Genera `experiments_results.json`.",
+      "experiments_v2.py": "Integración avanzada. Incluye órdenes LIMIT para TP, modelo Meta-Labeling con LightGBM (filtra trades con `p > (1 + c_R) / (1 + b)`), tamaño posicional dinámico en base al Edge de 12 meses (E12). Genera `experiments_v2_results.json`."
+    },
+    "strategies_quantitative": {
+      "capitulation.py": "Compara caída de 4 velas vs volatilidad (std_dev * SQRT_DROP). Exige volumen >= 2x promedio. Geometría X5: TP = entrada * (1 + 0.7 * sd), SL = entrada * (1 - 1.75 * sd).",
+      "mean_reversion.py": "Compra sobreventa estadística: precio < rolling_mean - (rolling_std * mult). TP dinámico a la rolling_mean.",
+      "rolling_volatility.py": "Seguidor de tendencia (Breakout). Compra si precio > rolling_mean + (rolling_std * mult). SL a rolling_mean, TP = Entrada + (Riesgo * 2.0).",
+      "statistical_arbitrage.py": "Pairs trading (BTC/ETH). Ratio = Asset B / Asset A. Entra si Z-Score del ratio < -threshold. Fijo: SL 1%, TP 2%.",
+      "volatility_squeeze.py": "Mide el ancho de bandas Bollinger relativas. Squeeze si < 0.05. Arma trampa de liquidez, dispara al romper banda superior. TP = 2.5R.",
+      "vwap_strategy.py": "Media ponderada por volumen. Compra si precio cae por debajo del VWAP - (std_dev * mult). TP dinámico al VWAP."
+    },
+    "strategies_custom": {
+      "__init__.py": "Inicializador de paquete para importación limpia de módulos en `custom_strategies/`.",
+      "risk_manager.py": "Gestor matemático de riesgo y dimensionamiento (Módulo 1). Incluye `normalize_price` con Decimal (aplanado a `.00`/`.50`), `calculate_position_size` (`P_USDT = (R_USD / D_SL) * 100`, margen `ISOLATED` 10x/20x), control de máximo 4 posiciones simultáneas y máquina de estados `evaluate_drawdown_scaling` (Niveles 1 a 4 según `DD_max * M`).",
+      "market_scanner.py": "Escáner del Top 50 de Binance por volumen 24h (excluyendo stablecoins y tokens UP/DOWN) sobre velas cerradas (`close_time < server_time_ms`). Clasifica activos en `CRYPTO_L` y `CRYPTO_S` bajo `ESCENARIO_1_CONTINUACION` (ruptura/pullback EMA 50 1H) y `ESCENARIO_2_SOBREEXTENSION` (choque con SMA 200 1H o EMA 50 4H + desaceleración), asignando semáforo (`ROJO`, `NARANJA`, `AMARILLO`).",
+      "trade_filters.py": "Barreras lógicas pre-trade (Módulos 2 y 3): `validate_fibonacci_pullback` (zona 0.382 a 0.750, invalida si > 0.75), `validate_pullback_depth` (exige toque en EMA 50 15M, SMA 200 1H, EMA 50 4H o Fibo 0.50), `check_sma200_5m_fakeout` (bloquea si SMA 200 5M obstaculiza a < 0.5% sin cierre confirmado) y `validate_deceleration`.",
+      "entry_trigger.py": "Motor de disparo dual sin look-ahead bias: `find_pivots` (Swing Highs/Lows), `detect_double_or_triple_level` (Doble/Triple Suelo o Techo), `is_engulfing`, `check_diagonal_breakout`, `select_fibonacci_stop_loss` (detrás de 0.618 o 0.75 en 1H), `evaluate_plan_a_5m` (BOS/Diagonal + EMA 50/SMA 200) y `evaluate_plan_b_2m` (breakout de caja horizontal en 2M con SL local).",
+      "position_manager.py": "Gestor activo de posiciones abiertas (`ManagedPositionState`): cierres parciales en 3 tramos (TP1 50% en 1:1 o extremo previo + paso a Break Even con buffer de comisiones; TP2 25% al cerrar vela 1H contra EMA 50; TP3 25% al cerrar vela 4H contra EMA 50), modo `SCALPING_EMA` (Trailing EMA 50 en 2M/5M), Trailing de Fibonacci progresivo y `check_time_stop` (4.5h).",
+      "custom_fractal_strategy.py": "Clase orquestadora principal (`CustomFractalStrategy`) con `requires_full_candle = True` y `supports_custom_sizing = True`. Construye y sincroniza en memoria las velas cerradas de `15M`, `1H`, `4H` y `1D` mediante `_TimeframeBucketAggregator` (alineado a UTC sin look-ahead bias) y coordina los módulos 1 a 5 para emitir señales `BUY`, `HOLD`, `PARTIAL_CLOSE`, `FULL_CLOSE` y `UPDATE_SL`."
+    },
+    "strategies_machine_learning": {
+      "ml_evaluator.py": "Orquestador de Walk-Forward y entrenamiento de XGBoost Táctico (Phase 2). Exporta `ml_results.json` que el motor en vivo consume.",
+      "xgboost_classifier.py": "Ingeniería de características (RSI 14, Distancia SMA 20, Volatilidad 10/20) para entrenar un `XGBClassifier` predictivo de calidad de señal.",
+      "hmm_regime.py": "Esqueleto de modelo `GaussianHMM` para separar mercados laterales de tendenciales usando log returns.",
+      "rl_agent.py": "Esqueleto de agente RL (PPO) que reciba el Unrealized PnL y tiempo de operación para decidir: HOLD, CLOSE, o TRAILING STOP dinámico.",
+      "regime_classifier.py": "Clasificador genérico de régimen basado en features técnicos para bloquear/activar estrategias."
+    },
+    "python_tests": {
+      "files": ["test_experiments_v2.py", "test_filters.py", "test_ledger.py", "test_report.py", "test_server.py", "test_strategy_engine.py", "test_walk_forward.py"],
+      "coverage": "Verifica lógica de órdenes límite, dimensionamiento proporcional, filtros de riesgo/coseñal síncronos, manipulaciones CSV seguras y respuestas ZMQ."
+    },
+    "data_and_orders": {
+      "orders/trades.csv": "Ledger. Columnas legadas y de ejecución profunda (signal_price, comisiones desagregadas, residual_quantity, client_order_id).",
+      "orders/signals.csv": "Diario algorítmico (bloqueos y activaciones de filtros en tiempo real).",
+      "machine_learning_strategies/json_results": "`ml_results.json`, `experiments_results.json`, `experiments_v2_results.json`. Criterios guardados por moneda para el entorno de producción."
+    }
+  },
+  "custom_strategies_roadmap": {
+    "directory": "custom_strategies/",
+    "documentation": "custom_strategies/README.md",
+    "module_1_money_management": {
+      "leverage_logic": "El apalancamiento solo reduce el margen colateral, no aumenta el riesgo. Modo: ISOLATED (10x - 20x).",
+      "price_normalization": "Redondeo de niveles de entrada, TP y SL a números planos (.00 o .50) para evitar ruido de micro-ticks.",
+      "position_sizing": "P_USDT = (R_USD / D_SL) * 100. (R_USD = Balance * %Riesgo, D_SL = % distancia entre Entrada y SL).",
+      "scaling": "Multiplicador de DD máximo (M_conservador=0.6, M_agresivo=0.3). Sube de nivel de riesgo si Beneficio_Acumulado >= DD_max * M. Máximo 4 setups simultáneos.",
+      "exit_logic": "3 tramos: TP1 (50%) en máximo/mínimo anterior (~1:1), TP2 (25%) al cerrar vela de 1H contra EMA 50, TP3 (25%) al cerrar vela de 4H contra EMA 50."
+    },
+    "module_2_fractal_multitimeframe": {
+      "1D": "Macro: Rebote en Soporte / Rechazo en Resistencia histórica + Vela de desaceleración y giro.",
+      "4H": "Estructura: Confirmación de BOS (Ruptura de máximo/mínimo anterior HH/HL o LH/LL) + Precio alineado con EMA 50.",
+      "1H": "Zona de Valor: Pullback comprimiendo en figura chartista (cuña/triángulo/canal) hacia Fibo [0.50 - 0.75] + EMA 50. Invalidación estricta si cierra > 0.75.",
+      "5M": "Gatillo: Cambio de estructura micro (BOS) + Ruptura y cierre de vela confirmando sobre EMA 50 y diagonal del patrón.",
+      "stop_loss": "Detrás del siguiente nivel de Fibonacci válido no perforado en 1H (0.618 o 0.75)."
+    },
+    "module_3_live_day_trading": {
+      "timeframes": "Contexto: 4H, 1H, 15M | Ejecución y Gestión Micro: 5M, 2M, 1M.",
+      "indicators": "EMA 50 en todas las temporalidades; SMA 200 (Simple, no Exponencial) en 1H y 5M; MACD en 15M/5M; Volumen en 1M/2M.",
+      "filters": {
+        "SMA200_5M": "Bloqueo anti-fakeout: No entrar si SMA 200 5M está a < 0.5% obstaculizando el trade; exigir ruptura y cierre sobre ambas (EMA 50 + SMA 200).",
+        "pullback_depth": "Descartar pullbacks superficiales que solo tocan EMA 50 5M; exigir que ataquen EMA 50 15M (scalping) o EMA 50 4H / SMA 200 1H (day trading).",
+        "time_stop": "Si tras 4-5 horas la posición se estanca sin romper estructura a favor o antes del cierre diario, mover SL a Break Even (BE) o cerrar."
+      },
+      "execution_modes": {
+        "Plan_A": "Gatillo en 5M con patrón de giro (Doble/Triple Suelo) + Vela Envolvente tras tocar niveles profundos + Ruptura de SMA 200 5M.",
+        "Plan_B": "Gatillo en 2M si la ruptura en 5M se escapa rápido: esperar consolidación horizontal en 2M sobre EMA 50 y entrar en su breakout con SL bajo el último mínimo local de 2M."
+      }
+    },
+    "backtest_and_parity_integration": {
+      "reference_engine_optimize_py": "Actualmente simulate_live() solo pasa {'close': c[i], 'volume': v[i]}, usa NOTIONAL_USDT = 15.0 fijo y cierra el 100% en un único TP/SL estático. Se extenderá con condicionales (requires_full_candle / supports_custom_sizing) para enviar {'open_time', 'open', 'high', 'low', 'close', 'volume'} y simular salidas en 3 tramos (50%/25%/25%) + Trailing EMA 50 + Time-Stop sin alterar los resultados de las 5 estrategias clásicas.",
+      "vectorized_engine_fast_backtest_py": "Extender INTERVAL_MS y resample() para soportar '5m' y '1d' además de '15m', '1h' y '4h'. Añadir métodos vectorizados en FastSymbol para EMA 50 (recursiva con factor alpha = 2/(50+1)), SMA 200 (con _window_sums), detección de fractales/pivotes con sliding_window_view y simulación multicapa, verificando paridad bit a bit con check_parity()."
+    },
+    "completed_roadmap_steps": [
+      "Paso 1 [COMPLETADO] - custom_strategies/risk_manager.py",
+      "Paso 2 [COMPLETADO] - custom_strategies/market_scanner.py",
+      "Paso 3 [COMPLETADO] - custom_strategies/trade_filters.py",
+      "Paso 4 [COMPLETADO] - custom_strategies/entry_trigger.py",
+      "Paso 5 [COMPLETADO] - custom_strategies/position_manager.py",
+      "Paso 6 [COMPLETADO] - custom_strategies/custom_fractal_strategy.py",
+      "Paso 7 [COMPLETADO] - Adaptación de Core Python (strategy_engine.py, config.py, download_data.py, server.py)",      
+      "Paso 8 [COMPLETADO] - Adaptación de Motor Node.js y Ledger (ws-client.ts, execution.ts, ledger.py): Permitir que openPosition() use el quote_usdt dinámico (P_USDT) enviado por Python en lugar del fijo cuando esté presente, y extender manageExistingPosition() / evaluateNewTrade() para ejecutar cierres parciales (PARTIAL_CLOSE 50%/25%), actualización dinámica de Stop Loss (UPDATE_SL Trailing EMA / Break Even) y cierre total por estructura/Time-Stop (FULL_CLOSE).",
+      "Paso 9 [COMPLETADO] - Adaptación de Motores de Backtest y Paridad (optimize.py, fast_backtest.py, walk_forward.py): Actualizar simulate_live() en optimize.py para que pase la vela completa {'open_time', 'open', 'high', 'low', 'close', 'volume'} cuando la estrategia tenga 'requires_full_candle = True' y procese dimensionamiento dinámico (P_USDT), cierres parciales (50%/25%/25%), Trailing EMA y Time-Stop. En fast_backtest.py, ampliar INTERVAL_MS y resample() a '5m' y '1d', añadir cálculo vectorizado de EMA 50 y SMA 200 en FastSymbol, y registrar CustomFractalStrategy en STRATEGY_CLASSES manteniendo el 100% de paridad bit a bit en check_parity()."
+   
+    ],
+    "pending_roadmap_scripts": [
+    ]
+  }
+}

@@ -8,7 +8,7 @@ import { TelegramClient, escapeHtml } from './telegram-client';
 import { config } from '../config/env';
 import {
     EntryCost, Execution, SymbolFilters, floorToStep, formatPrice, formatQty, formatUsdt, isTradable,
-    mergeExecutions, netPnl, sellableQuantity, soldQuantity
+    mergeExecutions, netPnl, partialNetPnl, sellableQuantity, soldQuantity, splitPartialQuantity
 } from './execution';
 
 // Tras un error de orden no se intenta otra compra del mismo simbolo durante este tiempo.
@@ -45,6 +45,16 @@ const RECONNECT_MAX_MS = 60000;
 // el bot dejaría de vigilar los TP/SL en silencio.
 export const STALE_SOCKET_MS = 120000;
 export const STALE_CHECK_MS = 15000;
+// Colchón de Break Even para cubrir comisiones de ida y vuelta al cerrar TP1 parcial (0.20%)
+const DEFAULT_BE_BUFFER_PCT = 0.002;
+
+export interface ExitPlanConfig {
+    mode?: string;
+    tp1_ratio?: number;
+    tp2_ratio?: number;
+    tp3_ratio?: number;
+    time_stop_hours?: number;
+}
 
 export interface Position extends EntryCost {
     symbol: string;
@@ -52,12 +62,15 @@ export interface Position extends EntryCost {
     takeProfit: number;
     stopLoss: number;
     quantity: number;       // cantidad comprada (executedQty)
-    netQuantity: number;    // cantidad en cartera: comprada menos la comisión cobrada en la moneda base
+    netQuantity: number;    // cantidad total atribuida a la posición (comprada menos comisión en moneda base)
     // Salida ya decidida (TP/SL tocado): se completa aunque el precio vuelva al rango, como en el backtest
     exitReason?: string;
     exitTrigger?: number;
-    // Tramos de venta ya ejecutados (salida en varias órdenes): el cierre los suma todos
+    // Tramos de venta ya ejecutados (salida en varias órdenes o cierres parciales): el cierre final los suma todos
     exitParts?: Execution[];
+    // Configuración opcional de cierres parciales (Módulo 1: 50% en TP1, resto por EMA 50 en 1H/4H)
+    partialTp1Ratio?: number;
+    tp1PartialDone?: boolean;
     // newClientOrderId de una venta enviada sin confirmar: antes de vender otra vez se consulta
     unconfirmedSellId?: string;
     // Respuestas "no existe" seguidas de esa venta: se reenvía solo tras agotar LATE_ORDER_RECHECKS_MS
@@ -88,6 +101,8 @@ interface UnresolvedBuy {
     signalPrice: number | null;
     takeProfit: number;
     stopLoss: number;
+    quoteUsdt?: number;
+    exitPlan?: ExitPlanConfig;
     retryAt: number;
     // Respuestas "no existe" seguidas (0: solo sin respuesta). Se cancela al superar LATE_ORDER_RECHECKS_MS.length.
     notFound: number;
@@ -100,6 +115,8 @@ interface BuyIntent {
     signalPrice: number | null;
     takeProfit: number;
     stopLoss: number;
+    quoteUsdt?: number;
+    exitPlan?: ExitPlanConfig;
 }
 
 // Resultado de vender lo que falta: nota para el motivo y motivo si no se vendió nada
@@ -210,8 +227,8 @@ export class BinanceWSClient {
     private watchdog: ReturnType<typeof setInterval> | null = null;
 
     /**
-     * @param tradeQuoteUsdt USDT por operación. Lo da Python en el handshake (optimize.NOTIONAL_USDT): así el
-     *                       vivo compra exactamente el importe que simula el backtest.
+     * @param tradeQuoteUsdt USDT por operación por defecto. Lo da Python en el handshake (optimize.NOTIONAL_USDT).
+     *                       Si una estrategia personalizada envía `signal.quote_usdt`, se usa ese monto dinámico.
      */
     constructor(roster: string[], tradeQuoteUsdt: number, deps: Partial<WSClientDeps> = {}) {
         if (!Number.isFinite(tradeQuoteUsdt) || tradeQuoteUsdt <= 0) {
@@ -389,7 +406,7 @@ export class BinanceWSClient {
         }
 
         // 2. La estrategia solo ve velas CERRADAS (k.x), una vez por vela y simbolo. Tambien con posicion
-        //    abierta, para que su ventana no se congele; en ese caso evaluateNewTrade ignora el BUY.
+        //    abierta, para que su ventana no se congele y pueda emitir PARTIAL_CLOSE / UPDATE_SL / FULL_CLOSE.
         if (kline.x !== true) return;
         const lastSent = this.lastClosedOpenTime.get(symbol);
         if (lastSent !== undefined && openTime <= lastSent) return;
@@ -417,6 +434,31 @@ export class BinanceWSClient {
         // Una salida ya decidida (venta fallida o a medias) se completa con cualquier precio, con su motivo y nivel
         if (position.exitReason === undefined && !hitTp && !hitSl) return;
 
+        // Si toca el TP1 en modo cierres parciales (50% en TP1 + paso a Break Even) y no es un cierre total en curso:
+        if (
+            position.exitReason === undefined &&
+            hitTp &&
+            !hitSl &&
+            position.partialTp1Ratio &&
+            position.partialTp1Ratio > 0 &&
+            position.partialTp1Ratio < 1 &&
+            !position.tp1PartialDone
+        ) {
+            const bePrice = Number((position.entryPrice * (1 + DEFAULT_BE_BUFFER_PCT)).toFixed(8));
+            const newSl = Math.max(position.stopLoss, bePrice);
+            console.log(`\n[PARTIAL TP1 HIT] ${symbol} @ ${currentPrice}. Selling ${position.partialTp1Ratio * 100}% & moving SL to BE (${newSl}).`);
+            await this.executePartialClose(
+                symbol,
+                position,
+                position.partialTp1Ratio,
+                currentPrice,
+                "TP1 PARCIAL (50%) ASEGURADO + SL A BREAK EVEN ✅",
+                newSl,
+                openTime
+            );
+            return;
+        }
+
         // Pausa tras un fallo de venta: solo se adelanta una vez, si el precio cae aun mas bajo el SL
         let override = false;
         const retry = this.closeRetry.get(symbol);
@@ -440,7 +482,7 @@ export class BinanceWSClient {
         }
     }
 
-    private async evaluateNewTrade(symbol: string, marketData: { open_time: number; [k: string]: number }, timestamp: number) {
+    private async evaluateNewTrade(symbol: string, marketData: { open_time: number; close: number; [k: string]: number }, timestamp: number) {
         let signal: any;
         try {
             signal = await this.brain.ask('evaluate', {
@@ -452,7 +494,51 @@ export class BinanceWSClient {
             console.error(`[BRAIN] ${symbol}: no se pudo evaluar la vela:`, error?.message ?? error);
             return;
         }
-        if (signal && signal.action === 'BUY' && this.canOpenPosition(symbol, marketData.open_time)) {
+        if (!signal || !signal.action) return;
+
+        // 1. Señales de gestión dinámica sobre una posición ya abierta (CustomFractalStrategy / PositionManager)
+        const existing = this.activePositions.get(symbol);
+        if (existing && !this.closing.has(symbol) && !existing.startupCheckPending) {
+            if (signal.action === 'UPDATE_SL' && Number.isFinite(Number(signal.new_stop_loss))) {
+                const newSl = Number(signal.new_stop_loss);
+                if (newSl > existing.stopLoss) {
+                    existing.stopLoss = newSl;
+                    await this.ledgerUpdateSl(symbol, existing.orderId, newSl);
+                    console.log(`[TRAILING SL] ${symbol}: Stop Loss actualizado a $${newSl} (${signal.reason ?? 'Trailing'})`);
+                    this.notify(
+                        `🛡️ <b>AJUSTE DE STOP LOSS: ${symbol}</b>\n` +
+                        `🔹 <b>Nuevo SL:</b> $${newSl}\n` +
+                        `ℹ️ <i>${escapeHtml(String(signal.reason ?? 'Trailing Stop'))}</i>`
+                    );
+                }
+                return;
+            }
+            if (signal.action === 'PARTIAL_CLOSE') {
+                const ratio = Number(signal.close_ratio_of_remaining ?? 0.5);
+                const newSl = Number.isFinite(Number(signal.new_stop_loss)) ? Number(signal.new_stop_loss) : undefined;
+                if (ratio > 0 && ratio < 1) {
+                    await this.executePartialClose(
+                        symbol,
+                        existing,
+                        ratio,
+                        marketData.close,
+                        String(signal.reason ?? 'CIERRE PARCIAL ✅'),
+                        newSl,
+                        marketData.open_time
+                    );
+                }
+                return;
+            }
+            if (signal.action === 'FULL_CLOSE') {
+                const reason = String(signal.reason ?? 'CIERRE POR ESTRUCTURA / TIME-STOP ✅');
+                console.log(`\n[BRAIN EXIT] ${symbol} @ ${marketData.close}: ${reason}`);
+                await this.closePosition(symbol, existing, marketData.close, reason, marketData.open_time);
+                return;
+            }
+        }
+
+        // 2. Señal de apertura de nueva posición (BUY)
+        if (signal.action === 'BUY' && this.canOpenPosition(symbol, marketData.open_time)) {
             // Sin niveles numéricos la posición nunca se cerraría
             if (!Number.isFinite(signal.take_profit) || !Number.isFinite(signal.stop_loss)) {
                 console.error(`[SIGNAL] ${symbol}: BUY sin take_profit/stop_loss numéricos, no se opera.`, signal);
@@ -461,6 +547,79 @@ export class BinanceWSClient {
             await this.openPosition(symbol, signal);
         }
     }
+
+    /**
+     * Ejecuta una venta parcial a mercado (ej. 50% en TP1 o 50% del remanente en TP2 por cruce de EMA 50 1H).
+     * El tramo vendido se acumula en `position.exitParts` para que el cierre final calcule el PnL neto total exacto.
+     */
+private async executePartialClose(
+        symbol: string,
+        position: Position,
+        ratioOfRemaining: number,
+        triggerPrice: number,
+        reason: string,
+        newStopLoss?: number,
+        openTime?: number
+    ) {
+        if (this.closing.has(symbol)) return;
+        this.closing.add(symbol);
+        const parts = position.exitParts ?? (position.exitParts = []);
+        try {
+            const filters = await this.rest.getSymbolFilters(symbol);
+            const currentlyRemaining = Math.max(0, position.netQuantity - soldQuantity(parts));
+            const split = splitPartialQuantity(currentlyRemaining, ratioOfRemaining, triggerPrice, filters, NOTIONAL_MARGIN);
+
+            if (!split.canSplit || !(await this.isSellable(symbol, split.sellQtyNum, triggerPrice, filters))) {
+                console.warn(`[PARTIAL] ${symbol}: tramo (${split.sellQty}) o remanente (${split.remainingAfterNum}) bajo el mínimo; se omite fraccionamiento.`);
+                position.tp1PartialDone = true;
+                position.takeProfit = Infinity;
+                if (newStopLoss !== undefined && newStopLoss > position.stopLoss) {
+                    position.stopLoss = newStopLoss;
+                    await this.ledgerUpdateSl(symbol, position.orderId, newStopLoss);
+                }
+                return;
+            }
+
+            const exec = await this.rest.marketSell(symbol, split.sellQty);
+            if (exec.executedQty > 0) {
+                parts.push(exec);
+            }
+            position.tp1PartialDone = true;
+            position.takeProfit = Infinity;
+            if (newStopLoss !== undefined && newStopLoss > position.stopLoss) {
+                position.stopLoss = newStopLoss;
+            }
+
+            const mergedSoFar = mergeExecutions(parts);
+            const newRemainingNet = Math.max(0, position.netQuantity - mergedSoFar.executedQty);
+            const partPnl = partialNetPnl(position, position.netQuantity, exec);
+
+            await this.ledgerPartial(
+                symbol,
+                position.orderId,
+                position.stopLoss,
+                mergedSoFar.executedQty,
+                mergedSoFar.quoteQty,
+                mergedSoFar.fees.totalQuote
+            );
+
+            const px = (value: number) => formatPrice(value, filters.tickSize);
+            console.log(`[PARTIAL FILLED] ${symbol}: vendido ${exec.executedQty} @ $${px(exec.avgPrice)} (${formatUsdt(partPnl)}) | Restante: ${formatQty(newRemainingNet)} | SL: $${px(position.stopLoss)}`);
+            this.notify(
+                `💰 <b>${escapeHtml(reason)}</b>\n` +
+                `🔹 <b>Moneda:</b> ${symbol}\n` +
+                `📦 <b>Vendido:</b> ${formatQty(exec.executedQty)} @ $${px(exec.avgPrice)}\n` +
+                `💵 <b>PnL tramo:</b> ${formatUsdt(partPnl)}\n` +
+                `📊 <b>Restante en posición:</b> ${formatQty(newRemainingNet)} ${filters.baseAsset}\n` +
+                `🛡️ <b>Stop Loss actual:</b> $${px(position.stopLoss)}`
+            );
+        } catch (error: any) {
+            console.error(`[PARTIAL ERROR] ${symbol}: no se pudo ejecutar el cierre parcial:`, binanceError(error).msg);
+        } finally {
+            this.closing.delete(symbol);
+        }
+    }
+
 
     // Una posicion por moneda, como el backtest: el BUY se ignora con posicion abierta (o compra en curso), en la
     // misma vela en la que se cerro la anterior (la senal debe ser posterior a la vela de salida) y durante el
@@ -487,20 +646,25 @@ export class BinanceWSClient {
     }
 
     /**
-     * Compra MARKET por tradeQuoteUsdt. Antes de enviarla se escribe en el ledger una fila PENDING con su
-     * newClientOrderId: si el proceso muere entre la ejecución y el registro, al arrancar se encuentra en Binance.
-     * La posición se registra (la misma fila pasa a OPEN) con lo ejecutado de verdad y con los TP/SL absolutos de la
-     * estrategia. Si la compra queda sin confirmar, se consulta por su newClientOrderId y, si se ejecutó, se adopta.
+     * Compra MARKET por quoteUsdt (el dinámico `signal.quote_usdt` de RiskManager si viene, o `this.tradeQuoteUsdt`).
+     * Antes de enviarla se escribe en el ledger una fila PENDING con su newClientOrderId: si el proceso muere entre
+     * la ejecución y el registro, al arrancar se encuentra en Binance.
      */
     private async openPosition(symbol: string, signal: any) {
         console.log(`\n=========================================`);
         console.log(`[NEW TRADE] Python signal for ${symbol}`);
         this.pendingEntries.set(symbol, []);
+
+        const dynamicQuote = Number(signal.quote_usdt);
+        const orderQuoteUsdt = Number.isFinite(dynamicQuote) && dynamicQuote > 0 ? dynamicQuote : this.tradeQuoteUsdt;
+
         const intent: BuyIntent = {
             clientOrderId: newClientOrderId('BUY'),
             signalPrice: Number.isFinite(signal.entry_price) ? signal.entry_price : null,
             takeProfit: signal.take_profit,
-            stopLoss: signal.stop_loss
+            stopLoss: signal.stop_loss,
+            quoteUsdt: orderQuoteUsdt,
+            exitPlan: signal.exit_plan
         };
 
         let filters: SymbolFilters;
@@ -524,7 +688,7 @@ export class BinanceWSClient {
         let exec: Execution;
         let adopted = false;
         try {
-            exec = await this.rest.marketBuy(symbol, this.tradeQuoteUsdt, signal.entry_price, intent.clientOrderId);
+            exec = await this.rest.marketBuy(symbol, orderQuoteUsdt, signal.entry_price, intent.clientOrderId);
         } catch (error: any) {
             if (!(error instanceof OrderStatusUnknownError || error instanceof OrderNotFoundError)) {
                 // Rechazada (4xx) o no enviada: la orden no existe en Binance
@@ -570,7 +734,7 @@ export class BinanceWSClient {
 
     /** Posición a partir de lo ejecutado de verdad y de los niveles absolutos de la estrategia. */
     private positionFromExecution(symbol: string, exec: Execution, intent: BuyIntent): Position {
-        return {
+        const pos: Position = {
             symbol,
             orderId: exec.orderId,
             entryPrice: exec.avgPrice,
@@ -582,6 +746,11 @@ export class BinanceWSClient {
             entryFeeQuote: exec.fees.totalQuote,
             entryFeeBaseQty: exec.fees.baseQty
         };
+        if (intent.exitPlan && intent.exitPlan.mode === 'SWING_PARCIALES') {
+            pos.partialTp1Ratio = Number(intent.exitPlan.tp1_ratio ?? 0.5);
+            pos.tp1PartialDone = false;
+        }
+        return pos;
     }
 
     /**
@@ -1024,6 +1193,41 @@ export class BinanceWSClient {
         }
     }
 
+    private async ledgerUpdateSl(symbol: string, orderId: number, newStopLoss: number) {
+        try {
+            await this.brain.ask('ledger_update_sl', {
+                order_id: orderId,
+                symbol,
+                stop_loss: newStopLoss
+            });
+        } catch (error: any) {
+            console.error(`[LEDGER] No se pudo actualizar el Stop Loss en el ledger para ${symbol}:`, error?.message ?? error);
+        }
+    }
+
+    private async ledgerPartial(
+        symbol: string,
+        orderId: number,
+        stopLoss: number,
+        soldQty: number,
+        soldQuote: number,
+        soldFeeUsdt: number
+    ) {
+        try {
+            await this.brain.ask('ledger_partial', {
+                order_id: orderId,
+                symbol,
+                stop_loss: stopLoss,
+                take_profit: null,
+                sold_quantity: soldQty,
+                sold_quote: soldQuote,
+                sold_fee_usdt: soldFeeUsdt
+            });
+        } catch (error: any) {
+            console.error(`[LEDGER] No se pudo registrar el cierre parcial en el ledger para ${symbol}:`, error?.message ?? error);
+        }
+    }
+
     private async ledgerClose(payload: Record<string, unknown>) {
         try {
             const result = await this.brain.ask('ledger_close', payload);
@@ -1263,7 +1467,14 @@ export class BinanceWSClient {
         const remaining = parseFloat(floorToStep(position.netQuantity - soldQuantity(position.exitParts), f.stepSize));
         const price = await this.currentPrice(symbol, position.entryPrice);
         if (await this.isSellable(symbol, remaining, price, f)) {
-            // La salida ya estaba en marcha antes del reinicio: se completa con el primer precio
+            // Si takeProfit es Infinity (take_profit vacío en el ledger tras record_partial_exit), las ventas previas
+            // son tramos parciales (TP1/TP2): se conservan en exitParts y la posición sigue abierta esperando SL o TP3.
+            if (!Number.isFinite(position.takeProfit)) {
+                position.tp1PartialDone = true;
+                console.log(`[SYNC] ${symbol}: cierre parcial previo recuperado (${sold} ${f.baseAsset} vendidos); continúa abierta por ${remaining} ${f.baseAsset}.`);
+                return true;
+            }
+            // La salida total ya estaba en marcha antes del reinicio: se completa con el primer precio
             console.warn(`[SYNC] ${symbol}: ya se vendieron ${sold} ${f.baseAsset} de la posición; se vende el resto (${remaining}).`);
             position.exitReason = 'SALIDA EN CURSO (iniciada antes de arrancar)';
             return true;
